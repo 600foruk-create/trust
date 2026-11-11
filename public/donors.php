@@ -205,6 +205,8 @@ if ($hasFundRestriction) {
 }
 $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
 $madrasaPhone = get_setting('madrasa_phone', '');
+$madrasaAddress = get_setting('madrasa_address', '');
+$orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 
 // Tab Navigation & Monthly Pledges / Kafalat Tracker (Feature #1)
 $currentTab = trim($_GET['tab'] ?? 'directory'); // 'directory' or 'pledges'
@@ -214,6 +216,17 @@ if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
 }
 $filterPledgeFund = isset($_GET['pledge_fund_id']) ? (int)$_GET['pledge_fund_id'] : 0;
 $filterPledgeStatus = in_array($_GET['pledge_status'] ?? '', ['all', 'pending', 'paid'], true) ? $_GET['pledge_status'] : 'all';
+
+// Pre-calculate selected fund name for header/prints
+$currFundName = '';
+if ($filterPledgeFund > 0) {
+    foreach ($funds as $f) {
+        if ((int)$f['id'] === $filterPledgeFund) {
+            $currFundName = $f['name'];
+            break;
+        }
+    }
+}
 
 // Fetch active pledgers
 $pledgeQuery = "SELECT d.*, f.name AS fund_name, f.fund_code, pf.name AS pledge_fund_name,
@@ -371,7 +384,15 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
     <link rel="stylesheet" href="assets/style.css?v=<?=css_ver()?>">
     <style>
         @media print {
-            .app-top-header, .sidebar, .app-sidebar, nav, .topbar, .tab-nav, .filter-form-wrap, .no-print, .action-col, footer, .app-footer, .header-pending-pill {
+            @page {
+                size: A4 portrait;
+                margin: 10mm 10mm 14mm 10mm;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .app-top-header, .sidebar, .app-sidebar, nav, .topbar, .tab-nav, .filter-form-wrap, .no-print, .action-col, footer, .app-footer, .header-pending-pill, .panel-heading {
                 display: none !important;
             }
             .print-only {
@@ -383,39 +404,65 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                 margin: 0 !important;
                 padding: 0 !important;
                 width: 100% !important;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", Tahoma, Arial, sans-serif !important;
             }
             .panel {
                 border: none !important;
                 box-shadow: none !important;
                 padding: 0 !important;
                 margin: 0 !important;
+                background: transparent !important;
             }
             .stats-grid {
                 display: none !important;
             }
             .table-wrap {
                 overflow: visible !important;
+                max-width: 100% !important;
             }
             table {
                 width: 100% !important;
                 border-collapse: collapse !important;
                 margin-top: 10px;
+                font-size: 10.5px !important;
+            }
+            table thead {
+                display: table-header-group !important;
+            }
+            table tfoot {
+                display: table-footer-group !important;
+            }
+            table tr {
+                page-break-inside: avoid !important;
             }
             table th, table td {
-                border: 1px solid #94a3b8 !important;
-                padding: 6px 8px !important;
+                border: 1px solid #334155 !important;
+                padding: 5px 6px !important;
                 color: #000000 !important;
-                font-size: 11px !important;
             }
             table th {
+                background: #0f172a !important;
+                color: #ffffff !important;
+                font-weight: 700 !important;
+                font-size: 10.5px !important;
+            }
+            table tbody tr:nth-child(even) td {
+                background: #f8fafc !important;
+            }
+            table tfoot tr {
                 background: #f1f5f9 !important;
-                color: #0f172a !important;
+                font-weight: 800 !important;
+                border-top: 2px solid #0f172a !important;
             }
             .badge {
-                border: 1px solid #cbd5e1 !important;
-                padding: 2px 6px !important;
+                border: 1px solid #94a3b8 !important;
+                padding: 2px 5px !important;
                 color: #000000 !important;
                 background: transparent !important;
+                font-size: 9.5px !important;
+            }
+            .sign-block {
+                page-break-inside: avoid !important;
             }
         }
         .print-only {
@@ -756,42 +803,75 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
         </article>
         <?php elseif ($currentTab === 'pledges'): ?>
             <!-- Official Print / PDF Header (Visible only when printed or exported to PDF) -->
-            <div class="print-only" style="margin-bottom:20px;text-align:center;border-bottom:2px solid #0f172a;padding-bottom:14px;">
-                <?php if ($orgLogo): ?>
-                    <img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:55px;margin-bottom:6px;object-fit:contain;">
-                <?php endif; ?>
-                <h2 style="margin:0 0 4px;font-size:22px;color:#0f172a;"><?=e($madrasaName)?></h2>
-                <h3 style="margin:0 0 4px;font-size:16px;color:#1e40af;">
-                    Monthly Pledges &amp; Kafalat Statement <span class="ur">(ماہانہ کفالت و اقساط رپورٹ)</span>
-                </h3>
-                <p style="margin:0;font-size:12px;color:#475569;">
-                    Month: <b><?=date('F Y', strtotime($selectedMonth . '-01'))?></b>
-                    <?php if ($filterPledgeFund > 0 && !empty($currFundName)): ?>
-                        &nbsp;|&nbsp; Category: <b><?=e($currFundName)?></b>
-                    <?php endif; ?>
-                    <?php if ($filterPledgeStatus !== 'all'): ?>
-                        &nbsp;|&nbsp; Status: <b><?=ucfirst($filterPledgeStatus)?></b>
-                    <?php endif; ?>
-                    &nbsp;|&nbsp; Printed: <b><?=date('d M Y, h:i A')?></b>
-                </p>
-            </div>
+            <div class="print-only print-header-box" style="border:1.5px solid #0f172a;border-radius:6px;padding:16px 20px;margin-bottom:16px;background:#ffffff;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0f172a;padding-bottom:12px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <?php if ($orgLogo): ?>
+                            <img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:55px;max-width:110px;object-fit:contain;">
+                        <?php endif; ?>
+                        <div>
+                            <h1 style="margin:0;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;line-height:1.2;"><?=e($madrasaName)?></h1>
+                            <div style="font-size:11.5px;color:#475569;margin-top:3px;">
+                                <?php if (!empty($madrasaAddress)): ?>
+                                    <span><?=e($madrasaAddress)?></span>
+                                <?php endif; ?>
+                                <?php if (!empty($madrasaPhone)): ?>
+                                    <span> &bull; 📞 <?=e($madrasaPhone)?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="display:inline-block;background:#0f172a;color:#ffffff;padding:5px 14px;font-size:12.5px;font-weight:700;border-radius:4px;text-transform:uppercase;letter-spacing:0.4px;">
+                            Monthly Pledges &amp; Kafalat Statement
+                        </div>
+                        <div style="font-size:12px;color:#0f172a;font-weight:700;margin-top:4px;" class="ur">
+                            ماہانہ کفالت و اقساط تفصیلی رپورٹ
+                        </div>
+                    </div>
+                </div>
 
-            <!-- Print-Only KPI Summary Cards -->
-            <div class="print-only" style="margin-bottom:20px;">
-                <div style="display:flex;justify-content:space-between;gap:12px;">
-                    <div style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:8px 12px;text-align:center;">
-                        <div style="font-size:11px;color:#64748b;font-weight:600;">Monthly Target (ماہانہ ہدف)</div>
-                        <div style="font-size:16px;font-weight:800;color:#1e293b;margin-top:2px;"><?=money($totalMonthlyPledged)?></div>
-                        <div style="font-size:10.5px;color:#64748b;"><?=count($activePledgers)?> active pledgers</div>
+                <!-- Print Metadata Row -->
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:#334155;background:#f8fafc;padding:7px 12px;border-radius:4px;border:1px solid #e2e8f0;">
+                    <div>
+                        <strong>Billing Month:</strong> <span style="color:#0f172a;font-weight:700;"><?=date('F Y', strtotime($selectedMonth . '-01'))?></span> (<?=date('m/Y', strtotime($selectedMonth . '-01'))?>)
+                        <?php if ($filterPledgeFund > 0 && !empty($currFundName)): ?>
+                            &nbsp;|&nbsp; <strong>Category / Fund:</strong> <span style="color:#0284c7;font-weight:700;"><?=e($currFundName)?></span>
+                        <?php elseif ($filterPledgeFund === -1): ?>
+                            &nbsp;|&nbsp; <strong>Category / Fund:</strong> <span style="color:#0284c7;font-weight:700;">Unassigned (عام)</span>
+                        <?php endif; ?>
+                        <?php if ($filterPledgeStatus !== 'all'): ?>
+                            &nbsp;|&nbsp; <strong>Status:</strong> <span style="font-weight:700;"><?=ucfirst($filterPledgeStatus)?></span>
+                        <?php endif; ?>
                     </div>
-                    <div style="flex:1;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:6px;padding:8px 12px;text-align:center;">
-                        <div style="font-size:11px;color:#166534;font-weight:600;">Received (موصول شدہ)</div>
-                        <div style="font-size:16px;font-weight:800;color:#15803d;margin-top:2px;"><?=money($totalMonthlyReceived)?></div>
+                    <div style="text-align:right;">
+                        <strong>Printed:</strong> <?=date('d M Y, h:i A')?> | <strong>By:</strong> <?=e($currentUser['name'] ?? 'Admin')?>
                     </div>
-                    <div style="flex:1;border:1px solid #fecaca;background:#fef2f2;border-radius:6px;padding:8px 12px;text-align:center;">
-                        <div style="font-size:11px;color:#991b1b;font-weight:600;">Due / Pending (بقایا)</div>
-                        <div style="font-size:16px;font-weight:800;color:#b91c1c;margin-top:2px;"><?=money($totalMonthlyPending)?></div>
-                        <div style="font-size:10.5px;color:#991b1b;"><?=$totalPendingPledgers?> pending</div>
+                </div>
+
+                <!-- Print-Only KPI Summary Strip -->
+                <div style="display:flex;gap:10px;margin-top:12px;">
+                    <div style="flex:1;border:1px solid #cbd5e1;border-radius:4px;padding:6px 10px;text-align:center;background:#ffffff;">
+                        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Total Pledgers <span class="ur">(کل معاونین)</span></div>
+                        <div style="font-size:15px;font-weight:800;color:#0f172a;margin-top:2px;"><?=count($activePledgers)?> Patrons</div>
+                    </div>
+                    <div style="flex:1;border:1px solid #cbd5e1;border-radius:4px;padding:6px 10px;text-align:center;background:#ffffff;">
+                        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Target <span class="ur">(ماہانہ ہدف)</span></div>
+                        <div style="font-size:15px;font-weight:800;color:#0f172a;margin-top:2px;"><?=money($totalMonthlyPledged)?></div>
+                    </div>
+                    <div style="flex:1;border:1px solid #86efac;border-radius:4px;padding:6px 10px;text-align:center;background:#f0fdf4;">
+                        <div style="font-size:10px;color:#166534;font-weight:700;text-transform:uppercase;">Received <span class="ur">(موصول شدہ)</span></div>
+                        <div style="font-size:15px;font-weight:800;color:#15803d;margin-top:2px;"><?=money($totalMonthlyReceived)?></div>
+                    </div>
+                    <div style="flex:1;border:1px solid #fca5a5;border-radius:4px;padding:6px 10px;text-align:center;background:#fef2f2;">
+                        <div style="font-size:10px;color:#991b1b;font-weight:700;text-transform:uppercase;">Due / Pending <span class="ur">(بقایا)</span></div>
+                        <div style="font-size:15px;font-weight:800;color:#b91c1c;margin-top:2px;"><?=money($totalMonthlyPending)?></div>
+                    </div>
+                    <div style="flex:1;border:1px solid #cbd5e1;border-radius:4px;padding:6px 10px;text-align:center;background:#ffffff;">
+                        <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Recovery <span class="ur">(وصولی شرح)</span></div>
+                        <div style="font-size:15px;font-weight:800;color:#0f172a;margin-top:2px;">
+                            <?=$totalMonthlyPledged > 0 ? round(($totalMonthlyReceived / $totalMonthlyPledged) * 100, 1) : 0?>%
+                        </div>
                     </div>
                 </div>
             </div>
@@ -920,29 +1000,67 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                         <table>
                             <thead>
                                 <tr>
+                                    <th style="width:36px;text-align:center;">#</th>
                                     <th>Donor Name</th>
                                     <th>Phone / WhatsApp</th>
                                     <th>Dedicated Fund / Purpose</th>
-                                    <th>Expected Day</th>
-                                    <th>Monthly Pledge</th>
-                                    <th>Paid (<?=date('M Y', strtotime($selectedMonth . '-01'))?>)</th>
-                                    <th>Status</th>
+                                    <th style="text-align:center;">Expected Day</th>
+                                    <th class="right">Monthly Pledge</th>
+                                    <th class="right">Paid (<?=date('M Y', strtotime($selectedMonth . '-01'))?>)</th>
+                                    <th class="right">Due / Pending</th>
+                                    <th style="text-align:center;">Status</th>
                                     <th class="right no-print">Action &amp; Follow-up</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($activePledgers as $pl): 
-                                    $isPaid = ((float)$pl['paid_this_month'] >= (float)$pl['pledge_amount']);
-                                    $cleanPhone = preg_replace('/[^0-9]/', '', (string)$pl['phone']);
-                                    if (strpos($cleanPhone, '0') === 0) {
-                                        $cleanPhone = '92' . substr($cleanPhone, 1);
+                                <?php 
+                                $srNum = 1;
+                                foreach ($activePledgers as $pl): 
+                                    $pAmt = (float)$pl['pledge_amount'];
+                                    $paidAmt = (float)$pl['paid_this_month'];
+                                    $dueAmt = max(0, $pAmt - $paidAmt);
+                                    $isPaid = ($paidAmt >= $pAmt);
+
+                                    $cleanPhone = normalize_pakistan_phone($pl['phone'] ?? '');
+                                    if (empty($cleanPhone)) {
+                                        $cleanPhone = preg_replace('/[^0-9]/', '', (string)$pl['phone']);
+                                        if (strpos($cleanPhone, '0') === 0) {
+                                            $cleanPhone = '92' . substr($cleanPhone, 1);
+                                        }
                                     }
+
                                     $monthNameUrdu = date('F Y', strtotime($selectedMonth . '-01'));
-                                    $remText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\nمحترم " . $pl['donor_name'] . " صاحب!\n" . $madrasaName . " کی جانب سے دلی دعا اور نیک تمنائیں قبول فرمائیں۔\n\nآپ کی جانب سے مقررہ ماہانہ تعاون / کفالت برائے ماہ (" . $monthNameUrdu . ") رقم: " . money($pl['pledge_amount']) . " کا شائستہ یاد دہانی پیغام ارسال خدمت ہے۔\n\nاگر آپ یہ رقم ادا فرما چکے ہیں تو برائے مہربانی رسید یا اسکرین شاٹ اس نمبر پر ارسال فرما دیں تاکہ ریکارڈ اپ ڈیٹ کیا جا سکے۔\n\nجزاکم اللہ خیراً و احسن الجزاء\n" . $madrasaName . (!empty($madrasaPhone) ? "\nرابطہ: " . $madrasaPhone : "");
-                                    $waUrl = "https://wa.me/{$cleanPhone}?text=" . urlencode($remText);
+                                    $fundName = trim($pl['pledge_fund_name'] ?: ($pl['fund_name'] ?: ''));
+                                    $fundPart = !empty($fundName) ? " برائے فنڈ (" . $fundName . ")" : "";
+
+                                    $amountUrdu = money($pAmt);
+                                    if ($paidAmt > 0 && $dueAmt > 0) {
+                                        $amountUrdu = money($pAmt) . " (موصول: " . money($paidAmt) . "، بقیہ واجب الادا: " . money($dueAmt) . ")";
+                                    }
+
+                                    if ($isPaid) {
+                                        $remText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" .
+                                                   "محترم " . $pl['donor_name'] . " صاحب!\n" .
+                                                   $madrasaName . " کی جانب سے دلی دعا اور نیک تمنائیں قبول فرمائیں۔\n\n" .
+                                                   "آپ کی جانب سے مقررہ ماہانہ تعاون / کفالت" . $fundPart . " برائے ماہ (" . $monthNameUrdu . ") رقم: " . money($pAmt) . " بحمداللہ موصول ہو چکی ہے۔ آپ کے اس پرخلوص تعاون کے لیے ہم تہہ دل سے شکر گزار ہیں۔\n\n" .
+                                                   "اللہ تعالیٰ آپ کے جان و مال میں برکت عطا فرمائے اور اس صدقہ جاریہ کو اپنی بارگاہ میں قبول فرمائے۔ آمین\n\n" .
+                                                   "جزاکم اللہ خیراً و احسن الجزاء\n" .
+                                                   $madrasaName . (!empty($madrasaPhone) ? "\nرابطہ: " . $madrasaPhone : "");
+                                    } else {
+                                        $remText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" .
+                                                   "محترم " . $pl['donor_name'] . " صاحب!\n" .
+                                                   $madrasaName . " کی جانب سے دلی دعا اور نیک تمنائیں قبول فرمائیں۔\n\n" .
+                                                   "آپ کی جانب سے مقررہ ماہانہ تعاون / کفالت" . $fundPart . " برائے ماہ (" . $monthNameUrdu . ") رقم: " . $amountUrdu . " کا شائستہ یاد دہانی پیغام ارسال خدمت ہے۔\n\n" .
+                                                   "اگر آپ یہ رقم ادا فرما چکے ہیں تو برائے مہربانی رسید یا اسکرین شاٹ اس نمبر پر ارسال فرما دیں تاکہ ریکارڈ اپ ڈیٹ کیا جا سکے۔\n\n" .
+                                                   "جزاکم اللہ خیراً و احسن الجزاء\n" .
+                                                   $madrasaName . (!empty($madrasaPhone) ? "\nرابطہ: " . $madrasaPhone : "");
+                                    }
+
+                                    $waUrl = "https://api.whatsapp.com/send?phone={$cleanPhone}&text=" . urlencode($remText);
                                     $fundToUse = $pl['pledge_fund_id'] ?: $pl['fund_id'];
                                 ?>
                                     <tr>
+                                        <td style="text-align:center;color:#64748b;font-size:11px;"><?= $srNum++ ?></td>
                                         <td>
                                             <b><?=e($pl['donor_name'])?></b>
                                             <?php if ($pl['pledge_notes']): ?>
@@ -955,12 +1073,15 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                 <?=e($pl['pledge_fund_name'] ?: ($pl['fund_name'] ?: 'General'))?>
                                             </span>
                                         </td>
-                                        <td><span class="badge badge-gray"><?= (int)$pl['pledge_day'] ?>th of month</span></td>
-                                        <td class="font-bold" style="color:#1e293b;"><?=money($pl['pledge_amount'])?></td>
-                                        <td class="font-bold" style="color:<?=$isPaid ? '#15803d' : '#b91c1c'?>;">
-                                            <?=money($pl['paid_this_month'])?>
+                                        <td style="text-align:center;"><span class="badge badge-gray"><?= (int)$pl['pledge_day'] ?>th of month</span></td>
+                                        <td class="font-bold right" style="color:#1e293b;"><?=money($pAmt)?></td>
+                                        <td class="font-bold right" style="color:<?=$isPaid ? '#15803d' : '#b91c1c'?>;">
+                                            <?=money($paidAmt)?>
                                         </td>
-                                        <td>
+                                        <td class="font-bold right" style="color:<?=$dueAmt > 0 ? '#b91c1c' : '#15803d'?>;">
+                                            <?=money($dueAmt)?>
+                                        </td>
+                                        <td style="text-align:center;">
                                             <?php if ($isPaid): ?>
                                                 <span class="badge" style="background:#dcfce7;color:#15803d;font-weight:700;font-size:11px;padding:3px 8px;border-radius:12px;">
                                                     ✓ Paid (ادا شدہ)
@@ -973,7 +1094,7 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         </td>
                                         <td class="right no-print" style="white-space:nowrap;">
                                             <div style="display:inline-flex;align-items:center;gap:6px;">
-                                                <a href="income.php?donor_id=<?=$pl['id']?>&amount=<?=$pl['pledge_amount']?>&fund_id=<?=$fundToUse?>&desc=<?=urlencode('ماہانہ کفالت برائے ماہ ' . $monthNameUrdu)?>" class="btn success sm" style="background:#15803d;color:#fff;padding:4px 9px;font-size:11.5px;font-weight:700;text-decoration:none;border-radius:4px;" title="Receive this month's pledge">
+                                                <a href="income.php?donor_id=<?=$pl['id']?>&amount=<?=$pAmt?>&fund_id=<?=$fundToUse?>&desc=<?=urlencode('ماہانہ کفالت برائے فنڈ ' . ($fundName ?: 'جنرل') . ' بابت ماہ ' . $monthNameUrdu)?>" class="btn success sm" style="background:#15803d;color:#fff;padding:4px 9px;font-size:11.5px;font-weight:700;text-decoration:none;border-radius:4px;" title="Receive this month's pledge">
                                                     💰 Receive
                                                 </a>
                                                 <?php if (!empty($cleanPhone)): ?>
@@ -996,27 +1117,44 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                             </tbody>
                             <tfoot>
                                 <tr style="background:#f8fafc;font-weight:800;border-top:2px solid #cbd5e1;">
-                                    <td colspan="4" style="text-align:right;">
+                                    <td colspan="5" style="text-align:right;">
                                         Total (کل خلاصہ و میزان):
                                     </td>
-                                    <td class="font-bold" style="color:#1e293b;"><?=money($totalMonthlyPledged)?></td>
-                                    <td class="font-bold" style="color:#15803d;"><?=money($totalMonthlyReceived)?></td>
-                                    <td class="font-bold" style="color:#b91c1c;"><?=money($totalMonthlyPending)?></td>
+                                    <td class="font-bold right" style="color:#1e293b;"><?=money($totalMonthlyPledged)?></td>
+                                    <td class="font-bold right" style="color:#15803d;"><?=money($totalMonthlyReceived)?></td>
+                                    <td class="font-bold right" style="color:#b91c1c;"><?=money($totalMonthlyPending)?></td>
+                                    <td style="text-align:center;font-size:11.5px;color:#0f172a;">
+                                        <?=$totalMonthlyPledged > 0 ? round(($totalMonthlyReceived / $totalMonthlyPledged) * 100, 1) : 0?>% Rec.
+                                    </td>
                                     <td class="no-print"></td>
                                 </tr>
                             </tfoot>
                         </table>
 
                         <!-- Official Signature Block (Visible only when printed or exported to PDF) -->
-                        <div class="print-only" style="margin-top:45px;display:flex;justify-content:space-between;padding:0 20px;">
-                            <div style="text-align:center;min-width:160px;border-top:1px dashed #0f172a;padding-top:6px;font-size:11.5px;font-weight:600;">
-                                Prepared By <span class="ur">(تیار کنندہ)</span>
+                        <div class="print-only sign-block" style="margin-top:40px;page-break-inside:avoid;">
+                            <div style="display:flex;justify-content:space-between;padding:0 30px;">
+                                <div style="text-align:center;min-width:160px;">
+                                    <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
+                                        Prepared By <span class="ur">(تیار کنندہ)</span>
+                                    </div>
+                                    <div style="font-size:10px;color:#64748b;margin-top:2px;"><?=e($currentUser['name'] ?? 'Admin')?></div>
+                                </div>
+                                <div style="text-align:center;min-width:160px;">
+                                    <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
+                                        Accountant / Cashier <span class="ur">(اکاؤنٹنٹ / خزانچی)</span>
+                                    </div>
+                                    <div style="font-size:10px;color:#64748b;margin-top:2px;">Accounts Dept</div>
+                                </div>
+                                <div style="text-align:center;min-width:160px;">
+                                    <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
+                                        Director / Mohtamim <span class="ur">(مہتمم / صدر / مجاز دستخط)</span>
+                                    </div>
+                                    <div style="font-size:10px;color:#64748b;margin-top:2px;">Official Seal &amp; Signature</div>
+                                </div>
                             </div>
-                            <div style="text-align:center;min-width:160px;border-top:1px dashed #0f172a;padding-top:6px;font-size:11.5px;font-weight:600;">
-                                Accountant / Cashier <span class="ur">(اکاؤنٹنٹ)</span>
-                            </div>
-                            <div style="text-align:center;min-width:160px;border-top:1px dashed #0f172a;padding-top:6px;font-size:11.5px;font-weight:600;">
-                                Director / Incharge <span class="ur">(دستخط مجاز اتھارٹی)</span>
+                            <div style="text-align:center;margin-top:24px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:6px;">
+                                Computer Generated Official Statement &bull; <?=e($madrasaName)?> &bull; Printed: <?=date('d-m-Y H:i:s')?>
                             </div>
                         </div>
                     </div>

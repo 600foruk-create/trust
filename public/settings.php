@@ -428,11 +428,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             // Handle New Logo Upload
             if (isset($_FILES['org_logo']) && $_FILES['org_logo']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['org_logo'];
-                $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'svg'];
+                $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
                 $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
                 if (!in_array($ext, $allowedExtensions, true)) {
-                    throw new RuntimeException('ناقص تصویر! لوگو کے لیے صرف PNG, JPG, JPEG, WebP یا SVG فائلز اپ لوڈ کریں۔');
+                    throw new RuntimeException('ناقص تصویر! لوگو کے لیے صرف PNG, JPG, JPEG یا WebP فائلز اپ لوڈ کریں۔');
                 }
 
                 if ($file['size'] > 4 * 1024 * 1024) {

@@ -39,7 +39,15 @@ if (isset($_GET['delete_id'])) {
                     }
                     $stmtDel = $pdo->prepare('DELETE FROM donors WHERE id = ?');
                     $stmtDel->execute([$delId]);
-                    header('Location: donors.php?success=deleted');
+                    
+                    $redirectUrl = 'donors.php?success=deleted';
+                    if (isset($_GET['tab']) && $_GET['tab'] === 'pledges') {
+                        $redirectUrl .= '&tab=pledges';
+                        if (!empty($_GET['month'])) {
+                            $redirectUrl .= '&month=' . urlencode($_GET['month']);
+                        }
+                    }
+                    header('Location: ' . $redirectUrl);
                     exit;
                 }
             } catch (Exception $e) {
@@ -680,6 +688,11 @@ $totalMonthlyPending = max(0, $totalMonthlyPledged - $totalMonthlyReceived);
                                                 <a href="donors.php?edit_id=<?=$pl['id']?>#donorFormCard" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;" title="Edit Donor">
                                                     ✏️
                                                 </a>
+                                                <?php if (has_permission('donors.manage')): ?>
+                                                    <a href="donors.php?tab=pledges&month=<?=urlencode($selectedMonth)?>&delete_id=<?=$pl['id']?>&token=<?=csrf_token()?>" class="btn danger sm" style="padding:4px 8px;font-size:11.5px;" onclick="return confirm('Are you sure you want to delete donor \'<?=e(addslashes($pl['donor_name']))?>\'?');" title="Delete Donor">
+                                                        🗑️
+                                                    </a>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>

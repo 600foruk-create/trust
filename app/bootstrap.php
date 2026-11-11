@@ -45,8 +45,9 @@ try {
         . '</div>');
 }
 
-// Auto-seed madrasa accounts & Ensure roles & attachments schema
-try {
+// Auto-seed madrasa accounts & Ensure roles & attachments schema (version-cached to avoid 30+ DDL queries on every page request)
+function run_schema_and_seed_migrations(PDO $pdo): void {
+    try {
     $tableCheck = $pdo->query("SHOW TABLES LIKE 'accounts'")->fetch();
     if ($tableCheck) {
         $incomeCount = (int)$pdo->query("SELECT COUNT(*) FROM accounts WHERE account_type = 'income'")->fetchColumn();
@@ -634,9 +635,24 @@ try {
     $commonCodes = ['1000','1010','3000','4000','4010','4020','4030','5000','5030','5060','5070'];
     $inCommon = "'" . implode("','", $commonCodes) . "'";
     $pdo->exec("UPDATE accounts SET scope = 'all' WHERE account_code IN ({$inCommon})");
-    $pdo->exec("UPDATE accounts SET scope = 'all' WHERE is_cash_or_bank = 1 OR user_id IS NOT NULL");
-} catch (Exception $e) {
-    // Non-blocking
+        $pdo->exec("UPDATE accounts SET scope = 'all' WHERE is_cash_or_bank = 1 OR user_id IS NOT NULL");
+    } catch (Exception $e) {
+        // Non-blocking
+    }
+}
+
+// Auto-seed and schema migrations: version-cached to prevent heavy DDL on every page request
+try {
+    $schemaVer = get_setting('schema_version', '');
+    if ($schemaVer !== '2.5') {
+        run_schema_and_seed_migrations($pdo);
+        set_setting('schema_version', '2.5');
+    }
+} catch (Throwable $e) {
+    try {
+        run_schema_and_seed_migrations($pdo);
+        set_setting('schema_version', '2.5');
+    } catch (Throwable $ex) {}
 }
 
 if (!function_exists('get_user_assigned_fund_ids')) {

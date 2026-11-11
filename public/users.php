@@ -399,6 +399,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // 5. HANDLE TOGGLE STATUS
 // ==========================================
 if (isset($_GET['toggle_id'])) {
+    $token = $_GET['token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+        header('Location: users.php?error=invalid_token');
+        exit;
+    }
     $toggleId = (int)$_GET['toggle_id'];
     if ($toggleId !== $currentUserId) {
         if ($isRegDirector && !$isSuperAdmin) {
@@ -1074,7 +1079,7 @@ if ($editUser) {
                                             </a>
 
                                             <?php if ((int)$u['id'] !== $currentUserId): ?>
-                                                <a href="users.php?toggle_id=<?=$u['id']?>" class="btn secondary sm" style="padding:4px 9px;font-size:11.5px;">
+                                                <a href="users.php?toggle_id=<?=$u['id']?>&token=<?=csrf_token()?>" class="btn secondary sm" style="padding:4px 9px;font-size:11.5px;">
                                                     <?=(int)$u['is_active'] === 1 ? 'Deactivate' : 'Activate'?>
                                                 </a>
                                                 <a href="users.php?delete_id=<?=$u['id']?>&token=<?=csrf_token()?>" class="btn danger sm" style="padding:4px 9px;font-size:11.5px;" onclick="return confirm('Are you sure you want to delete user \'<?=e($u['username'])?>\'?');">

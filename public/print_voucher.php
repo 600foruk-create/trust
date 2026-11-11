@@ -28,6 +28,23 @@ if (!$voucher) {
     exit('Voucher not found.');
 }
 
+// Access Control & IDOR Protection:
+$currUser = current_user();
+$currUserId = (int)($currUser['id'] ?? 0);
+$isSuperAdmin = function_exists('is_super_admin') ? is_super_admin($currUser) : in_array($currUser['role'] ?? '', ['Super Admin', 'Administrator'], true);
+
+if (!$isSuperAdmin && $currUserId !== (int)$voucher['created_by']) {
+    $userRegionId = function_exists('get_user_region_id') ? get_user_region_id($currUserId) : 0;
+    if ($userRegionId > 0 && !empty($voucher['region_id']) && (int)$voucher['region_id'] !== $userRegionId) {
+        http_response_code(403);
+        exit('Access Denied: You do not have permission to view or print vouchers from another province/region.');
+    }
+    if (!empty($voucher['fund_id']) && function_exists('is_fund_allowed_for_user') && !is_fund_allowed_for_user((int)$voucher['fund_id'], $currUser)) {
+        http_response_code(403);
+        exit('Access Denied: You do not have permission to view or print vouchers for this fund.');
+    }
+}
+
 $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
 $madrasaAddress = get_setting('madrasa_address', '');
 $madrasaPhone = get_setting('madrasa_phone', '');

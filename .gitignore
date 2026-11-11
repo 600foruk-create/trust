@@ -1,0 +1,20 @@
+# Database configuration & credentials
+config/config.php
+
+# Database SQL Backups
+storage/backups/*.sql
+
+# Uploaded files
+public/uploads/logo/logo_*
+public/uploads/receipts/*
+!public/uploads/receipts/.gitignore
+!public/uploads/receipts/.htaccess
+public/uploads/tasks/*
+!public/uploads/tasks/.gitignore
+!public/uploads/tasks/.htaccess
+
+# Environment and OS files
+.DS_Store
+Thumbs.db
+*.log
+

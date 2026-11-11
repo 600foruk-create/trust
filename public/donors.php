@@ -817,9 +817,10 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
 
             <!-- Pledges Month Selector & Table Panel -->
             <article class="panel">
-                <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+                <!-- Panel Header with Title on Left and Export/Print Buttons on Right (Exact User Request) -->
+                <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;border-bottom:1px solid #f1f5f9;padding-bottom:14px;">
                     <div>
-                        <h3 style="margin:0 0 4px;">Monthly Pledges &amp; Kafalat Tracker <span class="ur">(ماہانہ کفالت و اقساط ٹریکر)</span></h3>
+                        <h3 style="margin:0 0 4px;font-size:18px;color:#0f172a;">Monthly Pledges &amp; Kafalat Tracker <span class="ur">(ماہانہ کفالت و اقساط ٹریکر)</span></h3>
                         <p style="margin:0;font-size:12.5px;color:#64748b;">
                             Track regular donor contributions, sponsorship commitments, and follow up
                             <?php if ($filterPledgeFund > 0): ?>
@@ -838,7 +839,29 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                             <?php endif; ?>
                         </p>
                     </div>
-                    <form method="get" style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+
+                    <!-- Excel, PDF & Print Actions Toolbar (Top Right Corner) -->
+                    <div class="no-print" style="display:inline-flex;align-items:center;gap:8px;">
+                        <!-- Excel Export Button -->
+                        <a href="donors.php?tab=pledges&export=excel&month=<?=urlencode($selectedMonth)?>&pledge_fund_id=<?=$filterPledgeFund?>&pledge_status=<?=urlencode($filterPledgeStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:6px 14px;font-size:12.5px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);" title="Export filtered list to Excel (.CSV)">
+                            📊 Excel <span class="ur">(ایکسل)</span>
+                        </a>
+
+                        <!-- PDF Button -->
+                        <button type="button" onclick="printPledges('pdf')" class="btn sm" style="background:#dc2626;color:#ffffff;border:1px solid #b91c1c;font-weight:700;padding:6px 14px;font-size:12.5px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);" title="Save / Download as PDF">
+                            📄 PDF <span class="ur">(پی ڈی ایف)</span>
+                        </button>
+
+                        <!-- Print Button -->
+                        <button type="button" onclick="printPledges('print')" class="btn secondary sm" style="background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;font-weight:700;padding:6px 14px;font-size:12.5px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);" title="Print Official Statement">
+                            🖨️ Print <span class="ur">(پرنٹ)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Clean Filters Row (Category, Status, Month) -->
+                <div class="no-print" style="padding:14px 20px;background:#f8fafc;border-bottom:1px solid var(--line,#e2e8f0);">
+                    <form method="get" style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;">
                         <input type="hidden" name="tab" value="pledges">
 
                         <!-- Category / Dedicated Fund Filter -->
@@ -876,24 +899,6 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                 ✕ Reset
                             </a>
                         <?php endif; ?>
-
-                        <!-- Excel, PDF & Print Actions Toolbar -->
-                        <div style="display:inline-flex;align-items:center;gap:6px;margin-left:auto;">
-                            <!-- Excel Export Button -->
-                            <a href="donors.php?tab=pledges&export=excel&month=<?=urlencode($selectedMonth)?>&pledge_fund_id=<?=$filterPledgeFund?>&pledge_status=<?=urlencode($filterPledgeStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:6px 12px;font-size:12.5px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(0,0,0,0.05);" title="Export filtered list to Excel (.CSV)">
-                                📊 Excel <span class="ur">(ایکسل)</span>
-                            </a>
-
-                            <!-- PDF Button -->
-                            <button type="button" onclick="printPledges('pdf')" class="btn sm" style="background:#dc2626;color:#ffffff;border:1px solid #b91c1c;font-weight:700;padding:6px 12px;font-size:12.5px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(0,0,0,0.05);" title="Save / Download as PDF">
-                                📄 PDF <span class="ur">(پی ڈی ایف)</span>
-                            </button>
-
-                            <!-- Print Button -->
-                            <button type="button" onclick="printPledges('print')" class="btn secondary sm" style="background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;font-weight:700;padding:6px 12px;font-size:12.5px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(0,0,0,0.05);" title="Print Official Statement">
-                                🖨️ Print <span class="ur">(پرنٹ)</span>
-                            </button>
-                        </div>
                     </form>
                 </div>
 

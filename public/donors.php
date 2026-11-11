@@ -840,21 +840,21 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                         </p>
                     </div>
 
-                    <!-- Excel, PDF & Print Actions Toolbar (Top Right Corner) -->
-                    <div class="no-print" style="display:inline-flex;align-items:center;gap:8px;">
+                    <!-- Excel, PDF & Print Actions Toolbar (Top Right Corner - Exactly parallel with Title) -->
+                    <div class="no-print" style="display:inline-flex;align-items:center;gap:8px;flex-shrink:0;">
                         <!-- Excel Export Button -->
-                        <a href="donors.php?tab=pledges&export=excel&month=<?=urlencode($selectedMonth)?>&pledge_fund_id=<?=$filterPledgeFund?>&pledge_status=<?=urlencode($filterPledgeStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:6px 14px;font-size:12.5px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);" title="Export filtered list to Excel (.CSV)">
-                            📊 Excel <span class="ur">(ایکسل)</span>
+                        <a href="donors.php?tab=pledges&export=excel&month=<?=urlencode($selectedMonth)?>&pledge_fund_id=<?=$filterPledgeFund?>&pledge_status=<?=urlencode($filterPledgeStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Export filtered list to Excel (.CSV) - ایکسل ڈاؤنلوڈ">
+                            📊 Excel
                         </a>
 
                         <!-- PDF Button -->
-                        <button type="button" onclick="printPledges('pdf')" class="btn sm" style="background:#dc2626;color:#ffffff;border:1px solid #b91c1c;font-weight:700;padding:6px 14px;font-size:12.5px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);" title="Save / Download as PDF">
-                            📄 PDF <span class="ur">(پی ڈی ایف)</span>
+                        <button type="button" onclick="printPledges('pdf')" class="btn sm" style="background:#dc2626;color:#ffffff;border:1px solid #b91c1c;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Save / Download as PDF - پی ڈی ایف محفوظ کریں">
+                            📄 PDF
                         </button>
 
                         <!-- Print Button -->
-                        <button type="button" onclick="printPledges('print')" class="btn secondary sm" style="background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;font-weight:700;padding:6px 14px;font-size:12.5px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);" title="Print Official Statement">
-                            🖨️ Print <span class="ur">(پرنٹ)</span>
+                        <button type="button" onclick="printPledges('print')" class="btn secondary sm" style="background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Print Official Statement - پرنٹ کریں">
+                            🖨️ Print
                         </button>
                     </div>
                 </div>

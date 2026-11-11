@@ -46,6 +46,12 @@ if (isset($_GET['delete_id'])) {
                         if (!empty($_GET['month'])) {
                             $redirectUrl .= '&month=' . urlencode($_GET['month']);
                         }
+                        if (isset($_GET['pledge_fund_id'])) {
+                            $redirectUrl .= '&pledge_fund_id=' . (int)$_GET['pledge_fund_id'];
+                        }
+                        if (!empty($_GET['pledge_status'])) {
+                            $redirectUrl .= '&pledge_status=' . urlencode($_GET['pledge_status']);
+                        }
                     }
                     header('Location: ' . $redirectUrl);
                     exit;
@@ -206,6 +212,8 @@ $selectedMonth = trim($_GET['month'] ?? date('Y-m'));
 if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
     $selectedMonth = date('Y-m');
 }
+$filterPledgeFund = isset($_GET['pledge_fund_id']) ? (int)$_GET['pledge_fund_id'] : 0;
+$filterPledgeStatus = in_array($_GET['pledge_status'] ?? '', ['all', 'pending', 'paid'], true) ? $_GET['pledge_status'] : 'all';
 
 // Fetch active pledgers
 $pledgeQuery = "SELECT d.*, f.name AS fund_name, f.fund_code, pf.name AS pledge_fund_name,
@@ -225,8 +233,22 @@ if ($hasFundRestriction) {
     $inFunds = implode(',', array_map('intval', $userFundIds));
     $pledgeQuery .= " AND (d.fund_id IN ($inFunds) OR d.pledge_fund_id IN ($inFunds))";
 }
+if ($filterPledgeFund > 0) {
+    $pledgeQuery .= " AND (d.pledge_fund_id = {$filterPledgeFund} OR (d.pledge_fund_id IS NULL AND d.fund_id = {$filterPledgeFund}))";
+} elseif ($filterPledgeFund === -1) {
+    $pledgeQuery .= " AND (d.pledge_fund_id IS NULL AND d.fund_id IS NULL)";
+}
 $pledgeQuery .= " ORDER BY d.pledge_day ASC, d.id DESC";
-$activePledgers = $pdo->query($pledgeQuery)->fetchAll() ?: [];
+$rawPledgers = $pdo->query($pledgeQuery)->fetchAll() ?: [];
+
+// Status Filtering
+$activePledgers = [];
+foreach ($rawPledgers as $pl) {
+    $isPaid = ((float)$pl['paid_this_month'] >= (float)$pl['pledge_amount']);
+    if ($filterPledgeStatus === 'pending' && $isPaid) continue;
+    if ($filterPledgeStatus === 'paid' && !$isPaid) continue;
+    $activePledgers[] = $pl;
+}
 
 $totalMonthlyPledged = 0;
 $totalMonthlyReceived = 0;
@@ -601,15 +623,65 @@ $totalMonthlyPending = max(0, $totalMonthlyPledged - $totalMonthlyReceived);
 
             <!-- Pledges Month Selector & Table Panel -->
             <article class="panel">
-                <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
                     <div>
-                        <h3>Monthly Pledges &amp; Kafalat Tracker <span class="ur">(ماہانہ کفالت و اقساط ٹریکر)</span></h3>
-                        <p>Track regular donor contributions, sponsorship commitments, and follow up</p>
+                        <h3 style="margin:0 0 4px;">Monthly Pledges &amp; Kafalat Tracker <span class="ur">(ماہانہ کفالت و اقساط ٹریکر)</span></h3>
+                        <p style="margin:0;font-size:12.5px;color:#64748b;">
+                            Track regular donor contributions, sponsorship commitments, and follow up
+                            <?php if ($filterPledgeFund > 0): ?>
+                                <?php 
+                                    $currFundName = '';
+                                    foreach ($funds as $f) {
+                                        if ((int)$f['id'] === $filterPledgeFund) {
+                                            $currFundName = $f['name'];
+                                            break;
+                                        }
+                                    }
+                                ?>
+                                &bull; <span style="color:#0284c7;font-weight:700;">Filtered: <?=e($currFundName)?></span>
+                            <?php elseif ($filterPledgeFund === -1): ?>
+                                &bull; <span style="color:#0284c7;font-weight:700;">Filtered: Unassigned (عام / غیر متعین)</span>
+                            <?php endif; ?>
+                        </p>
                     </div>
-                    <form method="get" style="display:flex;align-items:center;gap:8px;">
+                    <form method="get" style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
                         <input type="hidden" name="tab" value="pledges">
-                        <label style="font-size:12.5px;font-weight:600;color:#334155;">Select Month:</label>
-                        <input type="month" name="month" value="<?=e($selectedMonth)?>" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;">
+
+                        <!-- Category / Dedicated Fund Filter -->
+                        <div style="display:inline-flex;align-items:center;gap:6px;">
+                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;">Category <span class="ur">(کیٹیگری / فنڈ)</span>:</label>
+                            <select name="pledge_fund_id" onchange="this.form.submit()" style="padding:6px 12px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;min-width:180px;">
+                                <option value="0">🏷️ All Categories (تمام کیٹیگریز)</option>
+                                <?php foreach ($funds as $f): ?>
+                                    <option value="<?=$f['id']?>" <?=$filterPledgeFund === (int)$f['id'] ? 'selected' : ''?>>
+                                        <?=e($f['name'])?> (<?=e($f['fund_code'])?>)
+                                    </option>
+                                <?php endforeach; ?>
+                                <option value="-1" <?=$filterPledgeFund === -1 ? 'selected' : ''?>>⚪ Unassigned (عام / غیر متعین)</option>
+                            </select>
+                        </div>
+
+                        <!-- Status Filter -->
+                        <div style="display:inline-flex;align-items:center;gap:6px;">
+                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;">Status <span class="ur">(حیثیت)</span>:</label>
+                            <select name="pledge_status" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
+                                <option value="all" <?=$filterPledgeStatus === 'all' ? 'selected' : ''?>>All (تمام)</option>
+                                <option value="pending" <?=$filterPledgeStatus === 'pending' ? 'selected' : ''?>>⏳ Pending Only (بقایا)</option>
+                                <option value="paid" <?=$filterPledgeStatus === 'paid' ? 'selected' : ''?>>✓ Paid Only (ادا شدہ)</option>
+                            </select>
+                        </div>
+
+                        <!-- Select Month -->
+                        <div style="display:inline-flex;align-items:center;gap:6px;">
+                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;">Month <span class="ur">(مہینہ)</span>:</label>
+                            <input type="month" name="month" value="<?=e($selectedMonth)?>" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
+                        </div>
+
+                        <?php if ($filterPledgeFund !== 0 || $filterPledgeStatus !== 'all' || $selectedMonth !== date('Y-m')): ?>
+                            <a href="donors.php?tab=pledges" class="btn secondary sm" style="padding:6px 10px;font-size:12px;display:inline-flex;align-items:center;gap:4px;" title="Reset All Filters">
+                                ✕ Reset
+                            </a>
+                        <?php endif; ?>
                     </form>
                 </div>
 
@@ -617,7 +689,14 @@ $totalMonthlyPending = max(0, $totalMonthlyPledged - $totalMonthlyReceived);
                     <div class="empty-state" style="padding:40px 20px;">
                         <div class="empty-icon">🤝</div>
                         <b>No active monthly pledgers found</b>
-                        <p>You can set a donor as a regular monthly contributor by editing their profile above and checking "Monthly Recurring Pledge".</p>
+                        <?php if ($filterPledgeFund !== 0 || $filterPledgeStatus !== 'all'): ?>
+                            <p style="margin-top:6px;color:#64748b;">No monthly pledges match the selected category or status filter for <?=date('F Y', strtotime($selectedMonth . '-01'))?>.</p>
+                            <div style="margin-top:14px;">
+                                <a href="donors.php?tab=pledges&month=<?=e($selectedMonth)?>" class="btn secondary sm">Clear Filters</a>
+                            </div>
+                        <?php else: ?>
+                            <p>You can set a donor as a regular monthly contributor by editing their profile above and checking "Monthly Recurring Pledge".</p>
+                        <?php endif; ?>
                     </div>
                 <?php else: ?>
                     <div class="table-wrap">
@@ -689,7 +768,7 @@ $totalMonthlyPending = max(0, $totalMonthlyPledged - $totalMonthlyReceived);
                                                     ✏️
                                                 </a>
                                                 <?php if (has_permission('donors.manage')): ?>
-                                                    <a href="donors.php?tab=pledges&month=<?=urlencode($selectedMonth)?>&delete_id=<?=$pl['id']?>&token=<?=csrf_token()?>" class="btn danger sm" style="padding:4px 8px;font-size:11.5px;" onclick="return confirm('Are you sure you want to delete donor \'<?=e(addslashes($pl['donor_name']))?>\'?');" title="Delete Donor">
+                                                    <a href="donors.php?tab=pledges&month=<?=urlencode($selectedMonth)?>&pledge_fund_id=<?=$filterPledgeFund?>&pledge_status=<?=urlencode($filterPledgeStatus)?>&delete_id=<?=$pl['id']?>&token=<?=csrf_token()?>" class="btn danger sm" style="padding:4px 8px;font-size:11.5px;" onclick="return confirm('Are you sure you want to delete donor \'<?=e(addslashes($pl['donor_name']))?>\'?');" title="Delete Donor">
                                                         🗑️
                                                     </a>
                                                 <?php endif; ?>

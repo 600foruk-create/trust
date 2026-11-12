@@ -418,6 +418,10 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $expenseList = $stmt->fetchAll();
 $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
+$prefillDate = trim($_GET['voucher_date'] ?? ($_GET['date'] ?? ''));
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $prefillDate)) {
+    $prefillDate = '';
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -536,7 +540,7 @@ $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Voucher Date <span class="ur">(تاریخ)</span></label>
-                        <input type="date" name="voucher_date" value="<?=e($editVoucher['voucher_date'] ?? date('Y-m-d'))?>" required>
+                        <input type="date" name="voucher_date" value="<?=e($editVoucher['voucher_date'] ?? ($prefillDate ?: date('Y-m-d')))?>" required>
                     </div>
 
                     <?php if ($isSuperAdmin && !empty($allRegions)): ?>

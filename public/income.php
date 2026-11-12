@@ -425,6 +425,10 @@ $prefillAmount = $_GET['prefill_amount'] ?? ($_GET['amount'] ?? '');
 $prefillDesc = $_GET['prefill_desc'] ?? ($_GET['desc'] ?? '');
 $prefillDonorId = (int)($_GET['donor_id'] ?? 0);
 $prefillFundId = (int)($_GET['fund_id'] ?? 0);
+$prefillDate = trim($_GET['voucher_date'] ?? ($_GET['date'] ?? ''));
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $prefillDate)) {
+    $prefillDate = '';
+}
 if ($prefillFund === 'zakat') {
     foreach ($funds as $f) {
         if ($f['fund_code'] === 'ZAK' || stripos($f['name'], 'zakat') !== false || strpos($f['name'], 'زکوٰ') !== false) {
@@ -599,7 +603,7 @@ $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Voucher Date <span class="ur">تاریخ</span></label>
-                        <input type="date" name="voucher_date" value="<?=e($editVoucher['voucher_date'] ?? date('Y-m-d'))?>" required>
+                        <input type="date" name="voucher_date" value="<?=e($editVoucher['voucher_date'] ?? ($prefillDate ?: date('Y-m-d')))?>" required>
                     </div>
 
                     <?php if ($isSuperAdmin && !empty($allRegions)): ?>

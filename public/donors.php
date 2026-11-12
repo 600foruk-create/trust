@@ -1118,7 +1118,12 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         </td>
                                         <td class="right no-print" style="white-space:nowrap;">
                                             <div style="display:inline-flex;align-items:center;gap:6px;">
-                                                <a href="income.php?donor_id=<?=$pl['id']?>&amount=<?=$pAmt?>&fund_id=<?=$fundToUse?>&desc=<?=urlencode('ماہانہ کفالت برائے فنڈ ' . ($fundName ?: 'جنرل') . ' بابت ماہ ' . $monthNameUrdu)?>" class="btn success sm" style="background:#15803d;color:#fff;padding:4px 9px;font-size:11.5px;font-weight:700;text-decoration:none;border-radius:4px;" title="Receive this month's pledge">
+                                                <?php 
+                                                    $pledgeDayNum = !empty($pl['expected_day']) ? (int)$pl['expected_day'] : 1;
+                                                    if ($pledgeDayNum < 1 || $pledgeDayNum > 28) $pledgeDayNum = 1;
+                                                    $pledgeVoucherDate = $selectedMonth . '-' . str_pad((string)$pledgeDayNum, 2, '0', STR_PAD_LEFT);
+                                                ?>
+                                                <a href="income.php?donor_id=<?=$pl['id']?>&amount=<?=$pAmt?>&fund_id=<?=$fundToUse?>&date=<?=urlencode($pledgeVoucherDate)?>&desc=<?=urlencode('ماہانہ کفالت برائے فنڈ ' . ($fundName ?: 'جنرل') . ' بابت ماہ ' . $monthNameUrdu)?>" class="btn success sm" style="background:#15803d;color:#fff;padding:4px 9px;font-size:11.5px;font-weight:700;text-decoration:none;border-radius:4px;" title="Receive this month's pledge">
                                                     💰 Receive
                                                 </a>
                                                 <?php if (!empty($cleanPhone)): ?>

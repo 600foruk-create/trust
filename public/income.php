@@ -97,9 +97,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $date = trim($_POST['voucher_date'] ?? date('Y-m-d'));
         $fundId = (int)($_POST['fund_id'] ?? 0);
         $assetAccountId = (int)($_POST['asset_account_id'] ?? 0);
+        $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
+
+        $userCashAcc = get_or_create_user_cash_account($pdo, (int)current_user()['id']);
+        $userCashAccId = (int)($userCashAcc['id'] ?? 0);
+
+        if ($paymentMethod === 'cash') {
+            if (!can_approve() || $assetAccountId <= 0) {
+                $assetAccountId = $userCashAccId;
+            } else {
+                $accCheck = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND is_cash_or_bank = 1 AND is_active = 1");
+                $accCheck->execute([$assetAccountId]);
+                if (!$accCheck->fetchColumn()) {
+                    $assetAccountId = $userCashAccId;
+                }
+            }
+        } else {
+            // Bank / Online / Cheque
+            $bankCheck = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND is_cash_or_bank = 1 AND is_active = 1 AND (user_id IS NULL OR account_code = '1010' OR account_name LIKE '%bank%' OR account_name LIKE '%بینک%')");
+            $bankCheck->execute([$assetAccountId]);
+            if (!$bankCheck->fetchColumn()) {
+                $bankDef = $pdo->query("SELECT id FROM accounts WHERE is_cash_or_bank = 1 AND is_active = 1 AND (account_code = '1010' OR account_name LIKE '%bank%' OR account_name LIKE '%بینک%') ORDER BY (account_code = '1010') DESC, id ASC LIMIT 1")->fetchColumn();
+                $assetAccountId = (int)($bankDef ?: $userCashAccId);
+            }
+        }
+        if ($assetAccountId <= 0) {
+            $assetAccountId = $userCashAccId;
+        }
+
         if (!can_approve()) {
-            $userCashAcc = get_or_create_user_cash_account($pdo, (int)current_user()['id']);
-            $assetAccountId = (int)($userCashAcc['id'] ?? 0);
             $newDonorName = '';
         } else {
             $newDonorName = trim($_POST['new_donor_name'] ?? '');
@@ -222,9 +248,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $date = trim($_POST['voucher_date'] ?? date('Y-m-d'));
         $fundId = (int)($_POST['fund_id'] ?? 0);
         $assetAccountId = (int)($_POST['asset_account_id'] ?? 0);
+        $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
+
+        $userCashAcc = get_or_create_user_cash_account($pdo, (int)current_user()['id']);
+        $userCashAccId = (int)($userCashAcc['id'] ?? 0);
+
+        if ($paymentMethod === 'cash') {
+            if (!can_approve() || $assetAccountId <= 0) {
+                $assetAccountId = $userCashAccId;
+            } else {
+                $accCheck = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND is_cash_or_bank = 1 AND is_active = 1");
+                $accCheck->execute([$assetAccountId]);
+                if (!$accCheck->fetchColumn()) {
+                    $assetAccountId = $userCashAccId;
+                }
+            }
+        } else {
+            // Bank / Online / Cheque
+            $bankCheck = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND is_cash_or_bank = 1 AND is_active = 1 AND (user_id IS NULL OR account_code = '1010' OR account_name LIKE '%bank%' OR account_name LIKE '%بینک%')");
+            $bankCheck->execute([$assetAccountId]);
+            if (!$bankCheck->fetchColumn()) {
+                $bankDef = $pdo->query("SELECT id FROM accounts WHERE is_cash_or_bank = 1 AND is_active = 1 AND (account_code = '1010' OR account_name LIKE '%bank%' OR account_name LIKE '%بینک%') ORDER BY (account_code = '1010') DESC, id ASC LIMIT 1")->fetchColumn();
+                $assetAccountId = (int)($bankDef ?: $userCashAccId);
+            }
+        }
+        if ($assetAccountId <= 0) {
+            $assetAccountId = $userCashAccId;
+        }
+
         if (!can_approve()) {
-            $userCashAcc = get_or_create_user_cash_account($pdo, (int)current_user()['id']);
-            $assetAccountId = (int)($userCashAcc['id'] ?? 0);
             $newDonorName = '';
         } else {
             $newDonorName = trim($_POST['new_donor_name'] ?? '');
@@ -372,7 +424,21 @@ $userFundIds = get_user_assigned_fund_ids($currentUserId);
 $hasFundRestriction = (!$isSuperAdmin && !empty($userFundIds));
 
 $currOrgMode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
-$assetAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY account_code ASC")->fetchAll();
+$allAssetAccounts = $pdo->query("SELECT id, account_code, account_name, user_id FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY (account_code = '1000') DESC, (account_code = '1010') DESC, account_code ASC")->fetchAll() ?: [];
+
+$bankAccounts = [];
+$otherCashAccounts = [];
+foreach ($allAssetAccounts as $acc) {
+    $isBank = (stripos($acc['account_name'], 'bank') !== false) || (stripos($acc['account_name'], 'بینک') !== false) || in_array((string)$acc['account_code'], ['1010'], true);
+    if ($isBank) {
+        $bankAccounts[] = $acc;
+    } elseif (!empty($acc['user_id']) && (int)$acc['user_id'] === $currentUserId) {
+        // User's own cash account (covered by $userCashAcc)
+    } else {
+        $otherCashAccounts[] = $acc;
+    }
+}
+$assetAccounts = $allAssetAccounts;
 $incomeAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE account_type='income' AND is_active=1 AND scope IN ('all', '{$currOrgMode}') ORDER BY account_code ASC")->fetchAll();
 
 $userRegId = function_exists('get_user_region_id') ? get_user_region_id($currentUserId) : 0;
@@ -634,25 +700,41 @@ $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
                     </div>
 
                     <div class="form-group">
-                        <label>Received Into <span class="ur">(وصولی کھاتہ کیش / بینک)</span></label>
-                        <?php if (!can_approve() && !empty($userCashAcc)): ?>
-                            <input type="hidden" name="asset_account_id" value="<?=$userCashAcc['id']?>">
-                            <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:9px 12px;color:#1e40af;font-weight:600;display:flex;align-items:center;gap:8px;">
-                                <span>💼</span>
-                                <span><?=e(format_ui_text($userCashAcc['account_name']))?> <span class="ur">(خودکار کیش)</span></span>
-                            </div>
-                            <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block;">
-                                <span class="ur">رقم آپ کے پاس موجود نقدی میں جمع ہو گی، چیکر کی منظوری پر مرکزی اکاؤنٹ میں چلی جائے گی۔</span>
-                                <span class="en-only" style="display:none;">Funds remain in your custody until approved by checker.</span>
-                            </small>
-                        <?php else: ?>
-                            <select name="asset_account_id" required>
-                                <?php foreach ($assetAccounts as $acc): ?>
-                                    <option value="<?=$acc['id']?>" <?=($editVoucher && (int)$editAssetAcc === (int)$acc['id']) ? 'selected' : ''?>>
-                                        <?=e($acc['account_code'])?> - <?=e(format_ui_text($acc['account_name']))?>
+                        <label>Received Into <span class="ur">(وصولی کھاتہ کیش / بینک)</span> *</label>
+                        <select name="asset_account_id" id="inc_asset_account_id" onchange="onIncomeAccountChange()" required>
+                            <?php if (!empty($userCashAcc)): ?>
+                                <optgroup label="💼 آپ کا ذاتی نقد کھاتہ (Your Cash Custody)">
+                                    <?php $isMyCashSelected = ($editVoucher ? ((int)$editAssetAcc === (int)$userCashAcc['id']) : true); ?>
+                                    <option value="<?=$userCashAcc['id']?>" data-type="cash" <?=$isMyCashSelected ? 'selected' : ''?>>
+                                        <?=e($userCashAcc['account_code'])?> - <?=e(format_ui_text($userCashAcc['account_name']))?> (آپ کا کیش)
                                     </option>
-                                <?php endforeach; ?>
-                            </select>
+                                </optgroup>
+                            <?php endif; ?>
+
+                            <?php if (!empty($bankAccounts)): ?>
+                                <optgroup label="🏛️ مدرسہ / ٹرسٹ بینک اکاؤنٹس (Bank Accounts)">
+                                    <?php foreach ($bankAccounts as $bAcc): ?>
+                                        <option value="<?=$bAcc['id']?>" data-type="bank" <?=($editVoucher && (int)$editAssetAcc === (int)$bAcc['id']) ? 'selected' : ''?>>
+                                            <?=e($bAcc['account_code'])?> - <?=e(format_ui_text($bAcc['account_name']))?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
+
+                            <?php if (can_approve() && !empty($otherCashAccounts)): ?>
+                                <optgroup label="👥 دیگر عملہ کیش اکاؤنٹس (Other Staff Cash)">
+                                    <?php foreach ($otherCashAccounts as $oAcc): ?>
+                                        <option value="<?=$oAcc['id']?>" data-type="other_cash" <?=($editVoucher && (int)$editAssetAcc === (int)$oAcc['id']) ? 'selected' : ''?>>
+                                            <?=e($oAcc['account_code'])?> - <?=e(format_ui_text($oAcc['account_name']))?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
+                        </select>
+                        <?php if (!can_approve()): ?>
+                            <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block;">
+                                <span class="ur">نقد وصولی آپ کی تحویل میں رہے گی، یا ڈونر کی طرف سے بینک منتقلی کی صورت میں متعلقہ بینک اکاؤنٹ منتخب کریں۔</span>
+                            </small>
                         <?php endif; ?>
                     </div>
 
@@ -734,7 +816,7 @@ $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 
                     <div class="form-group">
                         <label>Payment Method <span class="ur">(طریقہ وصولی)</span></label>
-                        <select name="payment_method">
+                        <select name="payment_method" id="inc_payment_method" onchange="onIncomePaymentMethodChange()">
                             <?php $currMethod = $editVoucher['payment_method'] ?? 'cash'; ?>
                             <option value="cash" <?=$currMethod==='cash'?'selected':''?>>Cash <span class="ur">(نقد)</span></option>
                             <option value="bank" <?=$currMethod==='bank'?'selected':''?>>Bank Transfer <span class="ur">(بینک)</span></option>
@@ -1115,6 +1197,43 @@ $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 </div>
 
 <script>
+var defaultIncUserCashId = "<?=!empty($userCashAcc) ? (int)$userCashAcc['id'] : 0?>";
+var defaultIncBankId = "<?=!empty($bankAccounts) ? (int)$bankAccounts[0]['id'] : 0?>";
+
+function onIncomePaymentMethodChange() {
+    var pm = document.getElementById('inc_payment_method');
+    var accSelect = document.getElementById('inc_asset_account_id');
+    if (!pm || !accSelect) return;
+
+    if (pm.value === 'cash') {
+        if (defaultIncUserCashId && defaultIncUserCashId !== '0') {
+            accSelect.value = defaultIncUserCashId;
+        }
+    } else {
+        // Bank, online, cheque
+        if (defaultIncBankId && defaultIncBankId !== '0') {
+            accSelect.value = defaultIncBankId;
+        }
+    }
+}
+
+function onIncomeAccountChange() {
+    var accSelect = document.getElementById('inc_asset_account_id');
+    var pm = document.getElementById('inc_payment_method');
+    if (!accSelect || !pm) return;
+
+    var selectedOpt = accSelect.options[accSelect.selectedIndex];
+    var accType = selectedOpt ? selectedOpt.getAttribute('data-type') : '';
+
+    if (accType === 'bank') {
+        if (pm.value === 'cash') {
+            pm.value = 'bank';
+        }
+    } else if (accType === 'cash') {
+        pm.value = 'cash';
+    }
+}
+
 function openAttachedFileModal(src, voucherNo) {
     document.getElementById('attachedModalTitle').textContent = 'Attached Slip for Voucher ' + voucherNo;
     document.getElementById('attachedModalImg').src = src;

@@ -82,14 +82,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $assetAccountId = (int)($_POST['asset_account_id'] ?? 0);
         $incomeAccountId = (int)($_POST['income_account_id'] ?? 0);
 
-        if (!can_approve()) {
-            $userCashAcc = get_or_create_user_cash_account($pdo, $userId);
-            $assetAccountId = (int)($userCashAcc['id'] ?? 0);
+        $userCashAcc = get_or_create_user_cash_account($pdo, $userId);
+        $userCashAccId = (int)($userCashAcc['id'] ?? 0);
+
+        if ($paymentMethod === 'cash') {
+            // Cash receipts: default to the logged-in user's cash account
+            if (!can_approve() || $assetAccountId <= 0) {
+                $assetAccountId = $userCashAccId;
+            } else {
+                $accCheck = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND is_cash_or_bank = 1 AND is_active = 1");
+                $accCheck->execute([$assetAccountId]);
+                if (!$accCheck->fetchColumn()) {
+                    $assetAccountId = $userCashAccId;
+                }
+            }
+        } else {
+            // Bank transfer / Cheque receipts: must deposit into an active Bank Account
+            $bankCheck = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND is_cash_or_bank = 1 AND is_active = 1 AND (user_id IS NULL OR account_code = '1010' OR account_name LIKE '%bank%' OR account_name LIKE '%بینک%')");
+            $bankCheck->execute([$assetAccountId]);
+            if (!$bankCheck->fetchColumn()) {
+                // Fallback to default active bank account
+                $bankDef = $pdo->query("SELECT id FROM accounts WHERE is_cash_or_bank = 1 AND is_active = 1 AND (account_code = '1010' OR account_name LIKE '%bank%' OR account_name LIKE '%بینک%') ORDER BY (account_code = '1010') DESC, id ASC LIMIT 1")->fetchColumn();
+                $assetAccountId = (int)($bankDef ?: $userCashAccId);
+            }
         }
+
         if ($assetAccountId <= 0) {
-            $assetAccDefault = $pdo->query("SELECT id FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY account_code ASC LIMIT 1")->fetchColumn();
-            $assetAccountId = (int)($assetAccDefault ?: 0);
+            $assetAccountId = $userCashAccId;
         }
+
         if ($incomeAccountId <= 0) {
             $incAccDefault = $pdo->query("SELECT id FROM accounts WHERE account_type='income' AND is_active=1 ORDER BY (account_code='4000') DESC, account_code ASC LIMIT 1")->fetchColumn();
             $incomeAccountId = (int)($incAccDefault ?: 0);
@@ -313,7 +334,21 @@ $printSignTitle3 = get_setting('print_sign_title_3', is_madrasa_mode() ? 'مہت
 $printFooterNote = get_setting('print_footer_note', 'یہ ایک کمپیوٹرائزڈ آفیشل فنانشل رسید ہے۔ کسی دستی مہر کی ضرورت نہیں۔');
 
 // Cash & Bank Accounts and Income Heads for Quick Receipt
-$assetAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY account_code ASC")->fetchAll();
+$userCashAcc = get_or_create_user_cash_account($pdo, (int)$userId);
+$allAssetAccounts = $pdo->query("SELECT id, account_code, account_name, user_id FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY (account_code = '1000') DESC, (account_code = '1010') DESC, account_code ASC")->fetchAll() ?: [];
+
+$bankAccounts = [];
+$otherCashAccounts = [];
+foreach ($allAssetAccounts as $acc) {
+    $isBank = (stripos($acc['account_name'], 'bank') !== false) || (stripos($acc['account_name'], 'بینک') !== false) || in_array((string)$acc['account_code'], ['1010'], true);
+    if ($isBank) {
+        $bankAccounts[] = $acc;
+    } elseif (!empty($acc['user_id']) && (int)$acc['user_id'] === (int)$userId) {
+        // User's own cash account (covered by $userCashAcc)
+    } else {
+        $otherCashAccounts[] = $acc;
+    }
+}
 $incomeAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE account_type='income' AND is_active=1 ORDER BY (account_code='4000') DESC, account_code ASC")->fetchAll();
 
 // Tab Navigation & Monthly Pledges / Kafalat Tracker (Feature #1)
@@ -1513,28 +1548,60 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                         </div>
                     </div>
 
-                    <!-- Deposit Into & Payment Method Grid -->
+                    <!-- Payment Method & Deposit Into Grid -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
                         <div>
                             <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
-                                Deposit Into <span class="ur">(جمع کھاتہ)</span>
+                                Payment Method <span class="ur">(طریقہ کار)</span> *
                             </label>
-                            <select name="asset_account_id" id="qrm_asset_account_id" style="width:100%;font-size:12.5px;font-weight:600;padding:9px 10px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;">
-                                <?php foreach ($assetAccounts as $acc): ?>
-                                    <option value="<?=$acc['id']?>"><?=e($acc['account_code'])?> - <?=e(format_ui_text($acc['account_name']))?></option>
-                                <?php endforeach; ?>
+                            <select name="payment_method" id="qrm_payment_method" onchange="onPaymentMethodChange()" style="width:100%;font-size:12.5px;font-weight:700;padding:9px 10px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;background:#f8fafc;">
+                                <option value="cash">💵 Cash (نقد وصولی)</option>
+                                <option value="bank_transfer">🏛️ Bank / Online Transfer (بینک منتقلی)</option>
+                                <option value="cheque">📝 Cheque (بینک چیک)</option>
                             </select>
                         </div>
                         <div>
                             <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
-                                Payment Method <span class="ur">(طریقہ کار)</span>
+                                Deposit Into <span class="ur">(جمع کھاتہ)</span> *
                             </label>
-                            <select name="payment_method" style="width:100%;font-size:12.5px;font-weight:600;padding:9px 10px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;">
-                                <option value="cash">💵 Cash (نقد خزانہ)</option>
-                                <option value="bank_transfer">🏛️ Bank / Online Transfer</option>
-                                <option value="cheque">📝 Cheque (چیک)</option>
+                            <select name="asset_account_id" id="qrm_asset_account_id" onchange="onDepositAccountChange()" required style="width:100%;font-size:12.5px;font-weight:700;padding:9px 10px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;">
+                                <?php if (!empty($userCashAcc)): ?>
+                                    <optgroup label="💼 آپ کا ذاتی نقد کھاتہ (Your Cash Custody)">
+                                        <option value="<?=$userCashAcc['id']?>" data-type="cash" selected>
+                                            <?=e($userCashAcc['account_code'])?> - <?=e(format_ui_text($userCashAcc['account_name']))?> (آپ کا کیش)
+                                        </option>
+                                    </optgroup>
+                                <?php endif; ?>
+
+                                <?php if (!empty($bankAccounts)): ?>
+                                    <optgroup label="🏛️ مدرسہ / ٹرسٹ بینک اکاؤنٹس (Bank Accounts)">
+                                        <?php foreach ($bankAccounts as $bAcc): ?>
+                                            <option value="<?=$bAcc['id']?>" data-type="bank">
+                                                <?=e($bAcc['account_code'])?> - <?=e(format_ui_text($bAcc['account_name']))?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                <?php endif; ?>
+
+                                <?php if (can_approve() && !empty($otherCashAccounts)): ?>
+                                    <optgroup label="👥 دیگر عملہ کیش اکاؤنٹس (Other Staff Cash)">
+                                        <?php foreach ($otherCashAccounts as $oAcc): ?>
+                                            <option value="<?=$oAcc['id']?>" data-type="other_cash">
+                                                <?=e($oAcc['account_code'])?> - <?=e(format_ui_text($oAcc['account_name']))?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                <?php endif; ?>
                             </select>
                         </div>
+                    </div>
+
+                    <!-- Bank Ref / Cheque No Box (Automatically shown when Bank or Cheque is selected) -->
+                    <div id="qrm_ref_container" style="display:none;margin-bottom:14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px 14px;">
+                        <label style="display:block;font-size:12px;font-weight:700;color:#166534;margin-bottom:5px;">
+                            Bank Transfer Ref / Cheque No <span class="ur">(بینک رسید / آن لائن ٹرانزیکشن یا چیک نمبر)</span>
+                        </label>
+                        <input type="text" name="reference_no" id="qrm_reference_no" style="width:100%;font-size:12.5px;padding:8px 12px;border:1px solid #86efac;border-radius:6px;box-sizing:border-box;" placeholder="e.g. TR-98214 یا Cheque # 0019284">
                     </div>
 
                     <!-- Description / Narration -->
@@ -1569,6 +1636,52 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
 
 <script>
 var currentQuickData = null;
+var defaultUserCashId = "<?=!empty($userCashAcc) ? (int)$userCashAcc['id'] : 0?>";
+var defaultBankId = "<?=!empty($bankAccounts) ? (int)$bankAccounts[0]['id'] : 0?>";
+
+function onPaymentMethodChange() {
+    var pm = document.getElementById('qrm_payment_method');
+    var accSelect = document.getElementById('qrm_asset_account_id');
+    var refBox = document.getElementById('qrm_ref_container');
+    if (!pm || !accSelect) return;
+
+    if (pm.value === 'cash') {
+        if (defaultUserCashId && defaultUserCashId !== '0') {
+            accSelect.value = defaultUserCashId;
+        }
+        if (refBox) refBox.style.display = 'none';
+    } else {
+        // Bank or Cheque
+        if (defaultBankId && defaultBankId !== '0') {
+            accSelect.value = defaultBankId;
+        }
+        if (refBox) {
+            refBox.style.display = 'block';
+            var refInput = document.getElementById('qrm_reference_no');
+            if (refInput) refInput.focus();
+        }
+    }
+}
+
+function onDepositAccountChange() {
+    var accSelect = document.getElementById('qrm_asset_account_id');
+    var pm = document.getElementById('qrm_payment_method');
+    var refBox = document.getElementById('qrm_ref_container');
+    if (!accSelect || !pm) return;
+
+    var selectedOpt = accSelect.options[accSelect.selectedIndex];
+    var accType = selectedOpt ? selectedOpt.getAttribute('data-type') : '';
+
+    if (accType === 'bank') {
+        if (pm.value === 'cash') {
+            pm.value = 'bank_transfer';
+        }
+        if (refBox) refBox.style.display = 'block';
+    } else if (accType === 'cash') {
+        pm.value = 'cash';
+        if (refBox) refBox.style.display = 'none';
+    }
+}
 
 function setReceiveAmountType(type) {
     if (!currentQuickData) return;
@@ -1601,6 +1714,18 @@ function openQuickReceiveModal(data) {
     document.getElementById('qrm_amount').value = data.due_amount || data.amount || 0;
     document.getElementById('qrm_date').value = data.target_date || new Date().toISOString().split('T')[0];
     document.getElementById('qrm_description').value = data.desc || '';
+
+    // Reset Payment Method & Deposit Account to User's Own Cash Account by Default
+    var pm = document.getElementById('qrm_payment_method');
+    if (pm) pm.value = 'cash';
+    var accSelect = document.getElementById('qrm_asset_account_id');
+    if (accSelect && defaultUserCashId && defaultUserCashId !== '0') {
+        accSelect.value = defaultUserCashId;
+    }
+    var refBox = document.getElementById('qrm_ref_container');
+    if (refBox) refBox.style.display = 'none';
+    var refInput = document.getElementById('qrm_reference_no');
+    if (refInput) refInput.value = '';
 
     // Handle Prior Arrears Notice
     var arrearsBox = document.getElementById('qrm_arrears_box');

@@ -362,22 +362,74 @@ if ($filterPledgeFund > 0) {
 $pledgeQuery .= " ORDER BY d.pledge_day ASC, d.id DESC";
 $rawPledgers = $pdo->query($pledgeQuery)->fetchAll() ?: [];
 
-// Status Filtering
-$activePledgers = [];
-foreach ($rawPledgers as $pl) {
-    $isPaid = ((float)$pl['paid_this_month'] >= (float)$pl['pledge_amount']);
-    if ($filterPledgeStatus === 'pending' && $isPaid) continue;
-    if ($filterPledgeStatus === 'paid' && !$isPaid) continue;
-    $activePledgers[] = $pl;
-}
+// Fetch prior payments and earliest activity for carry-forward arrears calculation
+$priorPaidMap = $pdo->query("SELECT donor_id, SUM(total_amount) AS total_prior 
+                             FROM vouchers 
+                             WHERE voucher_type='income' AND status='posted' AND voucher_date < '{$selectedMonth}-01' 
+                             GROUP BY donor_id")->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
 
+$firstVoucherMap = $pdo->query("SELECT donor_id, MIN(voucher_date) AS first_date 
+                                FROM vouchers 
+                                WHERE voucher_type='income' AND status='posted' 
+                                GROUP BY donor_id")->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+
+// Status Filtering & Prior Arrears Computation
+$activePledgers = [];
 $totalMonthlyPledged = 0;
 $totalMonthlyReceived = 0;
 $totalPendingPledgers = 0;
-foreach ($activePledgers as $pl) {
-    $totalMonthlyPledged += (float)$pl['pledge_amount'];
-    $totalMonthlyReceived += min((float)$pl['paid_this_month'], (float)$pl['pledge_amount']);
-    if ((float)$pl['paid_this_month'] < (float)$pl['pledge_amount']) {
+$totalPriorArrearsAll = 0;
+
+$selYear = (int)date('Y', strtotime($selectedMonth . '-01'));
+$selMonth = (int)date('m', strtotime($selectedMonth . '-01'));
+
+foreach ($rawPledgers as $pl) {
+    $donorId = (int)$pl['id'];
+    $monthlyPledge = (float)$pl['pledge_amount'];
+    $paidThisMonth = (float)$pl['paid_this_month'];
+    $dueThisMonth = max(0, $monthlyPledge - $paidThisMonth);
+    $isPaid = ($paidThisMonth >= $monthlyPledge);
+
+    // Determine donor commitment start date
+    $regDate = !empty($pl['created_at']) ? substr($pl['created_at'], 0, 10) : date('Y-m-d');
+    $earliestDate = $firstVoucherMap[$donorId] ?? $regDate;
+    $startDateStr = ($earliestDate && $earliestDate < $regDate) ? $earliestDate : $regDate;
+
+    $startYear = (int)date('Y', strtotime($startDateStr));
+    $startMonth = (int)date('m', strtotime($startDateStr));
+
+    // Number of prior billing months strictly before selected month
+    $priorMonthsCount = (($selYear - $startYear) * 12) + ($selMonth - $startMonth);
+    if ($priorMonthsCount < 0) {
+        $priorMonthsCount = 0;
+    }
+
+    $totalExpectedPrior = $priorMonthsCount * $monthlyPledge;
+    $totalPaidBefore = (float)($priorPaidMap[$donorId] ?? 0);
+
+    // Unpaid prior arrears (and any current month surplus covers prior arrears)
+    $thisMonthSurplus = max(0, $paidThisMonth - $monthlyPledge);
+    $rawPriorArrears = max(0, $totalExpectedPrior - $totalPaidBefore);
+    $priorArrears = max(0, $rawPriorArrears - $thisMonthSurplus);
+    $unpaidPriorMonths = ($monthlyPledge > 0 && $priorArrears > 0) ? (int)ceil($priorArrears / $monthlyPledge) : 0;
+
+    $totalDueWithArrears = $dueThisMonth + $priorArrears;
+
+    $pl['prior_arrears'] = $priorArrears;
+    $pl['prior_unpaid_months'] = $unpaidPriorMonths;
+    $pl['due_this_month'] = $dueThisMonth;
+    $pl['total_due_with_arrears'] = $totalDueWithArrears;
+    $pl['is_paid'] = $isPaid;
+
+    if ($filterPledgeStatus === 'pending' && $isPaid && $priorArrears <= 0) continue;
+    if ($filterPledgeStatus === 'paid' && (!$isPaid || $priorArrears > 0)) continue;
+
+    $activePledgers[] = $pl;
+
+    $totalMonthlyPledged += $monthlyPledge;
+    $totalMonthlyReceived += min($paidThisMonth, $monthlyPledge);
+    $totalPriorArrearsAll += $priorArrears;
+    if ($dueThisMonth > 0 || $priorArrears > 0) {
         $totalPendingPledgers++;
     }
 }
@@ -426,29 +478,37 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
         'Dedicated Fund / Purpose',
         'Expected Day',
         'Monthly Pledge (PKR)',
+        'Prior Arrears (سابقہ بقایا)',
         'Paid This Month (PKR)',
-        'Balance Due (PKR)',
+        'Month Due (PKR)',
+        'Total Due With Arrears (کل بقایا)',
         'Status',
         'Notes / Details'
     ]);
 
     $sr = 1;
     $sumPledge = 0;
+    $sumPrior = 0;
     $sumPaid = 0;
     $sumDue = 0;
+    $sumTotalDue = 0;
 
     foreach ($activePledgers as $pl) {
         $pAmt = (float)$pl['pledge_amount'];
         $paidAmt = (float)$pl['paid_this_month'];
-        $dueAmt = max(0, $pAmt - $paidAmt);
-        $isPaid = ($paidAmt >= $pAmt);
+        $priorAmt = (float)($pl['prior_arrears'] ?? 0);
+        $dueAmt = (float)($pl['due_this_month'] ?? max(0, $pAmt - $paidAmt));
+        $totalDueAmt = (float)($pl['total_due_with_arrears'] ?? ($dueAmt + $priorAmt));
+        $isPaid = ($paidAmt >= $pAmt && $priorAmt <= 0);
         $statusText = $isPaid ? 'Paid (ادا شدہ)' : 'Pending (بقایا)';
 
         $fundName = $pl['pledge_fund_name'] ?: ($pl['fund_name'] ?: 'General');
 
         $sumPledge += $pAmt;
+        $sumPrior += $priorAmt;
         $sumPaid += $paidAmt;
         $sumDue += $dueAmt;
+        $sumTotalDue += $totalDueAmt;
 
         fputcsv($out, [
             $sr++,
@@ -457,8 +517,10 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
             $fundName,
             $pl['pledge_day'] . 'th of month',
             number_format($pAmt, 2, '.', ''),
+            number_format($priorAmt, 2, '.', ''),
             number_format($paidAmt, 2, '.', ''),
             number_format($dueAmt, 2, '.', ''),
+            number_format($totalDueAmt, 2, '.', ''),
             $statusText,
             $pl['pledge_notes'] ?: ''
         ]);
@@ -473,8 +535,10 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
         '',
         '',
         number_format($sumPledge, 2, '.', ''),
+        number_format($sumPrior, 2, '.', ''),
         number_format($sumPaid, 2, '.', ''),
         number_format($sumDue, 2, '.', ''),
+        number_format($sumTotalDue, 2, '.', ''),
         $totalPendingPledgers . ' Pending',
         ''
     ]);
@@ -1013,8 +1077,14 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                 </article>
                 <article class="stat-card">
                     <div class="stat-top"><span>Due / Pending <span class="ur">(بقایا اقساط)</span></span><span class="stat-icon red">⏳</span></div>
-                    <strong style="color:<?=$totalMonthlyPending > 0 ? '#b91c1c' : '#15803d'?>;"><?=money($totalMonthlyPending)?></strong>
-                    <small><?=$totalPendingPledgers?> donors pending</small>
+                    <strong style="color:<?=$totalMonthlyPending > 0 || $totalPriorArrearsAll > 0 ? '#b91c1c' : '#15803d'?>;"><?=money($totalMonthlyPending)?></strong>
+                    <small>
+                        <?php if ($totalPriorArrearsAll > 0): ?>
+                            <span style="color:#c2410c;font-weight:700;">+ <?=money($totalPriorArrearsAll)?> سابقہ بقایا</span> (کل: <?=money($totalMonthlyPending + $totalPriorArrearsAll)?>)
+                        <?php else: ?>
+                            <?=$totalPendingPledgers?> donors pending
+                        <?php endif; ?>
+                    </small>
                 </article>
             </section>
 
@@ -1170,7 +1240,9 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                 foreach ($activePledgers as $pl): 
                                     $pAmt = (float)$pl['pledge_amount'];
                                     $paidAmt = (float)$pl['paid_this_month'];
-                                    $dueAmt = max(0, $pAmt - $paidAmt);
+                                    $priorAmt = (float)($pl['prior_arrears'] ?? 0);
+                                    $dueAmt = (float)($pl['due_this_month'] ?? max(0, $pAmt - $paidAmt));
+                                    $totalDueAmt = (float)($pl['total_due_with_arrears'] ?? ($dueAmt + $priorAmt));
                                     $isPaid = ($paidAmt >= $pAmt);
 
                                     $cleanPhone = normalize_pakistan_phone($pl['phone'] ?? '');
@@ -1191,18 +1263,29 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                     }
 
                                     if ($isPaid) {
-                                        $remText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" .
-                                                   "محترم " . $pl['donor_name'] . " صاحب!\n" .
-                                                   $madrasaName . " کی جانب سے دلی دعا اور نیک تمنائیں قبول فرمائیں۔\n\n" .
-                                                   "آپ کی جانب سے مقررہ ماہانہ تعاون / کفالت" . $fundPart . " برائے ماہ (" . $monthNameUrdu . ") رقم: " . money($pAmt) . " بحمداللہ موصول ہو چکی ہے۔ آپ کے اس پرخلوص تعاون کے لیے ہم تہہ دل سے شکر گزار ہیں۔\n\n" .
-                                                   "اللہ تعالیٰ آپ کے جان و مال میں برکت عطا فرمائے اور اس صدقہ جاریہ کو اپنی بارگاہ میں قبول فرمائے۔ آمین\n\n" .
-                                                   "جزاکم اللہ خیراً و احسن الجزاء\n" .
-                                                   $madrasaName . (!empty($madrasaPhone) ? "\nرابطہ: " . $madrasaPhone : "");
+                                        if ($priorAmt > 0) {
+                                            $remText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" .
+                                                       "محترم " . $pl['donor_name'] . " صاحب!\n" .
+                                                       $madrasaName . " کی جانب سے دلی دعا اور نیک تمنائیں قبول فرمائیں۔\n\n" .
+                                                       "آپ کی جانب سے مقررہ ماہانہ تعاون / کفالت" . $fundPart . " برائے ماہ (" . $monthNameUrdu . ") رقم: " . money($pAmt) . " بحمداللہ موصول ہو چکی ہے۔ آپ کے اس پرخلوص تعاون کے لیے ہم تہہ دل سے شکر گزار ہیں۔\n\n" .
+                                                       "مطلع فرمایا جاتا ہے کہ آپ کے کھاتے میں سابقہ بقایا اقساط رقم: " . money($priorAmt) . " واجب الادا ہے۔ جب بھی سہولت ہو اس کی ادائیگی فرما کر اجر دارین حاصل فرمائیں۔\n\n" .
+                                                       "جزاکم اللہ خیراً و احسن الجزاء\n" .
+                                                       $madrasaName . (!empty($madrasaPhone) ? "\nرابطہ: " . $madrasaPhone : "");
+                                        } else {
+                                            $remText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" .
+                                                       "محترم " . $pl['donor_name'] . " صاحب!\n" .
+                                                       $madrasaName . " کی جانب سے دلی دعا اور نیک تمنائیں قبول فرمائیں۔\n\n" .
+                                                       "آپ کی جانب سے مقررہ ماہانہ تعاون / کفالت" . $fundPart . " برائے ماہ (" . $monthNameUrdu . ") رقم: " . money($pAmt) . " بحمداللہ موصول ہو چکی ہے۔ آپ کے اس پرخلوص تعاون کے لیے ہم تہہ دل سے شکر گزار ہیں۔\n\n" .
+                                                       "اللہ تعالیٰ آپ کے جان و مال میں برکت عطا فرمائے اور اس صدقہ جاریہ کو اپنی بارگاہ میں قبول فرمائے۔ آمین\n\n" .
+                                                       "جزاکم اللہ خیراً و احسن الجزاء\n" .
+                                                       $madrasaName . (!empty($madrasaPhone) ? "\nرابطہ: " . $madrasaPhone : "");
+                                        }
                                     } else {
+                                        $arrearsNotice = ($priorAmt > 0) ? "\nاور سابقہ غیر ادا شدہ بقایا جات: " . money($priorAmt) . "\nکل واجب الادا رقم: " . money($totalDueAmt) : "";
                                         $remText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" .
                                                    "محترم " . $pl['donor_name'] . " صاحب!\n" .
                                                    $madrasaName . " کی جانب سے دلی دعا اور نیک تمنائیں قبول فرمائیں۔\n\n" .
-                                                   "آپ کی جانب سے مقررہ ماہانہ تعاون / کفالت" . $fundPart . " برائے ماہ (" . $monthNameUrdu . ") رقم: " . $amountUrdu . " کا شائستہ یاد دہانی پیغام ارسال خدمت ہے۔\n\n" .
+                                                   "آپ کی جانب سے مقررہ ماہانہ تعاون / کفالت" . $fundPart . " برائے ماہ (" . $monthNameUrdu . ") رقم: " . $amountUrdu . $arrearsNotice . " کا شائستہ یاد دہانی پیغام ارسال خدمت ہے۔\n\n" .
                                                    "اگر آپ یہ رقم ادا فرما چکے ہیں تو برائے مہربانی رسید یا اسکرین شاٹ اس نمبر پر ارسال فرما دیں تاکہ ریکارڈ اپ ڈیٹ کیا جا سکے۔\n\n" .
                                                    "جزاکم اللہ خیراً و احسن الجزاء\n" .
                                                    $madrasaName . (!empty($madrasaPhone) ? "\nرابطہ: " . $madrasaPhone : "");
@@ -1215,8 +1298,15 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         <td style="text-align:center;color:#64748b;font-size:11px;"><?= $srNum++ ?></td>
                                         <td>
                                             <b><?=e($pl['donor_name'])?></b>
+                                            <?php if ($priorAmt > 0): ?>
+                                                <div style="margin-top:4px;">
+                                                    <span class="badge" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;" title="Past unpaid arrears (سابقہ غیر ادا شدہ اقساط)">
+                                                        ⚠️ سابقہ بقایا: <?=money($priorAmt)?><?=$pl['prior_unpaid_months'] > 0 ? " ({$pl['prior_unpaid_months']} ماہ)" : ''?>
+                                                    </span>
+                                                </div>
+                                            <?php endif; ?>
                                             <?php if ($pl['pledge_notes']): ?>
-                                                <div style="font-size:11px;color:#0284c7;font-weight:600;">🏷️ <?=e($pl['pledge_notes'])?></div>
+                                                <div style="font-size:11px;color:#0284c7;font-weight:600;margin-top:2px;">🏷️ <?=e($pl['pledge_notes'])?></div>
                                             <?php endif; ?>
                                         </td>
                                         <td><?=e($pl['phone'] ?: '—')?></td>
@@ -1230,13 +1320,22 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         <td class="font-bold right" style="color:<?=$isPaid ? '#15803d' : '#b91c1c'?>;">
                                             <?=money($paidAmt)?>
                                         </td>
-                                        <td class="font-bold right" style="color:<?=$dueAmt > 0 ? '#b91c1c' : '#15803d'?>;">
+                                        <td class="font-bold right" style="color:<?=$totalDueAmt > 0 ? '#b91c1c' : '#15803d'?>;">
                                             <?=money($dueAmt)?>
+                                            <?php if ($priorAmt > 0): ?>
+                                                <div style="font-size:10.5px;color:#c2410c;font-weight:700;margin-top:2px;" title="This month due + previous arrears">
+                                                    کل: <?=money($totalDueAmt)?>
+                                                </div>
+                                            <?php endif; ?>
                                         </td>
                                         <td style="text-align:center;">
-                                            <?php if ($isPaid): ?>
+                                            <?php if ($isPaid && $priorAmt <= 0): ?>
                                                 <span class="badge" style="background:#dcfce7;color:#15803d;font-weight:700;font-size:11px;padding:3px 8px;border-radius:12px;">
-                                                    ✓ Paid (ادا شدہ)
+                                                    ✓ Paid (مکمل ادا)
+                                                </span>
+                                            <?php elseif ($isPaid && $priorAmt > 0): ?>
+                                                <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:12px;" title="Current month cleared but previous arrears remain">
+                                                    ✓ یہ ماہ ادا (سابقہ باقی)
                                                 </span>
                                             <?php else: ?>
                                                 <span class="badge" style="background:#fee2e2;color:#b91c1c;font-weight:700;font-size:11px;padding:3px 8px;border-radius:12px;">
@@ -1256,6 +1355,8 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                         'phone' => $pl['phone'] ?? '',
                                                         'amount' => (float)$pAmt,
                                                         'due_amount' => (float)($dueAmt > 0 ? $dueAmt : $pAmt),
+                                                        'prior_arrears' => (float)$priorAmt,
+                                                        'total_due_with_arrears' => (float)$totalDueAmt,
                                                         'fund_id' => (int)$fundToUse,
                                                         'fund_name' => (string)($fundName ?: 'Trust General Fund'),
                                                         'month' => date('F Y', strtotime($selectedMonth . '-01')),
@@ -1295,7 +1396,14 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                     </td>
                                     <td class="font-bold right" style="color:#1e293b;"><?=money($totalMonthlyPledged)?></td>
                                     <td class="font-bold right" style="color:#15803d;"><?=money($totalMonthlyReceived)?></td>
-                                    <td class="font-bold right" style="color:#b91c1c;"><?=money($totalMonthlyPending)?></td>
+                                    <td class="font-bold right" style="color:<?=$totalMonthlyPending > 0 || $totalPriorArrearsAll > 0 ? '#b91c1c' : '#15803d'?>;">
+                                        <?=money($totalMonthlyPending)?>
+                                        <?php if ($totalPriorArrearsAll > 0): ?>
+                                            <div style="font-size:10px;color:#c2410c;font-weight:700;margin-top:2px;">
+                                                + <?=money($totalPriorArrearsAll)?> سابقہ (کل: <?=money($totalMonthlyPending + $totalPriorArrearsAll)?>)
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
                                     <td style="text-align:center;font-size:11.5px;color:#0f172a;">
                                         <?=$totalMonthlyPledged > 0 ? round(($totalMonthlyReceived / $totalMonthlyPledged) * 100, 1) : 0?>% Rec.
                                     </td>
@@ -1366,6 +1474,25 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                             <div style="text-align:right;">
                                 <span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;font-weight:700;font-size:11.5px;padding:3px 8px;" id="qrm_month">Month</span>
                                 <div style="font-size:11.5px;color:#0284c7;font-weight:700;margin-top:5px;" id="qrm_fund_name">Fund</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrears Notice and Quick Selection -->
+                    <div id="qrm_arrears_box" style="display:none;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:14px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                            <div style="font-size:12px;color:#9a3412;">
+                                <strong>⚠️ سابقہ بقایا موجود ہے:</strong>
+                                <span id="qrm_prior_amount" style="font-weight:800;color:#c2410c;">Rs. 0.00</span>
+                                <div style="font-size:11px;color:#7c2d12;">کل واجب الادا (سابقہ + موجودہ): <strong id="qrm_total_due_text">Rs. 0.00</strong></div>
+                            </div>
+                            <div style="display:flex;gap:6px;">
+                                <button type="button" class="btn sm" onclick="setReceiveAmountType('month_only')" style="background:#ffffff;border:1px solid #cbd5e1;font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px;cursor:pointer;">
+                                    صرف یہ ماہ
+                                </button>
+                                <button type="button" class="btn sm" onclick="setReceiveAmountType('total_due')" style="background:#ea580c;color:#ffffff;border:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">
+                                    سابقہ ملا کر وصول کریں
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1441,8 +1568,30 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
 </div>
 
 <script>
+var currentQuickData = null;
+
+function setReceiveAmountType(type) {
+    if (!currentQuickData) return;
+    var amtInput = document.getElementById('qrm_amount');
+    var descInput = document.getElementById('qrm_description');
+    if (type === 'total_due') {
+        amtInput.value = currentQuickData.total_due_with_arrears || currentQuickData.due_amount;
+        if (descInput) {
+            descInput.value = currentQuickData.desc + ' (بشمول سابقہ بقایا جات)';
+        }
+    } else {
+        amtInput.value = currentQuickData.due_amount || currentQuickData.amount;
+        if (descInput) {
+            descInput.value = currentQuickData.desc;
+        }
+    }
+    amtInput.focus();
+    amtInput.select();
+}
+
 function openQuickReceiveModal(data) {
     if (!data) return;
+    currentQuickData = data;
     document.getElementById('qrm_donor_id').value = data.donor_id || '';
     document.getElementById('qrm_fund_id').value = data.fund_id || '';
     document.getElementById('qrm_donor_name').textContent = data.donor_name || 'معاون';
@@ -1452,6 +1601,18 @@ function openQuickReceiveModal(data) {
     document.getElementById('qrm_amount').value = data.due_amount || data.amount || 0;
     document.getElementById('qrm_date').value = data.target_date || new Date().toISOString().split('T')[0];
     document.getElementById('qrm_description').value = data.desc || '';
+
+    // Handle Prior Arrears Notice
+    var arrearsBox = document.getElementById('qrm_arrears_box');
+    if (arrearsBox) {
+        if (data.prior_arrears && data.prior_arrears > 0) {
+            arrearsBox.style.display = 'block';
+            document.getElementById('qrm_prior_amount').textContent = 'Rs. ' + Number(data.prior_arrears).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('qrm_total_due_text').textContent = 'Rs. ' + Number(data.total_due_with_arrears).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        } else {
+            arrearsBox.style.display = 'none';
+        }
+    }
 
     // Advanced full form fallback link
     var advLink = document.getElementById('qrm_adv_link');

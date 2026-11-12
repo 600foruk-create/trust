@@ -38,6 +38,118 @@ if (isset($_GET['delete_id'])) {
     }
 }
 
+// Quick Pay Stipend (One-Click Modal Disbursement directly from Beneficiaries List)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'quick_pay_stipend') {
+    verify_csrf();
+    if (!has_permission('vouchers.create') && !has_permission('expenses.create') && !has_permission('expense.create') && !has_permission('beneficiaries.manage') && !can_approve()) {
+        $error = 'آپ کے پاس ادائیگی واؤچر جاری کرنے کا اختیار نہیں ہے۔';
+    } else {
+        $benId = (int)($_POST['beneficiary_id'] ?? 0);
+        $amount = (float)($_POST['amount'] ?? 0);
+        $fundId = (int)($_POST['fund_id'] ?? 0);
+        $expenseAccountId = (int)($_POST['expense_account_id'] ?? 0);
+        $date = trim($_POST['voucher_date'] ?? date('Y-m-d'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $date = date('Y-m-d');
+        }
+        $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
+        $referenceNo = trim($_POST['reference_no'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $assetAccountId = (int)($_POST['asset_account_id'] ?? 0);
+
+        $userCashAcc = get_or_create_user_cash_account($pdo, $userId);
+        $userCashAccId = (int)($userCashAcc['id'] ?? 0);
+
+        if ($paymentMethod === 'cash') {
+            if (!can_approve() || $assetAccountId <= 0) {
+                $assetAccountId = $userCashAccId;
+            } else {
+                $accCheck = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND is_cash_or_bank = 1 AND is_active = 1");
+                $accCheck->execute([$assetAccountId]);
+                if (!$accCheck->fetchColumn()) {
+                    $assetAccountId = $userCashAccId;
+                }
+            }
+        } else {
+            // Bank / Online / Cheque
+            $bankCheck = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND is_cash_or_bank = 1 AND is_active = 1 AND (user_id IS NULL OR account_code = '1010' OR account_name LIKE '%bank%' OR account_name LIKE '%بینک%')");
+            $bankCheck->execute([$assetAccountId]);
+            if (!$bankCheck->fetchColumn()) {
+                $bankDef = $pdo->query("SELECT id FROM accounts WHERE is_cash_or_bank = 1 AND is_active = 1 AND (account_code = '1010' OR account_name LIKE '%bank%' OR account_name LIKE '%بینک%') ORDER BY (account_code = '1010') DESC, id ASC LIMIT 1")->fetchColumn();
+                $assetAccountId = (int)($bankDef ?: $userCashAccId);
+            }
+        }
+        if ($assetAccountId <= 0) {
+            $assetAccountId = $userCashAccId;
+        }
+
+        if ($expenseAccountId <= 0) {
+            $defExp = $pdo->query("SELECT id FROM accounts WHERE account_type = 'expense' AND is_active = 1 ORDER BY (account_code = '5010') DESC, (account_code = '5050') DESC, id ASC LIMIT 1")->fetchColumn();
+            $expenseAccountId = (int)($defExp ?: 0);
+        }
+
+        if ($amount <= 0 || $benId <= 0) {
+            $error = 'براہ کرم درست رقم درج کریں۔';
+        } elseif ($fundId <= 0) {
+            $error = 'براہ کرم متعلقہ فنڈ منتخب کریں۔';
+        } elseif ($expenseAccountId <= 0) {
+            $error = 'براہ کرم خرچ کی مد منتخب کریں۔';
+        } else {
+            try {
+                $pdo->beginTransaction();
+
+                $benRow = $pdo->query("SELECT full_name, phone, category, department_class FROM beneficiaries WHERE id = {$benId}")->fetch();
+                $payeeName = $benRow['full_name'] ?? 'مستحق';
+
+                $prefix = 'PV-' . date('Ym', strtotime($date)) . '-';
+                $lastNo = $pdo->query("SELECT voucher_no FROM vouchers WHERE voucher_no LIKE '{$prefix}%' ORDER BY id DESC LIMIT 1")->fetchColumn();
+                $nextSeq = 1;
+                if ($lastNo && preg_match('/-(\d+)$/', $lastNo, $m)) {
+                    $nextSeq = (int)$m[1] + 1;
+                }
+                $voucherNo = $prefix . str_pad((string)$nextSeq, 4, '0', STR_PAD_LEFT);
+
+                $isDirectPost = has_permission('voucher.direct_post') || can_approve();
+                $voucherStatus = $isDirectPost ? 'posted' : 'draft';
+                $postedAt = $isDirectPost ? date('Y-m-d H:i:s') : null;
+
+                $userRegId = function_exists('get_user_region_id') ? get_user_region_id($userId) : 0;
+                $voucherRegionId = $userRegId > 0 ? $userRegId : null;
+
+                $stmtVoucher = $pdo->prepare('INSERT INTO vouchers (voucher_no, voucher_type, voucher_date, fund_id, region_id, beneficiary_id, payee_name, payment_method, reference_no, description, total_amount, status, created_by, posted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmtVoucher->execute([
+                    $voucherNo, 'expense', $date, $fundId, $voucherRegionId, $benId,
+                    $payeeName, $paymentMethod, $referenceNo, $description, $amount,
+                    $voucherStatus, $userId, $postedAt
+                ]);
+                $voucherId = (int)$pdo->lastInsertId();
+
+                $narration = $description ?: ("Stipend/Salary disbursement to " . $payeeName);
+                $stmtJe = $pdo->prepare('INSERT INTO journal_entries (voucher_id, region_id, entry_date, narration, status, created_by) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmtJe->execute([$voucherId, $voucherRegionId, $date, $narration, $voucherStatus, $userId]);
+                $jeId = (int)$pdo->lastInsertId();
+
+                // Double-Entry Journal Lines
+                // Debit: Expense Account
+                $stmtLine = $pdo->prepare('INSERT INTO journal_lines (journal_entry_id, account_id, fund_id, description, debit, credit) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmtLine->execute([$jeId, $expenseAccountId, $fundId, 'Disbursement: ' . $narration, $amount, 0.00]);
+                // Credit: Cash / Bank Asset Account
+                $stmtLine->execute([$jeId, $assetAccountId, $fundId, 'Paid via: ' . $narration, 0.00, $amount]);
+
+                $pdo->commit();
+
+                header('Location: beneficiaries.php?success=stipend_paid&paid_voucher_id=' . $voucherId);
+                exit;
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                $error = 'ادائیگی واؤچر بنانے میں خرابی: ' . $e->getMessage();
+            }
+        }
+    }
+}
+
 // Handle Add or Edit Beneficiary
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!has_permission('beneficiaries.manage')) {
@@ -141,6 +253,22 @@ $totalDisbursedOverall = (float)$pdo->query("SELECT COALESCE(SUM(total_amount), 
 // Fetch active funds and donors for dropdowns
 $funds = get_user_allowed_funds();
 $donors = $pdo->query("SELECT id, donor_name, phone FROM donors ORDER BY donor_name ASC")->fetchAll();
+
+// Fetch accounts for Quick Pay Stipend Modal
+$userCashAcc = get_or_create_user_cash_account($pdo, (int)$userId);
+$bankAccounts = function_exists('get_or_create_bank_accounts') ? get_or_create_bank_accounts($pdo) : [];
+$allAssetAccounts = $pdo->query("SELECT id, account_code, account_name, user_id FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY (account_code = '1000') DESC, (account_code = '1010') DESC, account_code ASC")->fetchAll() ?: [];
+
+$bankIds = array_map(fn($b) => (int)$b['id'], $bankAccounts);
+$otherCashAccounts = [];
+foreach ($allAssetAccounts as $acc) {
+    if (in_array((int)$acc['id'], $bankIds, true)) continue;
+    if (!empty($acc['user_id']) && (int)$acc['user_id'] === (int)$userId) continue;
+    $otherCashAccounts[] = $acc;
+}
+
+$currOrgMode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
+$expenseAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE account_type='expense' AND is_active=1 AND scope IN ('all', '{$currOrgMode}') ORDER BY (account_code='5010') DESC, (account_code='5050') DESC, account_code ASC")->fetchAll() ?: [];
 ?>
 <!doctype html>
 <html lang="en">
@@ -175,7 +303,27 @@ $donors = $pdo->query("SELECT id, donor_name, phone FROM donors ORDER BY donor_n
             </div>
         </header>
 
-        <?php if (isset($_GET['success'])): ?>
+        <?php if (!empty($_GET['paid_voucher_id']) && ($_GET['success'] ?? '') === 'stipend_paid'): 
+            $paidVid = (int)$_GET['paid_voucher_id'];
+            $paidVoucher = $pdo->query("SELECT v.*, f.name AS fund_name, b.full_name AS ben_name FROM vouchers v LEFT JOIN funds f ON f.id = v.fund_id LEFT JOIN beneficiaries b ON b.id = v.beneficiary_id WHERE v.id = {$paidVid}")->fetch();
+        ?>
+            <div class="no-print" style="background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 2px 6px rgba(16,185,129,0.15);">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span style="font-size:28px;">🎉</span>
+                    <div>
+                        <strong style="color:#065f46;font-size:15px;">وظیفہ / تنخواہ ادائیگی واؤچر کامیابی سے جاری ہو گیا! (Stipend Disbursed)</strong>
+                        <div style="font-size:12.5px;color:#047857;margin-top:2px;">
+                            واؤچر نمبر: <b style="font-family:monospace;font-size:13.5px;"><?=e($paidVoucher['voucher_no'] ?? '')?></b> &bull; وصول کنندہ: <b><?=e($paidVoucher['payee_name'] ?? ($paidVoucher['ben_name'] ?? ''))?></b> &bull; رقم: <b><?=money($paidVoucher['total_amount'] ?? 0)?></b>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <a href="print_voucher.php?id=<?=$paidVid?>&autoprint=1" target="_blank" class="btn sm" style="background:#059669;color:#ffffff;border:none;font-weight:700;padding:8px 16px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.12);text-decoration:none;">
+                        🖨️ Print Payment Slip (رسید پرنٹ کریں)
+                    </a>
+                </div>
+            </div>
+        <?php elseif (isset($_GET['success'])): ?>
             <div class="alert success">
                 <?php
                     if ($_GET['success'] === 'created') echo '✓ Record successfully registered!';
@@ -450,9 +598,25 @@ $donors = $pdo->query("SELECT id, donor_name, phone FROM donors ORDER BY donor_n
                                     </td>
                                     <td class="right" style="white-space:nowrap;">
                                         <div style="display:inline-flex;align-items:center;gap:6px;">
-                                            <a href="expenses.php?beneficiary_id=<?=$b['id']?>&payee_name=<?=urlencode($b['full_name'])?>&amount=<?=$b['monthly_stipend_amount']?>&fund_id=<?=$b['assigned_fund_id']?>&desc=<?=urlencode('ماہانہ وظیفہ / کفالت برائے ' . $b['full_name'])?>" class="btn success sm" style="background:#15803d;color:#fff;padding:3px 8px;font-size:11px;font-weight:600;text-decoration:none;border-radius:4px;" title="Issue Stipend or Expense Voucher">
+                                            <?php 
+                                                $quickStipendData = [
+                                                    'beneficiary_id' => (int)$b['id'],
+                                                    'full_name' => $b['full_name'],
+                                                    'category' => $b['category'],
+                                                    'department_class' => $b['department_class'] ?? '',
+                                                    'fund_id' => (int)($b['assigned_fund_id'] ?: ($funds[0]['id'] ?? 0)),
+                                                    'fund_name' => (string)($b['fund_name'] ?: 'General'),
+                                                    'amount' => (float)$b['monthly_stipend_amount'],
+                                                    'desc' => 'ماہانہ وظیفہ / تنخواہ برائے ' . $b['full_name'] . ' بابت ماہ ' . date('F Y')
+                                                ];
+                                            ?>
+                                            <button type="button" 
+                                                    class="btn success sm" 
+                                                    style="background:#15803d;color:#fff;padding:3px 9px;font-size:11.5px;font-weight:700;border:none;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" 
+                                                    title="Quick Pay Stipend / Salary (فوری ادائیگی)"
+                                                    onclick='openQuickStipendModal(<?=json_encode($quickStipendData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)?>)'>
                                                 💰 Stipend
-                                            </a>
+                                            </button>
                                             <?php if (has_permission('beneficiaries.manage')): ?>
                                                 <a href="beneficiaries.php?edit_id=<?=$b['id']?>#benFormCard" class="btn secondary sm" style="padding:3px 7px;font-size:11px;" title="Edit Details">
                                                     ✏️
@@ -471,11 +635,293 @@ $donors = $pdo->query("SELECT id, donor_name, phone FROM donors ORDER BY donor_n
             <?php endif; ?>
         </article>
 
+        <!-- Quick Pay Stipend / Salary Modal (1-Click Instant Disbursement) -->
+        <div id="quickStipendModal" class="modal-backdrop no-print" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:99999;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);">
+            <div style="background:#ffffff;border-radius:14px;width:100%;max-width:500px;box-shadow:0 25px 35px -5px rgba(0,0,0,0.3);overflow:hidden;border:1px solid #cbd5e1;">
+                <div style="padding:16px 20px;background:#0f172a;color:#ffffff;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;">
+                        <span>💰</span>
+                        <span>Quick Pay Stipend / Salary <span class="ur">(فوری ادائیگی وظیفہ / تنخواہ)</span></span>
+                    </div>
+                    <button type="button" onclick="closeQuickStipendModal()" style="background:transparent;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1;" title="Close (بند کریں)">&times;</button>
+                </div>
+
+                <form method="post" action="beneficiaries.php" style="padding:20px;">
+                    <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
+                    <input type="hidden" name="action" value="quick_pay_stipend">
+                    <input type="hidden" name="beneficiary_id" id="qsm_beneficiary_id" value="">
+
+                    <!-- Beneficiary Info Card -->
+                    <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                            <div>
+                                <div style="font-size:11px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:0.5px;">امیدوار / وصول کنندہ:</div>
+                                <div style="font-weight:800;font-size:16px;color:#0f172a;margin-top:2px;" id="qsm_full_name">Beneficiary Name</div>
+                                <div style="font-size:12px;color:#475569;margin-top:3px;" id="qsm_subtext">Class / Dept</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;font-weight:700;font-size:11.5px;padding:3px 8px;" id="qsm_category_badge">Category</span>
+                                <div style="font-size:11.5px;color:#0284c7;font-weight:700;margin-top:5px;" id="qsm_fund_name">Fund</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amount & Payment Date Grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Disbursement Amount <span class="ur">(ادائیگی رقم PKR)</span> *
+                            </label>
+                            <input type="number" step="0.01" min="1" name="amount" id="qsm_amount" required style="width:100%;font-size:17px;font-weight:800;color:#b91c1c;padding:8px 12px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Payment Date <span class="ur">(تاریخ ادائیگی)</span> *
+                            </label>
+                            <input type="date" name="voucher_date" id="qsm_date" required style="width:100%;font-size:13.5px;font-weight:600;padding:9px 12px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Fund & Expense Head Grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                From Fund <span class="ur">(فنڈ کھاتہ)</span> *
+                            </label>
+                            <select name="fund_id" id="qsm_fund_id" required style="width:100%;font-size:12.5px;font-weight:600;padding:9px 10px;border:1.5px solid #cbd5e1;border-radius:6px;box-sizing:border-box;">
+                                <?php foreach ($funds as $f): ?>
+                                    <option value="<?=$f['id']?>"><?=e($f['name'])?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Expense Head <span class="ur">(خرچ کی مد)</span> *
+                            </label>
+                            <select name="expense_account_id" id="qsm_expense_account_id" required style="width:100%;font-size:12.5px;font-weight:600;padding:9px 10px;border:1.5px solid #cbd5e1;border-radius:6px;box-sizing:border-box;">
+                                <?php foreach ($expenseAccounts as $acc): ?>
+                                    <option value="<?=$acc['id']?>" data-code="<?=$acc['account_code']?>">
+                                        <?=e($acc['account_code'])?> - <?=e(format_ui_text($acc['account_name']))?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method & Paid From Grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Payment Method <span class="ur">(طریقہ کار)</span> *
+                            </label>
+                            <select name="payment_method" id="qsm_payment_method" onchange="onStipendPaymentMethodChange()" style="width:100%;font-size:12.5px;font-weight:700;padding:9px 10px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;background:#f8fafc;">
+                                <option value="cash">💵 Cash (نقد ادائیگی)</option>
+                                <option value="bank_transfer">🏛️ Bank / Online Transfer (بینک منتقلی)</option>
+                                <option value="cheque">📝 Cheque (بینک چیک)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Paid From <span class="ur">(ادائیگی کھاتہ)</span> *
+                            </label>
+                            <select name="asset_account_id" id="qsm_asset_account_id" onchange="onStipendAccountChange()" required style="width:100%;font-size:12.5px;font-weight:700;padding:9px 10px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;">
+                                <?php if (!empty($userCashAcc)): ?>
+                                    <optgroup label="💼 آپ کا ذاتی نقد کھاتہ (Your Cash Custody)">
+                                        <option value="<?=$userCashAcc['id']?>" data-type="cash" selected>
+                                            <?=e($userCashAcc['account_code'])?> - <?=e(format_ui_text($userCashAcc['account_name']))?> (آپ کا کیش)
+                                        </option>
+                                    </optgroup>
+                                <?php endif; ?>
+
+                                <?php if (!empty($bankAccounts)): ?>
+                                    <optgroup label="🏛️ مدرسہ / ٹرسٹ بینک اکاؤنٹس (Bank Accounts)">
+                                        <?php foreach ($bankAccounts as $bAcc): ?>
+                                            <option value="<?=$bAcc['id']?>" data-type="bank">
+                                                <?=e($bAcc['account_code'])?> - <?=e(format_ui_text($bAcc['account_name']))?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                <?php endif; ?>
+
+                                <?php if (can_approve() && !empty($otherCashAccounts)): ?>
+                                    <optgroup label="👥 دیگر عملہ کیش اکاؤنٹس (Other Staff Cash)">
+                                        <?php foreach ($otherCashAccounts as $oAcc): ?>
+                                            <option value="<?=$oAcc['id']?>" data-type="other_cash">
+                                                <?=e($oAcc['account_code'])?> - <?=e(format_ui_text($oAcc['account_name']))?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                <?php endif; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Bank Ref / Cheque No Box (Shows when Bank or Cheque is selected) -->
+                    <div id="qsm_ref_container" style="display:none;margin-bottom:14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px 14px;">
+                        <label style="display:block;font-size:12px;font-weight:700;color:#166534;margin-bottom:5px;">
+                            Bank Transfer Ref / Cheque No <span class="ur">(بینک رسید / آن لائن ٹرانزیکشن یا چیک نمبر)</span>
+                        </label>
+                        <input type="text" name="reference_no" id="qsm_reference_no" style="width:100%;font-size:12.5px;padding:8px 12px;border:1px solid #86efac;border-radius:6px;box-sizing:border-box;" placeholder="e.g. TR-98214 یا Cheque # 0019284">
+                    </div>
+
+                    <!-- Description / Narration -->
+                    <div style="margin-bottom:18px;">
+                        <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                            Description / Note <span class="ur">(تفصیل و مد)</span>
+                        </label>
+                        <input type="text" name="description" id="qsm_description" style="width:100%;font-size:12.5px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;" placeholder="ماہانہ وظیفہ / تنخواہ ادائیگی">
+                    </div>
+
+                    <!-- Modal Actions -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid #e2e8f0;flex-wrap:wrap;gap:10px;">
+                        <a href="expenses.php" id="qsm_adv_link" target="_blank" style="font-size:11.5px;color:#2563eb;text-decoration:none;" title="Open full Expense form for bill attachments or foreign currency">
+                            Advanced Form ↗ <span class="ur">(تفصیلی فارم)</span>
+                        </a>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" onclick="closeQuickStipendModal()" class="btn secondary" style="padding:9px 16px;font-weight:600;">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn" style="background:#15803d;color:#ffffff;border:none;padding:9px 20px;font-weight:700;font-size:13.5px;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                                ✅ Confirm &amp; Disburse Payment <span class="ur">(رقم ادا کریں)</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <?=render_app_footer($madrasaName)?>
     </main>
 </div>
 
 <script>
+var defaultStipendUserCashId = "<?=!empty($userCashAcc) ? (int)$userCashAcc['id'] : 0?>";
+var defaultStipendBankId = "<?=!empty($bankAccounts) ? (int)$bankAccounts[0]['id'] : 0?>";
+
+function onStipendPaymentMethodChange() {
+    var pm = document.getElementById('qsm_payment_method');
+    var accSelect = document.getElementById('qsm_asset_account_id');
+    var refBox = document.getElementById('qsm_ref_container');
+    if (!pm || !accSelect) return;
+
+    if (pm.value === 'cash') {
+        var cashOpt = accSelect.querySelector('option[data-type="cash"]');
+        if (cashOpt) {
+            accSelect.value = cashOpt.value;
+        } else if (defaultStipendUserCashId && defaultStipendUserCashId !== '0') {
+            accSelect.value = defaultStipendUserCashId;
+        }
+        if (refBox) refBox.style.display = 'none';
+    } else {
+        // Bank or Cheque
+        var bankOpt = accSelect.querySelector('option[data-type="bank"]');
+        if (bankOpt) {
+            accSelect.value = bankOpt.value;
+        } else if (defaultStipendBankId && defaultStipendBankId !== '0') {
+            accSelect.value = defaultStipendBankId;
+        }
+        if (refBox) {
+            refBox.style.display = 'block';
+            var refInput = document.getElementById('qsm_reference_no');
+            if (refInput) refInput.focus();
+        }
+    }
+}
+
+function onStipendAccountChange() {
+    var accSelect = document.getElementById('qsm_asset_account_id');
+    var pm = document.getElementById('qsm_payment_method');
+    var refBox = document.getElementById('qsm_ref_container');
+    if (!accSelect || !pm) return;
+
+    var selectedOpt = accSelect.options[accSelect.selectedIndex];
+    var accType = selectedOpt ? selectedOpt.getAttribute('data-type') : '';
+
+    if (accType === 'bank') {
+        if (pm.value === 'cash') {
+            pm.value = 'bank_transfer';
+        }
+        if (refBox) refBox.style.display = 'block';
+    } else if (accType === 'cash') {
+        pm.value = 'cash';
+        if (refBox) refBox.style.display = 'none';
+    }
+}
+
+function openQuickStipendModal(data) {
+    if (!data) return;
+    document.getElementById('qsm_beneficiary_id').value = data.beneficiary_id || '';
+    document.getElementById('qsm_full_name').textContent = data.full_name || 'امیدوار';
+    document.getElementById('qsm_subtext').textContent = data.department_class ? ('شعبہ / درجہ: ' + data.department_class) : 'امیدوار وظیفہ';
+    document.getElementById('qsm_category_badge').textContent = data.category ? (data.category.toUpperCase()) : 'STUDENT';
+    document.getElementById('qsm_fund_name').textContent = '🏷️ ' + (data.fund_name || 'General');
+    document.getElementById('qsm_amount').value = data.amount || 0;
+    document.getElementById('qsm_date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('qsm_description').value = data.desc || '';
+
+    // Set fund dropdown
+    var fundSel = document.getElementById('qsm_fund_id');
+    if (fundSel && data.fund_id) {
+        fundSel.value = data.fund_id;
+    }
+
+    // Auto-select Expense Head based on category (5010 for staff salaries, 5050 for students/orphans)
+    var expSelect = document.getElementById('qsm_expense_account_id');
+    if (expSelect) {
+        var targetCode = (data.category === 'staff') ? '5010' : '5050';
+        for (var i = 0; i < expSelect.options.length; i++) {
+            var opt = expSelect.options[i];
+            if (opt.getAttribute('data-code') === targetCode) {
+                expSelect.selectedIndex = i;
+                break;
+            }
+        }
+    }
+
+    // Reset payment method to cash & user's own cash account by default
+    var pm = document.getElementById('qsm_payment_method');
+    if (pm) pm.value = 'cash';
+    var accSelect = document.getElementById('qsm_asset_account_id');
+    if (accSelect && defaultStipendUserCashId && defaultStipendUserCashId !== '0') {
+        accSelect.value = defaultStipendUserCashId;
+    }
+    var refBox = document.getElementById('qsm_ref_container');
+    if (refBox) refBox.style.display = 'none';
+    var refInput = document.getElementById('qsm_reference_no');
+    if (refInput) refInput.value = '';
+
+    // Advanced full form fallback link
+    var advLink = document.getElementById('qsm_adv_link');
+    if (advLink) {
+        advLink.href = 'expenses.php?beneficiary_id=' + encodeURIComponent(data.beneficiary_id) +
+            '&payee_name=' + encodeURIComponent(data.full_name) +
+            '&amount=' + encodeURIComponent(data.amount) +
+            '&fund_id=' + encodeURIComponent(data.fund_id) +
+            '&desc=' + encodeURIComponent(data.desc);
+    }
+
+    var m = document.getElementById('quickStipendModal');
+    if (m) {
+        m.style.display = 'flex';
+        setTimeout(function() {
+            var amt = document.getElementById('qsm_amount');
+            if (amt) { amt.focus(); amt.select(); }
+        }, 120);
+    }
+}
+
+function closeQuickStipendModal() {
+    var m = document.getElementById('quickStipendModal');
+    if (m) m.style.display = 'none';
+}
+
+// Close modal if user clicks outside of modal dialog
+window.addEventListener('click', function(e) {
+    var m = document.getElementById('quickStipendModal');
+    if (e.target === m) {
+        closeQuickStipendModal();
+    }
+});
 function toggleBenForm(forceOpen) {
     var card = document.getElementById('benFormCard');
     var btn = document.getElementById('toggleBenBtn');

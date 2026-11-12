@@ -335,19 +335,15 @@ $printFooterNote = get_setting('print_footer_note', 'یہ ایک کمپیوٹر�
 
 // Cash & Bank Accounts and Income Heads for Quick Receipt
 $userCashAcc = get_or_create_user_cash_account($pdo, (int)$userId);
+$bankAccounts = function_exists('get_or_create_bank_accounts') ? get_or_create_bank_accounts($pdo) : [];
 $allAssetAccounts = $pdo->query("SELECT id, account_code, account_name, user_id FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY (account_code = '1000') DESC, (account_code = '1010') DESC, account_code ASC")->fetchAll() ?: [];
 
-$bankAccounts = [];
+$bankIds = array_map(fn($b) => (int)$b['id'], $bankAccounts);
 $otherCashAccounts = [];
 foreach ($allAssetAccounts as $acc) {
-    $isBank = (stripos($acc['account_name'], 'bank') !== false) || (stripos($acc['account_name'], 'بینک') !== false) || in_array((string)$acc['account_code'], ['1010'], true);
-    if ($isBank) {
-        $bankAccounts[] = $acc;
-    } elseif (!empty($acc['user_id']) && (int)$acc['user_id'] === (int)$userId) {
-        // User's own cash account (covered by $userCashAcc)
-    } else {
-        $otherCashAccounts[] = $acc;
-    }
+    if (in_array((int)$acc['id'], $bankIds, true)) continue;
+    if (!empty($acc['user_id']) && (int)$acc['user_id'] === (int)$userId) continue;
+    $otherCashAccounts[] = $acc;
 }
 $incomeAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE account_type='income' AND is_active=1 ORDER BY (account_code='4000') DESC, account_code ASC")->fetchAll();
 
@@ -1646,13 +1642,19 @@ function onPaymentMethodChange() {
     if (!pm || !accSelect) return;
 
     if (pm.value === 'cash') {
-        if (defaultUserCashId && defaultUserCashId !== '0') {
+        var cashOpt = accSelect.querySelector('option[data-type="cash"]');
+        if (cashOpt) {
+            accSelect.value = cashOpt.value;
+        } else if (defaultUserCashId && defaultUserCashId !== '0') {
             accSelect.value = defaultUserCashId;
         }
         if (refBox) refBox.style.display = 'none';
     } else {
         // Bank or Cheque
-        if (defaultBankId && defaultBankId !== '0') {
+        var bankOpt = accSelect.querySelector('option[data-type="bank"]');
+        if (bankOpt) {
+            accSelect.value = bankOpt.value;
+        } else if (defaultBankId && defaultBankId !== '0') {
             accSelect.value = defaultBankId;
         }
         if (refBox) {

@@ -1581,6 +1581,43 @@ function get_main_cash_account(PDO $pdo): ?array {
     return $acc ?: null;
 }
 
+function get_or_create_bank_accounts(PDO $pdo): array {
+    // 1. Search for existing active bank accounts
+    $stmt = $pdo->query("SELECT id, account_code, account_name, user_id FROM accounts 
+                         WHERE is_active = 1 
+                         AND (
+                             account_code = '1010' 
+                             OR account_name LIKE '%bank%' 
+                             OR account_name LIKE '%بینک%'
+                             OR (is_cash_or_bank = 1 AND user_id IS NULL AND account_code != '1000' AND account_name NOT LIKE '%cash%' AND account_name NOT LIKE '%نقدی%')
+                         )
+                         ORDER BY (account_code = '1010') DESC, account_code ASC");
+    $banks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+    // 2. If no bank account found, check if 1010 exists but is inactive or is_cash_or_bank=0
+    if (empty($banks)) {
+        $chk = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE account_code = '1010' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if ($chk) {
+            $pdo->exec("UPDATE accounts SET is_active = 1, is_cash_or_bank = 1, scope = 'all' WHERE id = " . (int)$chk['id']);
+            $stmt = $pdo->query("SELECT id, account_code, account_name, user_id FROM accounts WHERE id = " . (int)$chk['id']);
+            $banks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        }
+    }
+
+    // 3. If still no bank account exists at all, auto-create the core institutional bank account 1010
+    if (empty($banks)) {
+        try {
+            $pdo->exec("INSERT INTO accounts (account_code, account_name, account_type, is_cash_or_bank, opening_balance, scope, is_active)
+                        VALUES ('1010', 'مرکزی بینک اکاؤنٹ (Main Bank Account)', 'asset', 1, 0.00, 'all', 1)
+                        ON DUPLICATE KEY UPDATE is_active = 1, is_cash_or_bank = 1");
+            $stmt = $pdo->query("SELECT id, account_code, account_name, user_id FROM accounts WHERE account_code = '1010' LIMIT 1");
+            $banks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        } catch (Throwable $e) {}
+    }
+
+    return $banks;
+}
+
 function get_or_create_user_cash_account(PDO $pdo, int $userId): ?array {
     if ($userId <= 0) return null;
     

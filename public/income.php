@@ -424,19 +424,15 @@ $userFundIds = get_user_assigned_fund_ids($currentUserId);
 $hasFundRestriction = (!$isSuperAdmin && !empty($userFundIds));
 
 $currOrgMode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
+$bankAccounts = function_exists('get_or_create_bank_accounts') ? get_or_create_bank_accounts($pdo) : [];
 $allAssetAccounts = $pdo->query("SELECT id, account_code, account_name, user_id FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY (account_code = '1000') DESC, (account_code = '1010') DESC, account_code ASC")->fetchAll() ?: [];
 
-$bankAccounts = [];
+$bankIds = array_map(fn($b) => (int)$b['id'], $bankAccounts);
 $otherCashAccounts = [];
 foreach ($allAssetAccounts as $acc) {
-    $isBank = (stripos($acc['account_name'], 'bank') !== false) || (stripos($acc['account_name'], 'بینک') !== false) || in_array((string)$acc['account_code'], ['1010'], true);
-    if ($isBank) {
-        $bankAccounts[] = $acc;
-    } elseif (!empty($acc['user_id']) && (int)$acc['user_id'] === $currentUserId) {
-        // User's own cash account (covered by $userCashAcc)
-    } else {
-        $otherCashAccounts[] = $acc;
-    }
+    if (in_array((int)$acc['id'], $bankIds, true)) continue;
+    if (!empty($acc['user_id']) && (int)$acc['user_id'] === $currentUserId) continue;
+    $otherCashAccounts[] = $acc;
 }
 $assetAccounts = $allAssetAccounts;
 $incomeAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE account_type='income' AND is_active=1 AND scope IN ('all', '{$currOrgMode}') ORDER BY account_code ASC")->fetchAll();
@@ -1206,12 +1202,18 @@ function onIncomePaymentMethodChange() {
     if (!pm || !accSelect) return;
 
     if (pm.value === 'cash') {
-        if (defaultIncUserCashId && defaultIncUserCashId !== '0') {
+        var cashOpt = accSelect.querySelector('option[data-type="cash"]');
+        if (cashOpt) {
+            accSelect.value = cashOpt.value;
+        } else if (defaultIncUserCashId && defaultIncUserCashId !== '0') {
             accSelect.value = defaultIncUserCashId;
         }
     } else {
         // Bank, online, cheque
-        if (defaultIncBankId && defaultIncBankId !== '0') {
+        var bankOpt = accSelect.querySelector('option[data-type="bank"]');
+        if (bankOpt) {
+            accSelect.value = bankOpt.value;
+        } else if (defaultIncBankId && defaultIncBankId !== '0') {
             accSelect.value = defaultIncBankId;
         }
     }

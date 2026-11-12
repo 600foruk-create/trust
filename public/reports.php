@@ -222,7 +222,33 @@ foreach ($treasuryAccounts as $ta) {
 $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
 $madrasaAddress = get_setting('madrasa_address', '');
 $madrasaPhone = get_setting('madrasa_phone', '');
-$orgLogo = get_setting('org_logo', '');
+$orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
+
+// Print & Slip Customization Settings
+$printShowLogo = get_setting('print_show_logo', '1') === '1';
+$printShowAddress = get_setting('print_show_address', '1') === '1';
+$printPreprinted = get_setting('print_preprinted_letterhead', '0') === '1';
+$printSignTitle1 = get_setting('print_sign_title_1', is_madrasa_mode() ? 'تیار کنندہ / کیشیئر (Prepared By)' : 'Prepared By (تیار کنندہ)');
+$printSignTitle2 = get_setting('print_sign_title_2', is_madrasa_mode() ? 'اکاؤنٹنٹ / ناظمِ مالیات (Accountant)' : 'Accountant / Cashier (اکاؤنٹنٹ)');
+$printSignTitle3 = get_setting('print_sign_title_3', is_madrasa_mode() ? 'مہتمم / صدر / مجاز دستخط (Director / Mohtamim)' : 'Director / Mohtamim (دستخط مجاز اتھارٹی)');
+$printFooterNote = get_setting('print_footer_note', 'یہ ایک کمپیوٹرائزڈ آفیشل فنانشل رسید ہے۔ کسی دستی مہر کی ضرورت نہیں۔');
+
+// Determine Report Titles for Print Header
+if ($reportType === 'vouchers') {
+    $reportTitleEn = 'Vouchers Transaction Register';
+    $reportTitleUr = 'تمام واؤچرز و مالیاتی لین دین کا رجسٹر';
+} elseif ($reportType === 'funds') {
+    $reportTitleEn = 'Funds & Projects Summary Statement';
+    $reportTitleUr = 'فنڈ و پروجیکٹ وائز مالیاتی گوشوارہ';
+} elseif ($reportType === 'audit_dossier') {
+    $reportTitleEn = 'Annual Financial Audit Dossier';
+    $reportTitleUr = 'سالانہ مالیاتی گوشوارہ و آڈٹ رپورٹ';
+} else {
+    $reportTitleEn = 'Income vs Expenses Statement';
+    $reportTitleUr = 'آمدنی و اخراجات مالیاتی گوشوارہ';
+}
+
+$totalVouchersAmount = !empty($allVouchers) ? array_sum(array_column($allVouchers, 'total_amount')) : 0.0;
 ?>
 <!doctype html>
 <html lang="en">
@@ -233,14 +259,107 @@ $orgLogo = get_setting('org_logo', '');
     <link rel="stylesheet" href="assets/style.css?v=<?=css_ver()?>">
     <style>
         @media print {
-            .no-print { display: none !important; }
-            .print-header { display: block !important; margin-bottom: 20px; }
-            body { background: #fff !important; color: #000 !important; }
-            .dossier-box { border: 2px solid #0f172a !important; padding: 20px !important; }
-            .dossier-sec { page-break-inside: avoid; }
-            .sign-block { page-break-inside: avoid; }
+            @page {
+                size: A4 portrait;
+                margin: 8mm 8mm 12mm 8mm;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .app-top-header, #appTopHeader, .sidebar, .app-sidebar, nav, .topbar, .filter-bar, .tab-nav, .btn-row, button, .no-print, footer, .app-footer, .header-mobile-toggle, .panel-heading {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            body, .app-shell, .main {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", Tahoma, Arial, sans-serif !important;
+            }
+            .panel {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+            }
+            .dossier-box {
+                border: 2px solid #0f172a !important;
+                padding: 16px !important;
+            }
+            .stats-grid {
+                display: flex !important;
+                gap: 10px !important;
+                margin-bottom: 14px !important;
+            }
+            .stat-card {
+                flex: 1 !important;
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                padding: 10px 14px !important;
+                background: #f8fafc !important;
+            }
+            .content-grid {
+                display: block !important;
+            }
+            .table-wrap {
+                overflow: visible !important;
+                max-width: 100% !important;
+            }
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin-top: 6px;
+                font-size: 11px !important;
+            }
+            table thead {
+                display: table-header-group !important;
+            }
+            table tfoot {
+                display: table-footer-group !important;
+            }
+            table tr {
+                page-break-inside: avoid !important;
+            }
+            table th, table td {
+                border: 1px solid #334155 !important;
+                padding: 6px 8px !important;
+                color: #000000 !important;
+            }
+            table th {
+                background: #0f172a !important;
+                color: #ffffff !important;
+                font-weight: 700 !important;
+                font-size: 11px !important;
+            }
+            table tbody tr:nth-child(even) td {
+                background: #f8fafc !important;
+            }
+            table tfoot tr {
+                background: #f1f5f9 !important;
+                font-weight: 800 !important;
+                border-top: 2px solid #0f172a !important;
+            }
+            .badge {
+                border: 1px solid #64748b !important;
+                padding: 2px 6px !important;
+                color: #000000 !important;
+                background: transparent !important;
+                font-size: 9.5px !important;
+                font-weight: 600 !important;
+            }
+            .dossier-sec, .sign-block {
+                page-break-inside: avoid !important;
+            }
         }
-        .print-header { display: none; }
+        .print-only {
+            display: none;
+        }
         .dossier-header { text-align: center; border-bottom: 2px double #0f172a; padding-bottom: 16px; margin-bottom: 22px; }
         .dossier-header h2 { font-size: 24px; margin: 0 0 6px; color: #0f172a; }
         .dossier-header p { margin: 2px 0; color: #475569; font-size: 13px; }
@@ -256,13 +375,80 @@ $orgLogo = get_setting('org_logo', '');
     <?php require __DIR__ . '/../app/sidebar.php'; ?>
 
     <main class="main">
-        <div class="print-header">
-            <h2 style="margin:0 0 5px;"><?=e($madrasaName)?> — Financial Statement</h2>
-            <?php if (!$canApprove): ?>
-                <p style="margin:0;color:#64748b;">Cashier / User: <?=e($currentUser['name'])?></p>
+        <?php if ($reportType !== 'audit_dossier'): ?>
+        <!-- Official Print / PDF Header (Visible only when printed or exported to PDF) -->
+        <div class="print-only print-header-box" style="border:1.5px solid #0f172a;border-radius:6px;padding:16px 20px;margin-bottom:16px;background:#ffffff; <?=$printPreprinted ? 'padding-top:100px;' : ''?>">
+            <?php if (!$printPreprinted): ?>
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0f172a;padding-bottom:12px;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;gap:14px;">
+                    <?php if ($printShowLogo && $orgLogo): ?>
+                        <img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:60px;max-width:120px;object-fit:contain;">
+                    <?php endif; ?>
+                    <div>
+                        <h1 style="margin:0;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;line-height:1.2;"><?=e($madrasaName)?></h1>
+                        <?php if ($printShowAddress && (!empty($madrasaAddress) || !empty($madrasaPhone))): ?>
+                        <div style="font-size:11.5px;color:#475569;margin-top:3px;">
+                            <?php if (!empty($madrasaAddress)): ?>
+                                <span>📍 <?=e($madrasaAddress)?></span>
+                            <?php endif; ?>
+                            <?php if (!empty($madrasaPhone)): ?>
+                                <span> &bull; 📞 <?=e($madrasaPhone)?></span>
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="display:inline-block;background:#0f172a;color:#ffffff;padding:5px 14px;font-size:12.5px;font-weight:700;border-radius:4px;text-transform:uppercase;letter-spacing:0.4px;">
+                        <?=e($reportTitleEn)?>
+                    </div>
+                    <div style="font-size:12px;color:#0f172a;font-weight:700;margin-top:4px;" class="ur">
+                        <?=e($reportTitleUr)?>
+                    </div>
+                </div>
+            </div>
+            <?php else: ?>
+            <div style="display:flex;justify-content:flex-end;border-bottom:2px solid #0f172a;padding-bottom:8px;margin-bottom:12px;">
+                <div style="text-align:right;">
+                    <div style="display:inline-block;background:#0f172a;color:#ffffff;padding:5px 14px;font-size:12.5px;font-weight:700;border-radius:4px;text-transform:uppercase;letter-spacing:0.4px;">
+                        <?=e($reportTitleEn)?>
+                    </div>
+                    <div style="font-size:12px;color:#0f172a;font-weight:700;margin-top:4px;" class="ur">
+                        <?=e($reportTitleUr)?>
+                    </div>
+                </div>
+            </div>
             <?php endif; ?>
-            <p style="margin:0;color:#64748b;">Period: <?=e(date('d M Y', strtotime($fromDate)))?> to <?=e(date('d M Y', strtotime($toDate)))?></p>
+
+            <!-- Print Metadata Row -->
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#334155;background:#f8fafc;padding:7px 12px;border-radius:4px;border:1px solid #e2e8f0;">
+                <div>
+                    <strong>Period:</strong> <span style="color:#0f172a;font-weight:700;"><?=e(date('d M Y', strtotime($fromDate)))?></span> to <span style="color:#0f172a;font-weight:700;"><?=e(date('d M Y', strtotime($toDate)))?></span>
+                    <?php if ($selectedRegionId > 0 && !empty($allRegions)): ?>
+                        <?php 
+                        $regName = '';
+                        foreach ($allRegions as $rg) { if ((int)$rg['id'] === $selectedRegionId) { $regName = $rg['name']; break; } }
+                        ?>
+                        &nbsp;|&nbsp; <strong>Province:</strong> <span style="color:#0284c7;font-weight:700;"><?=e($regName)?></span>
+                    <?php elseif ($selectedRegionId === 0): ?>
+                        &nbsp;|&nbsp; <strong>Scope:</strong> <span style="color:#0284c7;font-weight:700;">All Pakistan (ملک بھر کی مجموعی رپورٹ)</span>
+                    <?php endif; ?>
+                    <?php if ($selectedUserId > 0 && !empty($usersList)): ?>
+                        <?php 
+                        $uName = '';
+                        foreach ($usersList as $usr) { if ((int)$usr['id'] === $selectedUserId) { $uName = $usr['full_name']; break; } }
+                        ?>
+                        &nbsp;|&nbsp; <strong>User / Cashier:</strong> <span style="font-weight:700;"><?=e($uName)?></span>
+                    <?php elseif (!$canApprove): ?>
+                        &nbsp;|&nbsp; <strong>Cashier:</strong> <span style="font-weight:700;"><?=e($currentUser['name'])?></span>
+                    <?php endif; ?>
+                </div>
+                <div style="text-align:right;">
+                    <strong>Generated By:</strong> <?=e($currentUser['name'] ?? 'Admin')?> &nbsp;|&nbsp; <strong>Printed:</strong> <?=date('d M Y, h:i A')?>
+                </div>
+            </div>
         </div>
+        <?php endif; ?>
 
         <header class="topbar no-print">
             <div>
@@ -353,13 +539,18 @@ $orgLogo = get_setting('org_logo', '');
             <article class="panel dossier-box" style="padding:26px 30px;background:#fff;border-radius:12px;border:1px solid var(--line);">
                 <!-- Header -->
                 <div class="dossier-header">
+                    <?php if ($printShowLogo && $orgLogo && !$printPreprinted): ?>
+                        <div style="margin-bottom:8px;"><img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:65px;max-width:130px;object-fit:contain;"></div>
+                    <?php endif; ?>
                     <h2><?=e($madrasaName)?></h2>
                     <p style="font-weight:700;font-size:16px;color:#1e3a8a;">
                         سالانہ مالیاتی گوشوارہ و آڈٹ رپورٹ (Annual Financial Audit Dossier)
                     </p>
+                    <?php if ($printShowAddress && (!empty($madrasaAddress) || !empty($madrasaPhone))): ?>
                     <p>
                         <?=!empty($madrasaAddress)?e($madrasaAddress).' | ':''?><?=!empty($madrasaPhone)?'فون رابطہ: '.e($madrasaPhone):''?>
                     </p>
+                    <?php endif; ?>
                     <p style="margin-top:6px;font-size:13.5px;color:#0f172a;background:#f1f5f9;display:inline-block;padding:4px 14px;border-radius:20px;font-weight:600;">
                         مالیاتی آڈٹ مدت: <b><?=e(date('d M Y', strtotime($fromDate)))?></b> تا <b><?=e(date('d M Y', strtotime($toDate)))?></b>
                     </p>
@@ -708,6 +899,14 @@ $orgLogo = get_setting('org_logo', '');
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
+                        <tfoot>
+                            <tr style="background:#f1f5f9;font-weight:800;border-top:2px solid #0f172a;">
+                                <td colspan="3">کل میزان (Total Funds Activity):</td>
+                                <td class="right font-bold" style="color:#15803d;"><?=money($totalPeriodIncome)?></td>
+                                <td class="right font-bold" style="color:#b91c1c;"><?=money($totalPeriodExpense)?></td>
+                                <td class="right font-bold" style="color:<?=$netPeriodSurplus>=0?'#15803d':'#b91c1c'?>;"><?=money($netPeriodSurplus)?></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </article>
@@ -769,10 +968,47 @@ $orgLogo = get_setting('org_logo', '');
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
+                            <tfoot>
+                                <tr style="background:#f1f5f9;font-weight:800;border-top:2px solid #0f172a;">
+                                    <td colspan="7" style="text-align:right;">
+                                        Total Transactions (کل میزان - <?=count($allVouchers)?> واؤچرز):
+                                    </td>
+                                    <td class="right font-bold"><?=money($totalVouchersAmount)?></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 <?php endif; ?>
             </article>
+        <?php endif; ?>
+
+        <!-- Official Signature Block for Reports (Visible only when printed or exported to PDF) -->
+        <?php if ($reportType !== 'audit_dossier'): ?>
+        <div class="print-only sign-block" style="margin-top:35px;page-break-inside:avoid;">
+            <div style="display:flex;justify-content:space-between;padding:0 30px;">
+                <div style="text-align:center;min-width:160px;">
+                    <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
+                        <?=e($printSignTitle1)?>
+                    </div>
+                    <div style="font-size:10px;color:#64748b;margin-top:2px;"><?=e($currentUser['name'] ?? 'Admin')?></div>
+                </div>
+                <div style="text-align:center;min-width:160px;">
+                    <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
+                        <?=e($printSignTitle2)?>
+                    </div>
+                    <div style="font-size:10px;color:#64748b;margin-top:2px;">Accounts Dept</div>
+                </div>
+                <div style="text-align:center;min-width:160px;">
+                    <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
+                        <?=e($printSignTitle3)?>
+                    </div>
+                    <div style="font-size:10px;color:#64748b;margin-top:2px;">Official Seal &amp; Signature</div>
+                </div>
+            </div>
+            <div style="text-align:center;margin-top:24px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:6px;">
+                <?=e($printFooterNote)?> &bull; <?=e($madrasaName)?> &bull; Printed: <?=date('d-m-Y H:i:s')?>
+            </div>
+        </div>
         <?php endif; ?>
 
         <?=render_app_footer($madrasaName)?>

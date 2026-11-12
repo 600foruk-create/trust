@@ -1662,14 +1662,23 @@ footer { font-size: 11px; color: #94a3b8; text-align: center; padding: 30px 0 10
     background: #ffffff !important;
     color: #000000 !important;
   }
+  body:not(.printing-slip) .app-top-header,
+  body:not(.printing-slip) #appTopHeader,
   body:not(.printing-slip) .sidebar, 
+  body:not(.printing-slip) .app-sidebar, 
+  body:not(.printing-slip) nav, 
   body:not(.printing-slip) .topbar, 
   body:not(.printing-slip) .filter-bar, 
+  body:not(.printing-slip) .tab-nav, 
   body:not(.printing-slip) .btn, 
   body:not(.printing-slip) .btn-row, 
-  body:not(.printing-slip) footer { display: none !important; }
+  body:not(.printing-slip) .no-print, 
+  body:not(.printing-slip) footer,
+  body:not(.printing-slip) .app-footer,
+  body:not(.printing-slip) .header-mobile-toggle,
+  body:not(.printing-slip) .modal-backdrop { display: none !important; }
   body:not(.printing-slip) .app-shell, 
-  body:not(.printing-slip) .main { display: block !important; padding: 0 !important; }
+  body:not(.printing-slip) .main { display: block !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
   body:not(.printing-slip) .panel, 
   body:not(.printing-slip) .form-card { border: none !important; box-shadow: none !important; }
 }

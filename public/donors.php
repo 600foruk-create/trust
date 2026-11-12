@@ -208,6 +208,15 @@ $madrasaPhone = get_setting('madrasa_phone', '');
 $madrasaAddress = get_setting('madrasa_address', '');
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 
+// Print & Slip Customization Settings
+$printShowLogo = get_setting('print_show_logo', '1') === '1';
+$printShowAddress = get_setting('print_show_address', '1') === '1';
+$printPreprinted = get_setting('print_preprinted_letterhead', '0') === '1';
+$printSignTitle1 = get_setting('print_sign_title_1', is_madrasa_mode() ? 'تیار کنندہ / کیشیئر (Prepared By)' : 'Prepared By (تیار کنندہ)');
+$printSignTitle2 = get_setting('print_sign_title_2', is_madrasa_mode() ? 'اکاؤنٹنٹ / ناظمِ مالیات (Accountant)' : 'Accountant / Cashier (اکاؤنٹنٹ)');
+$printSignTitle3 = get_setting('print_sign_title_3', is_madrasa_mode() ? 'مہتمم / صدر / مجاز دستخط (Director / Mohtamim)' : 'Director / Mohtamim (دستخط مجاز اتھارٹی)');
+$printFooterNote = get_setting('print_footer_note', 'یہ ایک کمپیوٹرائزڈ آفیشل فنانشل رسید ہے۔ کسی دستی مہر کی ضرورت نہیں۔');
+
 // Tab Navigation & Monthly Pledges / Kafalat Tracker (Feature #1)
 $currentTab = trim($_GET['tab'] ?? 'directory'); // 'directory' or 'pledges'
 $selectedMonth = trim($_GET['month'] ?? date('Y-m'));
@@ -803,14 +812,16 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
         </article>
         <?php elseif ($currentTab === 'pledges'): ?>
             <!-- Official Print / PDF Header (Visible only when printed or exported to PDF) -->
-            <div class="print-only print-header-box" style="border:1.5px solid #0f172a;border-radius:6px;padding:16px 20px;margin-bottom:16px;background:#ffffff;">
+            <div class="print-only print-header-box" style="border:1.5px solid #0f172a;border-radius:6px;padding:16px 20px;margin-bottom:16px;background:#ffffff; <?=$printPreprinted ? 'padding-top:100px;' : ''?>">
+                <?php if (!$printPreprinted): ?>
                 <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0f172a;padding-bottom:12px;margin-bottom:12px;">
                     <div style="display:flex;align-items:center;gap:14px;">
-                        <?php if ($orgLogo): ?>
+                        <?php if ($printShowLogo && $orgLogo): ?>
                             <img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:55px;max-width:110px;object-fit:contain;">
                         <?php endif; ?>
                         <div>
                             <h1 style="margin:0;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;line-height:1.2;"><?=e($madrasaName)?></h1>
+                            <?php if ($printShowAddress && (!empty($madrasaAddress) || !empty($madrasaPhone))): ?>
                             <div style="font-size:11.5px;color:#475569;margin-top:3px;">
                                 <?php if (!empty($madrasaAddress)): ?>
                                     <span><?=e($madrasaAddress)?></span>
@@ -819,6 +830,7 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                     <span> &bull; 📞 <?=e($madrasaPhone)?></span>
                                 <?php endif; ?>
                             </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div style="text-align:right;">
@@ -830,6 +842,18 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                         </div>
                     </div>
                 </div>
+                <?php else: ?>
+                <div style="display:flex;justify-content:flex-end;border-bottom:2px solid #0f172a;padding-bottom:8px;margin-bottom:12px;">
+                    <div style="text-align:right;">
+                        <div style="display:inline-block;background:#0f172a;color:#ffffff;padding:5px 14px;font-size:12.5px;font-weight:700;border-radius:4px;text-transform:uppercase;letter-spacing:0.4px;">
+                            Monthly Pledges &amp; Kafalat Statement
+                        </div>
+                        <div style="font-size:12px;color:#0f172a;font-weight:700;margin-top:4px;" class="ur">
+                            ماہانہ کفالت و اقساط تفصیلی رپورٹ
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <!-- Print Metadata Row -->
                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:#334155;background:#f8fafc;padding:7px 12px;border-radius:4px;border:1px solid #e2e8f0;">
@@ -1136,25 +1160,25 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                             <div style="display:flex;justify-content:space-between;padding:0 30px;">
                                 <div style="text-align:center;min-width:160px;">
                                     <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
-                                        Prepared By <span class="ur">(تیار کنندہ)</span>
+                                        <?=e($printSignTitle1)?>
                                     </div>
                                     <div style="font-size:10px;color:#64748b;margin-top:2px;"><?=e($currentUser['name'] ?? 'Admin')?></div>
                                 </div>
                                 <div style="text-align:center;min-width:160px;">
                                     <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
-                                        Accountant / Cashier <span class="ur">(اکاؤنٹنٹ / خزانچی)</span>
+                                        <?=e($printSignTitle2)?>
                                     </div>
                                     <div style="font-size:10px;color:#64748b;margin-top:2px;">Accounts Dept</div>
                                 </div>
                                 <div style="text-align:center;min-width:160px;">
                                     <div style="border-top:1.5px solid #0f172a;padding-top:6px;font-size:11.5px;font-weight:700;color:#0f172a;">
-                                        Director / Mohtamim <span class="ur">(مہتمم / صدر / مجاز دستخط)</span>
+                                        <?=e($printSignTitle3)?>
                                     </div>
                                     <div style="font-size:10px;color:#64748b;margin-top:2px;">Official Seal &amp; Signature</div>
                                 </div>
                             </div>
                             <div style="text-align:center;margin-top:24px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:6px;">
-                                Computer Generated Official Statement &bull; <?=e($madrasaName)?> &bull; Printed: <?=date('d-m-Y H:i:s')?>
+                                <?=e($printFooterNote)?> &bull; <?=e($madrasaName)?> &bull; Printed: <?=date('d-m-Y H:i:s')?>
                             </div>
                         </div>
                     </div>

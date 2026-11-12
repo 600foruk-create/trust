@@ -3,8 +3,13 @@ require __DIR__ . '/../app/bootstrap.php';
 require_login();
 
 $voucherId = (int)($_GET['id'] ?? 0);
-$format = trim($_GET['format'] ?? 'a4'); // 'a4' or 'thermal'
-$copies = (int)($_GET['copies'] ?? 1); // 1 or 2
+$defaultFormatSetting = get_setting('print_default_format', 'a4');
+$format = trim($_GET['format'] ?? $defaultFormatSetting); // 'a4' or 'thermal'
+if (!in_array($format, ['a4', 'thermal'], true)) {
+    $format = 'a4';
+}
+$defaultCopiesSetting = (int)get_setting('print_thermal_copies', '2');
+$copies = isset($_GET['copies']) ? (int)$_GET['copies'] : $defaultCopiesSetting; // 1 or 2
 if ($copies !== 2) $copies = 1;
 $autoprint = !empty($_GET['autoprint']);
 
@@ -49,6 +54,16 @@ $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
 $madrasaAddress = get_setting('madrasa_address', '');
 $madrasaPhone = get_setting('madrasa_phone', '');
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
+
+// Print & Slip Customization Settings
+$printShowLogo = get_setting('print_show_logo', '1') === '1';
+$printShowAddress = get_setting('print_show_address', '1') === '1';
+$printPreprinted = get_setting('print_preprinted_letterhead', '0') === '1';
+$printSignTitle1 = get_setting('print_sign_title_1', is_madrasa_mode() ? 'تیار کنندہ / کیشیئر (Prepared By)' : 'Prepared By (تیار کنندہ)');
+$printSignTitle2 = get_setting('print_sign_title_2', is_madrasa_mode() ? 'اکاؤنٹنٹ / ناظمِ مالیات (Accountant)' : 'Accountant / Cashier (اکاؤنٹنٹ)');
+$printSignTitle3 = get_setting('print_sign_title_3', is_madrasa_mode() ? 'مہتمم / صدر / مجاز دستخط (Director / Mohtamim)' : 'Director / Mohtamim (دستخط مجاز اتھارٹی)');
+$printReceiptDua = get_setting('print_receipt_dua', 'اللہ تعالیٰ آپ کے اس صدقہ و عطیہ کو شرف قبولیت بخشے، اور آپ کے جان و مال اور رزق میں بے شمار برکتیں عطا فرمائے۔ آمین۔');
+$printFooterNote = get_setting('print_footer_note', 'یہ ایک کمپیوٹرائزڈ آفیشل فنانشل رسید ہے۔ کسی دستی مہر کی ضرورت نہیں۔');
 $currency = get_setting('currency', 'PKR');
 $amountInWords = function_exists('number_to_words') ? number_to_words((float)$voucher['total_amount']) : money($voucher['total_amount']);
 
@@ -344,21 +359,28 @@ try {
 <?php if ($format === 'a4'): ?>
     <!-- A4 Full Page Receipt -->
     <div class="page-a4">
-        <div class="a4-header">
-            <?php if ($orgLogo): ?>
-                <div><img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:70px;max-width:140px;object-fit:contain;margin-bottom:6px;"></div>
-            <?php endif; ?>
-            <h1><?=e($madrasaName)?></h1>
-            <?php if (!empty($madrasaAddress) || !empty($madrasaPhone)): ?>
-                <div style="font-size:12.5px;color:#475569;margin-top:2px;">
-                    <?php if (!empty($madrasaAddress)): ?>📍 <?=e($madrasaAddress)?><?php endif; ?>
-                    <?php if (!empty($madrasaAddress) && !empty($madrasaPhone)): ?> &nbsp;·&nbsp; <?php endif; ?>
-                    <?php if (!empty($madrasaPhone)): ?>📞 <?=e($madrasaPhone)?><?php endif; ?>
-                </div>
-            <?php endif; ?>
-            <div style="font-size:12.5px;color:#64748b;">Financial Accounts & Audit System</div>
-            <div class="voucher-tag"><?=e($title)?></div>
-        </div>
+        <?php if ($printPreprinted): ?>
+            <!-- Pre-printed Stationery Letterhead Mode: Headspace reserved for physical printed pad -->
+            <div class="a4-header" style="padding-top: 110px; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 16px;">
+                <div class="voucher-tag"><?=$title?></div>
+            </div>
+        <?php else: ?>
+            <div class="a4-header">
+                <?php if ($printShowLogo && $orgLogo): ?>
+                    <div><img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:70px;max-width:140px;object-fit:contain;margin-bottom:6px;"></div>
+                <?php endif; ?>
+                <h1><?=e($madrasaName)?></h1>
+                <?php if ($printShowAddress && (!empty($madrasaAddress) || !empty($madrasaPhone))): ?>
+                    <div style="font-size:12.5px;color:#475569;margin-top:2px;">
+                        <?php if (!empty($madrasaAddress)): ?>📍 <?=e($madrasaAddress)?><?php endif; ?>
+                        <?php if (!empty($madrasaAddress) && !empty($madrasaPhone)): ?> &nbsp;·&nbsp; <?php endif; ?>
+                        <?php if (!empty($madrasaPhone)): ?>📞 <?=e($madrasaPhone)?><?php endif; ?>
+                    </div>
+                <?php endif; ?>
+                <div style="font-size:12.5px;color:#64748b;">Financial Accounts &amp; Audit System</div>
+                <div class="voucher-tag"><?=$title?></div>
+            </div>
+        <?php endif; ?>
 
         <div class="a4-meta">
             <div>
@@ -433,23 +455,31 @@ try {
             </div>
         </div>
 
-        <div style="font-size:11.5px;color:#64748b;margin-top:10px;">
-            Note: This is an official system-generated computerized voucher. Jazakallahu Khairan for your contribution.
+        <!-- Dua and Note Section -->
+        <div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border-radius:6px;border-left:3px solid #16a34a;">
+            <?php if (!empty($printReceiptDua)): ?>
+                <div style="font-size:12.5px;color:#166534;font-weight:700;margin-bottom:4px;direction:rtl;text-align:right;">
+                    <?=e($printReceiptDua)?>
+                </div>
+            <?php endif; ?>
+            <div style="font-size:11px;color:#64748b;">
+                <?=e($printFooterNote)?>
+            </div>
         </div>
 
         <!-- Signatures -->
         <div class="signatures">
             <div class="sig-block">
-                Prepared By <span class="ur">(تیار کنندہ)</span><br>
+                <?=e($printSignTitle1)?><br>
                 <small style="color:#94a3b8;"><?=e($voucher['created_by_name'] ?? 'Accounts')?></small>
             </div>
             <div class="sig-block">
-                Checked & Verified <span class="ur">(پڑتال)</span><br>
-                <small style="color:#94a3b8;">Accountant</small>
+                <?=e($printSignTitle2)?><br>
+                <small style="color:#94a3b8;">Accounts Dept</small>
             </div>
             <div class="sig-block">
-                Authorized Signature / Stamp<br>
-                <small style="color:#94a3b8;"><span class="ur">دستخط و مہر مہتمم / ناظم مالیات</span><span class="en-only" style="display:none;">Authorized Signature / Stamp</span></small>
+                <?=e($printSignTitle3)?><br>
+                <small style="color:#94a3b8;">Official Seal &amp; Signature</small>
             </div>
         </div>
     </div>
@@ -460,14 +490,14 @@ try {
         <?php for ($c = 1; $c <= $copies; $c++): ?>
             <div class="slip-thermal">
                 <div class="thermal-header">
-                    <?php if ($orgLogo): ?>
+                    <?php if ($printShowLogo && $orgLogo): ?>
                         <div><img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:46px;max-width:110px;object-fit:contain;margin-bottom:4px;"></div>
                     <?php endif; ?>
                     <h2><?=e($madrasaName)?></h2>
-                    <?php if (!empty($madrasaAddress)): ?>
+                    <?php if ($printShowAddress && !empty($madrasaAddress)): ?>
                         <div style="font-size:11px;color:#222;"><?=e($madrasaAddress)?></div>
                     <?php endif; ?>
-                    <?php if (!empty($madrasaPhone)): ?>
+                    <?php if ($printShowAddress && !empty($madrasaPhone)): ?>
                         <div style="font-size:11px;color:#222;">Tel: <?=e($madrasaPhone)?></div>
                     <?php endif; ?>
                     <div style="margin-top:4px;font-size:12px;font-weight:700;"><?=strip_tags($title)?></div>
@@ -544,11 +574,21 @@ try {
                 <div class="thermal-divider"></div>
 
                 <div class="thermal-footer">
-                    <div style="font-size:13px;font-weight:bold;margin-bottom:2px;">جزاكم الله خيراً و احسن الجزاء</div>
-                    <div style="font-size:11px;color:#222;margin-bottom:8px;">اللہ تعالیٰ آپ کا صدقہ و عطیہ قبول فرمائے۔ آمین</div>
+                    <?php if (!empty($printReceiptDua)): ?>
+                        <div style="font-size:12px;font-weight:bold;margin-bottom:4px;line-height:1.4;direction:rtl;text-align:center;">
+                            <?=e($printReceiptDua)?>
+                        </div>
+                    <?php else: ?>
+                        <div style="font-size:13px;font-weight:bold;margin-bottom:2px;">جزاكم الله خيراً و احسن الجزاء</div>
+                    <?php endif; ?>
+                    <?php if (!empty($printFooterNote)): ?>
+                        <div style="font-size:10.5px;color:#475569;margin-bottom:8px;line-height:1.3;text-align:center;">
+                            <?=e($printFooterNote)?>
+                        </div>
+                    <?php endif; ?>
                     <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:10px;border-top:1px dotted #000;padding-top:6px;">
-                        <span>کیشیر: <?=e($voucher['created_by_name'] ?? 'Admin')?></span>
-                        <span>دستخط: ....................</span>
+                        <span><?=e($printSignTitle1)?>: <?=e($voucher['created_by_name'] ?? 'Admin')?></span>
+                        <span>دستخط: ................</span>
                     </div>
                 </div>
             </div>

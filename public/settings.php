@@ -393,7 +393,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Handle Settings Update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_settings') {
     verify_csrf();
-    $returnTab = in_array($_POST['return_tab'] ?? '', ['org', 'accounting'], true) ? $_POST['return_tab'] : 'org';
+    $returnTab = in_array($_POST['return_tab'] ?? '', ['org', 'accounting', 'print'], true) ? $_POST['return_tab'] : 'org';
 
     try {
         $stmt = $pdo->prepare('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
@@ -473,6 +473,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute(['financial_year_start', $finYearStart]);
             $stmt->execute(['ui_language', $uiLanguage]);
             $stmt->execute(['org_type', $orgType]);
+        }
+
+        // Save Print & Slip Settings (when submitted from Print Tab)
+        if (isset($_POST['print_default_format'])) {
+            $defaultFormat = in_array($_POST['print_default_format'], ['thermal', 'a4'], true) ? $_POST['print_default_format'] : 'a4';
+            $thermalCopies = in_array($_POST['print_thermal_copies'] ?? '', ['1', '2'], true) ? $_POST['print_thermal_copies'] : '2';
+            $showLogo = isset($_POST['print_show_logo']) ? '1' : '0';
+            $showAddress = isset($_POST['print_show_address']) ? '1' : '0';
+            $preprintedLetterhead = isset($_POST['print_preprinted_letterhead']) ? '1' : '0';
+            $signTitle1 = trim($_POST['print_sign_title_1'] ?? '');
+            $signTitle2 = trim($_POST['print_sign_title_2'] ?? '');
+            $signTitle3 = trim($_POST['print_sign_title_3'] ?? '');
+            $receiptDua = trim($_POST['print_receipt_dua'] ?? '');
+            $footerNote = trim($_POST['print_footer_note'] ?? '');
+
+            $stmt->execute(['print_default_format', $defaultFormat]);
+            $stmt->execute(['print_thermal_copies', $thermalCopies]);
+            $stmt->execute(['print_show_logo', $showLogo]);
+            $stmt->execute(['print_show_address', $showAddress]);
+            $stmt->execute(['print_preprinted_letterhead', $preprintedLetterhead]);
+            $stmt->execute(['print_sign_title_1', $signTitle1]);
+            $stmt->execute(['print_sign_title_2', $signTitle2]);
+            $stmt->execute(['print_sign_title_3', $signTitle3]);
+            $stmt->execute(['print_receipt_dua', $receiptDua]);
+            $stmt->execute(['print_footer_note', $footerNote]);
         }
 
         header('Location: settings.php?tab=' . urlencode($returnTab) . '&success=saved');
@@ -661,6 +686,18 @@ $orgSubtitle = $settingsRows['org_subtitle'] ?? '';
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 $shortBrand = mb_strtoupper(mb_substr($madrasaName, 0, 2));
 
+// Print & Slip Settings
+$printDefaultFormat = $settingsRows['print_default_format'] ?? 'a4';
+$printThermalCopies = $settingsRows['print_thermal_copies'] ?? '2';
+$printShowLogo = $settingsRows['print_show_logo'] ?? '1';
+$printShowAddress = $settingsRows['print_show_address'] ?? '1';
+$printPreprintedLetterhead = $settingsRows['print_preprinted_letterhead'] ?? '0';
+$printSignTitle1 = $settingsRows['print_sign_title_1'] ?? (is_madrasa_mode() ? 'تیار کنندہ / کیشیئر (Prepared By)' : 'Prepared By (تیار کنندہ)');
+$printSignTitle2 = $settingsRows['print_sign_title_2'] ?? (is_madrasa_mode() ? 'اکاؤنٹنٹ / ناظمِ مالیات (Accountant)' : 'Accountant / Cashier (اکاؤنٹنٹ)');
+$printSignTitle3 = $settingsRows['print_sign_title_3'] ?? (is_madrasa_mode() ? 'مہتمم / صدر / مجاز دستخط (Director / Mohtamim)' : 'Director / Mohtamim (دستخط مجاز اتھارٹی)');
+$printReceiptDua = $settingsRows['print_receipt_dua'] ?? 'اللہ تعالیٰ آپ کے اس صدقہ و عطیہ کو شرف قبولیت بخشے، اور آپ کے جان و مال اور رزق میں بے شمار برکتیں عطا فرمائے۔ آمین۔';
+$printFooterNote = $settingsRows['print_footer_note'] ?? 'یہ ایک کمپیوٹرائزڈ آفیشل فنانشل رسید ہے۔ کسی دستی مہر کی ضرورت نہیں۔';
+
 // Fetch active users for admin password reset dropdown
 $allUsersList = $pdo->query("SELECT u.id, u.full_name, u.username, r.name AS role_name FROM users u JOIN roles r ON r.id = u.role_id WHERE u.is_active = 1 ORDER BY u.full_name ASC")->fetchAll();
 
@@ -695,7 +732,7 @@ $userRole = $currUser['role'] ?? '';
 $isSuperAdmin = in_array($userRole, ['Super Admin', 'Administrator'], true);
 
 // Available Navigation Tabs (Option A: Clean Top Tabs)
-$validTabs = ['org', 'accounting', 'security', 'backups'];
+$validTabs = ['org', 'accounting', 'print', 'security', 'backups'];
 if ($isSuperAdmin) {
     $validTabs[] = 'danger';
 }
@@ -731,6 +768,9 @@ if (!in_array($activeTab, $validTabs, true)) {
             </a>
             <a href="settings.php?tab=accounting" class="tab-link <?=$activeTab === 'accounting' ? 'active' : ''?>">
                 💼 Financial &amp; Accounting <span class="ur">(مالیاتی ترتیبات)</span>
+            </a>
+            <a href="settings.php?tab=print" class="tab-link <?=$activeTab === 'print' ? 'active' : ''?>">
+                🖨️ Print &amp; Slips <span class="ur">(پرنٹ و رسید ترتیبات)</span>
             </a>
             <a href="settings.php?tab=security" class="tab-link <?=$activeTab === 'security' ? 'active' : ''?>">
                 🔒 Security &amp; Passwords <span class="ur">(سیکیورٹی و پاس ورڈز)</span>
@@ -924,6 +964,174 @@ if (!in_array($activeTab, $validTabs, true)) {
 
                         <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
                             <button class="btn blue" type="submit" style="padding:11px 24px;font-weight:700;">💾 Save Accounting Preferences <span class="ur">(مالیاتی ترتیبات محفوظ کریں)</span></button>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </form>
+
+        <?php elseif ($activeTab === 'print'): ?>
+        <!-- Tab 3: Print & Slips Settings -->
+        <form method="post" style="margin-top:14px;">
+            <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
+            <input type="hidden" name="action" value="save_settings">
+            <input type="hidden" name="return_tab" value="print">
+
+            <div class="content-grid" style="grid-template-columns: 1fr; max-width: 960px;">
+                <!-- Panel 1: Printer & Default Format -->
+                <article class="panel" style="margin-bottom:20px;">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Printer &amp; Default Slip Format <span class="ur">(پرنٹر اور ڈیفالٹ رسید سائز)</span></h3>
+                            <p>Configure default voucher layout, paper size, and thermal receipt copies</p>
+                        </div>
+                    </div>
+                    <div style="padding:22px 26px;">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:20px;margin-bottom:10px;">
+                            <div class="form-group">
+                                <label style="font-weight:700;display:block;margin-bottom:6px;">
+                                    Default Print Format <span class="ur">(ڈیفالٹ پرنٹ فارمیٹ)</span>
+                                </label>
+                                <select name="print_default_format" style="width:100%;font-size:13.5px;padding:9px 12px;border:1.5px solid #94a3b8;border-radius:7px;background:#ffffff;font-weight:600;color:#0f172a;">
+                                    <option value="a4" <?=$printDefaultFormat === 'a4' ? 'selected' : ''?>>📄 A4 Full Sheet Voucher (بڑا واؤچر - لیزر پرنٹر)</option>
+                                    <option value="thermal" <?=$printDefaultFormat === 'thermal' ? 'selected' : ''?>>🧾 80mm POS Thermal Slip (چھوٹی تھرمل رسید - پوائنٹ آف سیل)</option>
+                                </select>
+                                <small class="muted" style="display:block;margin-top:6px;font-size:11.5px;line-height:1.4;">
+                                    <span class="ur">جب آپ رسید یا واؤچر پرنٹ کا بٹن دبائیں تو خودکار طور پر کون سا فارمیٹ کھلے۔</span>
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label style="font-weight:700;display:block;margin-bottom:6px;">
+                                    Thermal Slip Copies <span class="ur">(تھرمل رسید کی کاپیاں)</span>
+                                </label>
+                                <select name="print_thermal_copies" style="width:100%;font-size:13.5px;padding:9px 12px;border:1.5px solid #94a3b8;border-radius:7px;background:#ffffff;font-weight:600;color:#0f172a;">
+                                    <option value="2" <?=$printThermalCopies === '2' ? 'selected' : ''?>>2 Copies (معاون رسید + دفتری کاپی ایک ساتھ - Cut Line کے ساتھ)</option>
+                                    <option value="1" <?=$printThermalCopies === '1' ? 'selected' : ''?>>1 Copy (صرف ایک رسید)</option>
+                                </select>
+                                <small class="muted" style="display:block;margin-top:6px;font-size:11.5px;line-height:1.4;">
+                                    <span class="ur">دو کاپیاں منتخب کرنے پر ایک ڈونر کے لیے اور ایک دفتری ریکارڈ کے لیے کٹ لائن کے ساتھ ایک ساتھ پرنٹ ہوں گی۔</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Panel 2: Letterhead & Branding -->
+                <article class="panel" style="margin-bottom:20px;">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Letterhead &amp; Branding <span class="ur">(لیٹر پیڈ اور لوگو ڈسپلے)</span></h3>
+                            <p>Control logo visibility, address details, or enable pre-printed stationery letterhead</p>
+                        </div>
+                    </div>
+                    <div style="padding:22px 26px;">
+                        <div style="display:flex;flex-direction:column;gap:14px;">
+                            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:#f8fafc;padding:12px 14px;border-radius:8px;border:1px solid #e2e8f0;">
+                                <input type="checkbox" name="print_show_logo" value="1" <?=$printShowLogo === '1' ? 'checked' : ''?> style="margin-top:3px;width:18px;height:18px;">
+                                <div>
+                                    <div style="font-weight:700;color:#0f172a;font-size:13.5px;">
+                                        Show Official Logo / Monogram on Prints <span class="ur">(پرنٹ پر ادارے کا مونوگرام / لوگو دکھائیں)</span>
+                                    </div>
+                                    <div class="muted" style="font-size:11.5px;margin-top:2px;">
+                                        اگر غیر فعال کریں گے تو رسید اور واؤچرز کے پرنٹ پر اوپر کا لوگو غائب رہے گا۔
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:#f8fafc;padding:12px 14px;border-radius:8px;border:1px solid #e2e8f0;">
+                                <input type="checkbox" name="print_show_address" value="1" <?=$printShowAddress === '1' ? 'checked' : ''?> style="margin-top:3px;width:18px;height:18px;">
+                                <div>
+                                    <div style="font-weight:700;color:#0f172a;font-size:13.5px;">
+                                        Show Address &amp; Contact Info <span class="ur">(مکمل پتہ اور رابطہ نمبر پرنٹ پر دکھائیں)</span>
+                                    </div>
+                                    <div class="muted" style="font-size:11.5px;margin-top:2px;">
+                                        ادارے کا رجسٹرڈ پتہ اور فون نمبر رسید اور واؤچرز کے ہیڈر میں دکھایا جائے گا۔
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:#eff6ff;padding:12px 14px;border-radius:8px;border:1.5px solid #bfdbfe;">
+                                <input type="checkbox" name="print_preprinted_letterhead" value="1" <?=$printPreprintedLetterhead === '1' ? 'checked' : ''?> style="margin-top:3px;width:18px;height:18px;">
+                                <div>
+                                    <div style="font-weight:700;color:#1e40af;font-size:13.5px;">
+                                        📄 Use Pre-printed Official Letterhead <span class="ur">(پہلے سے چھپا ہوا آفیشل لیٹر پیڈ)</span>
+                                    </div>
+                                    <div class="muted" style="font-size:11.5px;margin-top:2px;color:#1e3a8a;">
+                                        اگر آپ کا ادارہ پہلے سے چھپا ہوا پرنٹڈ پیڈ استعمال کرتا ہے جس پر مونوگرام اور نام پہلے سے چھپا ہوتا ہے، تو اسے چیک کریں۔ سسٹم اوپر کا ہیڈر خالی چھوڑ دے گا اور واؤچر کا مواد تقریباً 2.5 انچ نیچے سے پرنٹ ہوگا۔
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Panel 3: Signature Block Authority Titles -->
+                <article class="panel" style="margin-bottom:20px;">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Signatures &amp; Authority Titles <span class="ur">(دستخطی بلاک کے عنوانات)</span></h3>
+                            <p>Customize the 3 authorization columns printed at the bottom of vouchers and statements</p>
+                        </div>
+                    </div>
+                    <div style="padding:22px 26px;">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:16px;">
+                            <div class="form-group">
+                                <label style="font-weight:700;display:block;margin-bottom:6px;">
+                                    Signature 1 (Left / تیار کنندہ)
+                                </label>
+                                <input type="text" name="print_sign_title_1" value="<?=e($printSignTitle1)?>" style="width:100%;font-size:13px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;" placeholder="Prepared By (تیار کنندہ)">
+                                <small class="muted" style="display:block;margin-top:4px;font-size:11px;">بائیں طرف کا پہلا دستخطی عنوان (کیشیئر / کلرک)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label style="font-weight:700;display:block;margin-bottom:6px;">
+                                    Signature 2 (Center / پڑتال و اکاؤنٹنٹ)
+                                </label>
+                                <input type="text" name="print_sign_title_2" value="<?=e($printSignTitle2)?>" style="width:100%;font-size:13px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;" placeholder="Accountant (اکاؤنٹنٹ)">
+                                <small class="muted" style="display:block;margin-top:4px;font-size:11px;">درمیان کا دستخطی عنوان (اکاؤنٹنٹ / ناظمِ مالیات)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label style="font-weight:700;display:block;margin-bottom:6px;">
+                                    Signature 3 (Right / مجاز اتھارٹی)
+                                </label>
+                                <input type="text" name="print_sign_title_3" value="<?=e($printSignTitle3)?>" style="width:100%;font-size:13px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;" placeholder="Director / Mohtamim (مہتمم / صدر)">
+                                <small class="muted" style="display:block;margin-top:4px;font-size:11px;">دائیں طرف کی مجاز اتھارٹی (مہتمم / ڈائریکٹر / صدر)</small>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Panel 4: Receipt Dua & Verification Note -->
+                <article class="panel" style="margin-bottom:20px;">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Receipt Dua &amp; Verification Note <span class="ur">(رسید دعائیہ کلمات و تصدیقی نوٹس)</span></h3>
+                            <p>Customize the donor blessing dua and computerized verification notice</p>
+                        </div>
+                    </div>
+                    <div style="padding:22px 26px;">
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label style="font-weight:700;display:block;margin-bottom:6px;">
+                                Donor Receipt Dua / Blessings <span class="ur">(ڈونر رسید پر دعائیہ کلمات)</span>
+                            </label>
+                            <textarea name="print_receipt_dua" rows="2" style="width:100%;font-size:13.5px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:6px;line-height:1.5;direction:rtl;text-align:right;font-family:inherit;"><?=e($printReceiptDua)?></textarea>
+                            <small class="muted" style="display:block;margin-top:4px;font-size:11px;">یہ دعائیہ کلمات معاون کی رسید (A4 اور تھرمل سلپ) کے نیچے نمایاں پرنٹ ہوتے ہیں۔</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label style="font-weight:700;display:block;margin-bottom:6px;">
+                                Computerized System Note <span class="ur">(کمپیوٹرائزڈ رسید کی تصدیقی عبارت)</span>
+                            </label>
+                            <input type="text" name="print_footer_note" value="<?=e($printFooterNote)?>" style="width:100%;font-size:13px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;">
+                            <small class="muted" style="display:block;margin-top:4px;font-size:11px;">پرنٹ کے بالکل نیچے قانونی / تصدیقی نوٹ۔</small>
+                        </div>
+
+                        <div style="margin-top:22px;padding-top:16px;border-top:1px solid #e2e8f0;">
+                            <button class="btn blue" type="submit" style="padding:11px 26px;font-weight:700;font-size:14px;">
+                                💾 Save Print &amp; Slip Settings <span class="ur">(پرنٹ ترتیبات محفوظ کریں)</span>
+                            </button>
                         </div>
                     </div>
                 </article>

@@ -985,7 +985,7 @@ if (!in_array($activeTab, $validTabs, true)) {
                                 <option value="">-- Choose User to Reset Password --</option>
                                 <?php foreach ($allUsersList as $usr): ?>
                                     <option value="<?=$usr['id']?>">
-                                        <?=e($usr['full_name'])?> (@<?=e($usr['username'])?>) — [<?=e($usr['role_name'])?>]
+                                        <?=e($usr['full_name'])?> (@<?=e($usr['username'])?>) — [<?=e(function_exists('get_role_display_name') ? get_role_display_name($usr['role_name'], false) : $usr['role_name'])?>]
                                     </option>
                                 <?php endforeach; ?>
                             </select>

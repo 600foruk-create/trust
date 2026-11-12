@@ -303,7 +303,7 @@ div.en-only, p.en-only { display: block !important; }
                     <?php endif; ?>
                   </div>
                   <div style="font-size:12px;color:#64748b;margin-top:2px;">
-                    @<?=e($au['username'])?> • <span class="badge badge-gray" style="font-size:10.5px;"><?=e($au['role_name'] ?: 'User')?></span>
+                    @<?=e($au['username'])?> • <span class="badge badge-gray" style="font-size:10.5px;"><?=e(function_exists('get_role_display_name') ? get_role_display_name($au['role_name'] ?: 'User', false) : ($au['role_name'] ?: 'User'))?></span>
                   </div>
                 </div>
               </div>
@@ -367,7 +367,7 @@ div.en-only, p.en-only { display: block !important; }
                       </span>
                       <div>
                         <strong style="color:#0f172a;display:block;"><?=e($act['full_name'] ?: $act['username'])?></strong>
-                        <span style="font-size:11px;color:#64748b;">@<?=e($act['username'])?> • <?=e($act['role_name'] ?: 'Staff')?></span>
+                        <span style="font-size:11px;color:#64748b;">@<?=e($act['username'])?> • <?=e(function_exists('get_role_display_name') ? get_role_display_name($act['role_name'] ?: 'Staff', false) : ($act['role_name'] ?: 'Staff'))?></span>
                       </div>
                     </div>
                   </td>
@@ -504,7 +504,7 @@ div.en-only, p.en-only { display: block !important; }
     <?php if (!function_exists('has_permission') || has_permission('users.manage') || has_permission('team.manage') || has_permission('settings.manage')): ?>
       <span class="nav-label">ADMINISTRATION</span>
       <?php if (!function_exists('has_permission') || has_permission('users.manage') || has_permission('team.manage')): ?>
-        <a class="<?= $currentPage === 'users' ? 'active' : '' ?>" href="users.php">♙ &nbsp; <?=(function_exists('is_regional_director') && is_regional_director()) ? 'My Regional Team <span class="ur">(صوبائی ٹیم)</span>' : 'Users & Provinces <span class="ur">(صارفین و برانچز)</span>'?></a>
+        <a class="<?= $currentPage === 'users' ? 'active' : '' ?>" href="users.php">♙ &nbsp; <?=(function_exists('is_regional_director') && is_regional_director()) ? (is_madrasa_mode() ? 'My Madrasa Team <span class="ur">(مدرسہ ٹیم)</span>' : 'My Regional Team <span class="ur">(صوبائی ٹیم)</span>') : (is_madrasa_mode() ? 'Users & Branches <span class="ur">(اساتذہ و شاخیں)</span>' : 'Users & Provinces <span class="ur">(صارفین و برانچز)</span>')?></a>
       <?php endif; ?>
       <?php if (!function_exists('has_permission') || has_permission('settings.manage')): ?>
         <a class="<?= $currentPage === 'settings' ? 'active' : '' ?>" href="settings.php">⚙ &nbsp; <?=is_madrasa_mode() ? 'Madrasa Settings <span class="ur">(مدرسہ سیٹنگز)</span>' : 'Settings <span class="ur">(سیٹنگز)</span>'?></a>

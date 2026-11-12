@@ -145,7 +145,7 @@ $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
                     <div style="font-size:13px;line-height:1.7;color:#334155;">
                         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
                             <span style="color:#64748b;">Role / عہدہ:</span>
-                            <span class="badge badge-purple"><?=e($currentUserData['role_name'])?></span>
+                            <span class="badge badge-purple"><?=e(function_exists('get_role_display_name') ? get_role_display_name($currentUserData['role_name'], true) : $currentUserData['role_name'])?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
                             <span style="color:#64748b;">Status / حیثیت:</span>

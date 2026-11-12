@@ -757,7 +757,7 @@ if (!$canApprove) {
                                                 <b><?=e($ch['full_name'])?></b>
                                                 <div style="font-size:11px;color:#64748b;">@<?=e($ch['username'])?></div>
                                             </td>
-                                            <td><span class="badge badge-purple"><?=e($ch['role_name'])?></span></td>
+                                            <td><span class="badge badge-purple"><?=e(function_exists('get_role_display_name') ? get_role_display_name($ch['role_name'], false) : $ch['role_name'])?></span></td>
                                             <td class="right font-bold" style="color:#15803d;"><?=money($ch['pending_income'])?></td>
                                             <td class="right font-bold" style="color:#b91c1c;"><?=money($ch['pending_expense'])?></td>
                                             <td class="right font-bold" style="color:#1e3a8a;font-size:14px;">

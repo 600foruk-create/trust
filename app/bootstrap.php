@@ -1796,6 +1796,50 @@ function org_label(string $madrasaText, string $trustText): string {
     return is_madrasa_mode() ? $madrasaText : $trustText;
 }
 
+function get_role_display_name(string $roleName, bool $withUrdu = false): string {
+    $isMadrasa = is_madrasa_mode();
+    $roleClean = trim($roleName);
+
+    switch ($roleClean) {
+        case 'Regional Director':
+        case 'Director':
+            if ($isMadrasa) {
+                return $withUrdu ? 'مہتمم / ناظمِ شاخ (Mohtamim / Nazim)' : 'مہتمم / ناظم';
+            } else {
+                return $withUrdu ? 'صوبائی ڈائریکٹر (Director)' : 'Director';
+            }
+        case 'User / Cashier':
+        case 'Cashier':
+            if ($isMadrasa) {
+                return $withUrdu ? 'خزانچی / ناظمِ مال (Khazanchi / Cashier)' : 'خزانچی / ناظمِ مال';
+            } else {
+                return $withUrdu ? 'کیشیئر / فیلڈ اسٹاف (Cashier)' : 'User / Cashier';
+            }
+        case 'Approver / Checker':
+        case 'Approver':
+        case 'Checker':
+            if ($isMadrasa) {
+                return $withUrdu ? 'نائب مہتمم / نگرانِ پڑتال (Naib Mohtamim)' : 'نائب مہتمم / نگران';
+            } else {
+                return $withUrdu ? 'منظور کنندہ / چیکر (Approver / Checker)' : 'Checker';
+            }
+        case 'Super Admin':
+            if ($isMadrasa) {
+                return $withUrdu ? 'صدر / مہتممِ اعلیٰ (Super Admin)' : 'صدر / مہتممِ اعلیٰ';
+            } else {
+                return $withUrdu ? 'مرکزی ایڈمن (Super Admin)' : 'Super Admin';
+            }
+        case 'Viewer':
+            if ($isMadrasa) {
+                return $withUrdu ? 'ناظر / مبصر (Viewer)' : 'ناظر (Viewer)';
+            } else {
+                return $withUrdu ? 'ویور / مبصر (Viewer)' : 'Viewer';
+            }
+        default:
+            return $roleName;
+    }
+}
+
 function get_org_subtitle(): string {
     $custom = trim(get_setting('org_subtitle', ''));
     if (!empty($custom)) {

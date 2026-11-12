@@ -518,7 +518,7 @@ if ($editUser) {
         <header class="topbar">
             <div>
                 <span class="eyebrow">ADMINISTRATION</span>
-                <h1><?= $isRegDirector && !$isSuperAdmin ? 'My Regional Team <span class="ur">(میری صوبائی ٹیم)</span>' : 'Users & Provinces <span class="ur">(صارفین و برانچز)</span>' ?></h1>
+                <h1><?= $isRegDirector && !$isSuperAdmin ? (is_madrasa_mode() ? 'My Madrasa Team <span class="ur">(میری مدرسہ ٹیم)</span>' : 'My Regional Team <span class="ur">(میری صوبائی ٹیم)</span>') : (is_madrasa_mode() ? 'Users & Branches <span class="ur">(عملہ و شعبہ جات)</span>' : 'Users & Provinces <span class="ur">(صارفین و برانچز)</span>') ?></h1>
             </div>
             <div class="btn-row">
                 <?php if ($activeTab === 'users'): ?>
@@ -534,7 +534,7 @@ if ($editUser) {
                         <a href="users.php?tab=regions" class="btn secondary sm">✕ Cancel Editing <span class="ur">(منسوخ کریں)</span></a>
                     <?php else: ?>
                         <button type="button" class="btn blue sm" id="toggleRegionBtn" onclick="toggleRegionForm()">
-                            ＋ Add New Province / Region <span class="ur">(نیا صوبہ بنائیں)</span>
+                            ＋ <?=is_madrasa_mode() ? 'Add New Branch / Seminary <span class="ur">(نئی شاخ یا مدرسہ شامل کریں)</span>' : 'Add New Province / Region <span class="ur">(نیا صوبہ بنائیں)</span>'?>
                         </button>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -545,10 +545,10 @@ if ($editUser) {
         <?php if ($isSuperAdmin): ?>
             <div class="tab-nav" style="margin-top:16px;margin-bottom:20px;">
                 <a href="users.php?tab=users" class="tab-link <?=$activeTab==='users'?'active':''?>">
-                    👥 Users & Staff Directory <span class="ur">(تمام عملہ و صارفین)</span>
+                    👥 <?=is_madrasa_mode() ? 'Staff & Teachers Directory <span class="ur">(اساتذہ و انتظامی عملہ)</span>' : 'Users & Staff Directory <span class="ur">(تمام عملہ و صارفین)</span>'?>
                 </a>
                 <a href="users.php?tab=regions" class="tab-link <?=$activeTab==='regions'?'active':''?>">
-                    🏛️ Provinces & Regional Directorates <span class="ur">(صوبائی و علاقائی برانچز)</span>
+                    🏛️ <?=is_madrasa_mode() ? 'Branches & Madaris <span class="ur">(ذیلی مدارس و علاقائی شاخیں)</span>' : 'Provinces & Regional Directorates <span class="ur">(صوبائی و علاقائی برانچز)</span>'?>
                 </a>
             </div>
         <?php endif; ?>
@@ -579,8 +579,8 @@ if ($editUser) {
             <article class="form-card" id="regionFormCard" style="display:<?= $editRegion ? 'block' : 'none' ?>;margin-bottom:24px;">
                 <div class="form-card-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
                     <div>
-                        <h3><?= $editRegion ? '🏛️ Edit Province / Directorate <span class="ur">(صوبائی ڈائریکٹوریٹ میں ترمیم کریں)</span>' : '🏛️ Add New Province / Directorate <span class="ur">(نیا صوبہ شامل کریں)</span>' ?></h3>
-                        <p><?= $editRegion ? 'Update provincial details, appointed director, contact info, and active status' : 'Configure provincial directorate (e.g. Sindh, Balochistan, Islamabad) and appoint its Regional Director' ?></p>
+                        <h3><?= $editRegion ? (is_madrasa_mode() ? '🏛️ Edit Branch / Seminary <span class="ur">(ذیلی مدرسہ یا شاخ میں ترمیم کریں)</span>' : '🏛️ Edit Province / Directorate <span class="ur">(صوبائی ڈائریکٹوریٹ میں ترمیم کریں)</span>') : (is_madrasa_mode() ? '🏛️ Add New Branch / Seminary <span class="ur">(نئی شاخ یا مدرسہ شامل کریں)</span>' : '🏛️ Add New Province / Directorate <span class="ur">(نیا صوبہ شامل کریں)</span>') ?></h3>
+                        <p><?= $editRegion ? (is_madrasa_mode() ? 'Update seminary branch details, appointed Mohtamim, contact, and active status' : 'Update provincial details, appointed director, contact info, and active status') : (is_madrasa_mode() ? 'Configure seminary branch or sub-campus and appoint its Mohtamim / Nazim' : 'Configure provincial directorate (e.g. Sindh, Balochistan, Islamabad) and appoint its Regional Director') ?></p>
                     </div>
                     <?php if (!$editRegion): ?>
                         <button type="button" class="btn sm secondary" onclick="toggleRegionForm(false)" style="padding:4px 10px;" title="فارم بند کریں">✕</button>
@@ -595,21 +595,21 @@ if ($editUser) {
 
                     <div class="form-grid">
                         <div class="form-group">
-                            <label>Province / Region Name <span class="ur">(صوبے کا نام)</span> *</label>
-                            <input name="region_name" required placeholder="e.g. پنجاب (Punjab) / سندھ (Sindh) / بلوچستان (Balochistan)" value="<?=e($editRegion['name'] ?? '')?>">
+                            <label><?=is_madrasa_mode() ? 'Branch / Seminary Name <span class="ur">(شاخ یا مدرسے کا نام)</span>' : 'Province / Region Name <span class="ur">(صوبے کا نام)</span>'?> *</label>
+                            <input name="region_name" required placeholder="<?=is_madrasa_mode() ? 'e.g. دار العلوم شاخ گلبرگ / جامعہ مرکز' : 'e.g. پنجاب (Punjab) / سندھ (Sindh) / بلوچستان (Balochistan)'?>" value="<?=e($editRegion['name'] ?? '')?>">
                         </div>
                         <div class="form-group">
-                            <label>Region Code <span class="ur">(منفرد کوڈ)</span> *</label>
-                            <input name="region_code" required placeholder="e.g. PUNJAB, KPK, SINDH, BAL, ISB" maxlength="10" style="text-transform:uppercase;font-family:monospace;font-weight:700;" value="<?=e($editRegion['code'] ?? '')?>">
+                            <label><?=is_madrasa_mode() ? 'Branch Code <span class="ur">(منفرد کوڈ)</span>' : 'Region Code <span class="ur">(منفرد کوڈ)</span>'?> *</label>
+                            <input name="region_code" required placeholder="e.g. MAIN, BR01, KPK, SINDH" maxlength="10" style="text-transform:uppercase;font-family:monospace;font-weight:700;" value="<?=e($editRegion['code'] ?? '')?>">
                             <small class="muted">2 to 10 capital letters.</small>
                         </div>
                         <div class="form-group">
-                            <label>Appoint Director <span class="ur">(صوبائی ڈائریکٹر نامزد کریں)</span></label>
+                            <label><?=is_madrasa_mode() ? 'Appoint Mohtamim / Nazim <span class="ur">(شاخ کے مہتمم یا ناظم نامزد کریں)</span>' : 'Appoint Director <span class="ur">(صوبائی ڈائریکٹر نامزد کریں)</span>'?></label>
                             <select name="director_id">
-                                <option value="">-- Appoint Later / کوئی ڈائریکٹر نہیں --</option>
+                                <option value="">-- <?=is_madrasa_mode() ? 'Appoint Later / فی الحال کوئی نامزدگی نہیں' : 'Appoint Later / کوئی ڈائریکٹر نہیں'?> --</option>
                                 <?php foreach ($users as $usr): ?>
                                     <option value="<?=$usr['id']?>" <?= (isset($editRegion['director_id']) && (int)$editRegion['director_id'] === (int)$usr['id']) ? 'selected' : '' ?>>
-                                        <?=e($usr['full_name'])?> (@<?=e($usr['username'])?>) — <?=e($usr['role_name'])?>
+                                        <?=e($usr['full_name'])?> (@<?=e($usr['username'])?>) — <?=e(get_role_display_name($usr['role_name'], false))?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -651,18 +651,18 @@ if ($editUser) {
             <article class="panel">
                 <div class="panel-heading">
                     <div>
-                        <h3>Provincial Directorates Directory <span class="ur">(صوبائی ڈائریکٹوریٹس کی فہرست)</span></h3>
-                        <p>All provincial directorates across Pakistan with team counts, direct activate/deactivate, and management</p>
+                        <h3><?=is_madrasa_mode() ? 'Branches & Madaris Directory <span class="ur">(ذیلی مدارس و علاقائی شاخیں)</span>' : 'Provincial Directorates Directory <span class="ur">(صوبائی ڈائریکٹوریٹس کی فہرست)</span>'?></h3>
+                        <p><?=is_madrasa_mode() ? 'All branches, campuses, and institutes with appointed Mohtamim, team size, and management' : 'All provincial directorates across Pakistan with team counts, direct activate/deactivate, and management'?></p>
                     </div>
                 </div>
                 <div class="table-wrap">
                     <table>
                         <thead>
                             <tr>
-                                <th>Province / Directorate</th>
+                                <th><?=is_madrasa_mode() ? 'Branch / Seminary' : 'Province / Directorate'?></th>
                                 <th>Code</th>
-                                <th>Regional Director <span class="ur">(صوبائی ڈائریکٹر)</span></th>
-                                <th>Contact & Office</th>
+                                <th><?=is_madrasa_mode() ? 'Head / Mohtamim <span class="ur">(مہتمم / ناظمِ شاخ)</span>' : 'Regional Director <span class="ur">(صوبائی ڈائریکٹر)</span>'?></th>
+                                <th>Contact &amp; Office</th>
                                 <th>Team Size</th>
                                 <th>Status</th>
                                 <th style="text-align:center;">Actions <span class="ur">(کارروائی)</span></th>
@@ -803,11 +803,11 @@ if ($editUser) {
                         <?php endif; ?>
 
                         <div class="form-group">
-                            <label>Assigned Role Template <span class="ur">(بنیادی کردار / رول)</span> *</label>
+                            <label><?=is_madrasa_mode() ? 'Assigned Designation / Role <span class="ur">(بنیادی عہدہ / رول)</span>' : 'Assigned Role Template <span class="ur">(بنیادی کردار / رول)</span>'?> *</label>
                             <select name="role_id" id="roleSelect" onchange="onRoleChange(this.value)" required>
                                 <?php foreach ($roles as $r): ?>
                                     <option value="<?=$r['id']?>" data-name="<?=e($r['name'])?>" <?=($editUser && (int)$editUser['role_id'] === (int)$r['id']) ? 'selected' : ''?>>
-                                        <?=e($r['name'])?> (<?=e($r['description'])?>)
+                                        <?=e(get_role_display_name($r['name'], true))?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -845,14 +845,14 @@ if ($editUser) {
                             <!-- Quick Presets -->
                             <div class="preset-btn-row" style="display:flex;flex-wrap:wrap;gap:6px;">
                                 <button type="button" class="btn secondary sm" onclick="applyPreset('cashier')" style="font-size:11.5px;padding:4px 10px;">
-                                    🔘 <span class="en-only" style="display:none;">Cashier / Collector</span><span class="ur">صرف کیشئر / تحصیل دار</span>
+                                    🔘 <span class="ur"><?=is_madrasa_mode() ? 'خزانچی / ناظمِ مال' : 'صرف کیشئر / تحصیل دار'?></span>
                                 </button>
                                 <?php if ($isSuperAdmin): ?>
                                     <button type="button" class="btn secondary sm" onclick="applyPreset('approver')" style="font-size:11.5px;padding:4px 10px;">
-                                        🔘 <span class="en-only" style="display:none;">Accountant / Checker</span><span class="ur">اکاؤنٹنٹ و چیکر</span>
+                                        🔘 <span class="ur"><?=is_madrasa_mode() ? 'نائب مہتمم / نگران' : 'اکاؤنٹنٹ و چیکر'?></span>
                                     </button>
                                     <button type="button" class="btn secondary sm" onclick="applyPreset('director')" style="font-size:11.5px;padding:4px 10px;">
-                                        🔘 <span class="ur">صوبائی ڈائریکٹر</span>
+                                        🔘 <span class="ur"><?=is_madrasa_mode() ? 'مہتمم / ناظمِ شاخ' : 'صوبائی ڈائریکٹر'?></span>
                                     </button>
                                 <?php endif; ?>
                                 <button type="button" class="btn secondary sm" onclick="applyPreset('viewer')" style="font-size:11.5px;padding:4px 10px;">
@@ -963,9 +963,9 @@ if ($editUser) {
                     <?php if ($isSuperAdmin && !empty($allRegions)): ?>
                         <form method="get" action="users.php" style="display:flex;align-items:center;gap:8px;margin:0;">
                             <input type="hidden" name="tab" value="users">
-                            <span style="font-size:12.5px;color:#64748b;font-weight:600;">🏛️ Province Filter:</span>
+                            <span style="font-size:12.5px;color:#64748b;font-weight:600;">🏛️ <?=is_madrasa_mode() ? 'Branch Filter:' : 'Province Filter:'?></span>
                             <select name="region_id" onchange="this.form.submit()" style="padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-weight:600;">
-                                <option value="0">🌐 All Pakistan (پورے پاکستان کے صارفین)</option>
+                                <option value="0">🌐 <?=is_madrasa_mode() ? 'All Branches (تمام شاخیں و مدارس)' : 'All Pakistan (پورے پاکستان کے صارفین)'?></option>
                                 <?php foreach ($allRegions as $r): ?>
                                     <option value="<?=$r['id']?>" <?=$filterRegionId===(int)$r['id']?'selected':''?>>🏛️ <?=e($r['name'])?></option>
                                 <?php endforeach; ?>
@@ -980,8 +980,8 @@ if ($editUser) {
                             <tr>
                                 <th>User Name</th>
                                 <th>Username</th>
-                                <th>Role</th>
-                                <th>Province / Region <span class="ur">(صوبہ)</span></th>
+                                <th><?=is_madrasa_mode() ? 'Designation / Role <span class="ur">(عہدہ)</span>' : 'Role <span class="ur">(رول)</span>'?></th>
+                                <th><?=is_madrasa_mode() ? 'Branch / Seminary <span class="ur">(شاخ / مدرسہ)</span>' : 'Province / Region <span class="ur">(صوبہ)</span>'?></th>
                                 <th>Assigned Rights <span class="ur">(اختیارات)</span></th>
                                 <th>Allowed Funds <span class="ur">(مجاز فنڈز)</span></th>
                                 <th>Assigned Cash Account <span class="ur">(کیش اکاؤنٹ)</span></th>
@@ -1012,13 +1012,25 @@ if ($editUser) {
                                     <td><code><?=e($u['username'])?></code></td>
                                     <td>
                                         <?php if ($u['role_name'] === 'Super Admin'): ?>
-                                            <span class="badge badge-purple"><?=e($u['role_name'])?></span>
+                                            <span class="badge badge-purple" style="font-weight:700;">
+                                                <?=is_madrasa_mode() ? 'صدر / مہتممِ اعلیٰ' : 'Super Admin'?>
+                                            </span>
                                         <?php elseif ($u['role_name'] === 'Regional Director'): ?>
-                                            <span class="badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-weight:700;">Director</span>
+                                            <span class="badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-weight:700;">
+                                                <?=is_madrasa_mode() ? 'مہتمم / ناظم' : 'Director'?>
+                                            </span>
                                         <?php elseif ($u['role_name'] === 'Approver / Checker'): ?>
-                                            <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">Checker</span>
+                                            <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-weight:700;">
+                                                <?=is_madrasa_mode() ? 'نائب مہتمم / نگران' : 'Checker'?>
+                                            </span>
+                                        <?php elseif ($u['role_name'] === 'User / Cashier'): ?>
+                                            <span class="badge" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;font-weight:700;">
+                                                <?=is_madrasa_mode() ? 'خزانچی / ناظمِ مال' : 'User / Cashier'?>
+                                            </span>
                                         <?php else: ?>
-                                            <span class="badge badge-gray"><?=e($u['role_name'])?></span>
+                                            <span class="badge badge-gray" style="font-weight:700;">
+                                                <?=e(get_role_display_name($u['role_name'], false))?>
+                                            </span>
                                         <?php endif; ?>
                                     </td>
                                     <td>

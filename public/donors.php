@@ -63,6 +63,101 @@ if (isset($_GET['delete_id'])) {
     }
 }
 
+// Quick Receive Pledge (One-click Modal Receipt directly from Tracker)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'quick_receive_pledge') {
+    verify_csrf();
+    if (!has_permission('vouchers.create') && !has_permission('income.create') && !has_permission('donors.manage') && !can_approve()) {
+        $error = 'آپ کے پاس آمدنی کی رسید یا واؤچر جاری کرنے کا اختیار نہیں ہے۔';
+    } else {
+        $donorId = (int)($_POST['donor_id'] ?? 0);
+        $amount = (float)($_POST['amount'] ?? 0);
+        $fundId = (int)($_POST['fund_id'] ?? 0);
+        $date = trim($_POST['voucher_date'] ?? date('Y-m-d'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $date = date('Y-m-d');
+        }
+        $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
+        $referenceNo = trim($_POST['reference_no'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $assetAccountId = (int)($_POST['asset_account_id'] ?? 0);
+        $incomeAccountId = (int)($_POST['income_account_id'] ?? 0);
+
+        if (!can_approve()) {
+            $userCashAcc = get_or_create_user_cash_account($pdo, $userId);
+            $assetAccountId = (int)($userCashAcc['id'] ?? 0);
+        }
+        if ($assetAccountId <= 0) {
+            $assetAccDefault = $pdo->query("SELECT id FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY account_code ASC LIMIT 1")->fetchColumn();
+            $assetAccountId = (int)($assetAccDefault ?: 0);
+        }
+        if ($incomeAccountId <= 0) {
+            $incAccDefault = $pdo->query("SELECT id FROM accounts WHERE account_type='income' AND is_active=1 ORDER BY (account_code='4000') DESC, account_code ASC LIMIT 1")->fetchColumn();
+            $incomeAccountId = (int)($incAccDefault ?: 0);
+        }
+
+        if ($amount <= 0 || $donorId <= 0) {
+            $error = 'براہ کرم درست رقم درج کریں۔';
+        } elseif ($fundId <= 0) {
+            $error = 'براہ کرم متعلقہ فنڈ منتخب کریں۔';
+        } elseif ($hasFundRestriction && !in_array($fundId, $userFundIds, true)) {
+            $error = 'آپ کے اکاؤنٹ کے پاس اس فنڈ میں رقم وصول کرنے کا اختیار نہیں ہے۔';
+        } else {
+            try {
+                $pdo->beginTransaction();
+
+                $donorRow = $pdo->query("SELECT donor_name, phone FROM donors WHERE id = {$donorId}")->fetch();
+                $donorName = $donorRow['donor_name'] ?? 'معاون';
+
+                $prefix = 'RV-' . date('Ym', strtotime($date)) . '-';
+                $lastNo = $pdo->query("SELECT voucher_no FROM vouchers WHERE voucher_no LIKE '{$prefix}%' ORDER BY id DESC LIMIT 1")->fetchColumn();
+                $nextSeq = 1;
+                if ($lastNo && preg_match('/-(\d+)$/', $lastNo, $m)) {
+                    $nextSeq = (int)$m[1] + 1;
+                }
+                $voucherNo = $prefix . str_pad((string)$nextSeq, 4, '0', STR_PAD_LEFT);
+
+                $isDirectPost = has_permission('voucher.direct_post') || can_approve();
+                $voucherStatus = $isDirectPost ? 'posted' : 'draft';
+                $postedAt = $isDirectPost ? date('Y-m-d H:i:s') : null;
+
+                $userRegId = function_exists('get_user_region_id') ? get_user_region_id($userId) : 0;
+                $voucherRegionId = $userRegId > 0 ? $userRegId : null;
+
+                $stmtVoucher = $pdo->prepare('INSERT INTO vouchers (voucher_no, voucher_type, voucher_date, fund_id, region_id, donor_id, payee_name, payment_method, reference_no, description, total_amount, status, created_by, posted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmtVoucher->execute([
+                    $voucherNo, 'income', $date, $fundId, $voucherRegionId, $donorId,
+                    $donorName, $paymentMethod, $referenceNo, $description, $amount,
+                    $voucherStatus, $userId, $postedAt
+                ]);
+                $voucherId = (int)$pdo->lastInsertId();
+
+                $narration = $description ?: ("Monthly pledge contribution from " . $donorName);
+                $stmtJe = $pdo->prepare('INSERT INTO journal_entries (voucher_id, region_id, entry_date, narration, status, created_by) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmtJe->execute([$voucherId, $voucherRegionId, $date, $narration, $voucherStatus, $userId]);
+                $jeId = (int)$pdo->lastInsertId();
+
+                $stmtLine = $pdo->prepare('INSERT INTO journal_lines (journal_entry_id, account_id, fund_id, description, debit, credit) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmtLine->execute([$jeId, $assetAccountId, $fundId, 'Received: ' . $narration, $amount, 0.00]);
+                $stmtLine->execute([$jeId, $incomeAccountId, $fundId, 'Donation/Income: ' . $narration, 0.00, $amount]);
+
+                $pdo->commit();
+
+                $retMonth = trim($_POST['return_month'] ?? date('Y-m'));
+                $retFund = (int)($_POST['return_fund_id'] ?? 0);
+                $retStatus = trim($_POST['return_status'] ?? 'all');
+
+                header('Location: donors.php?tab=pledges&month=' . urlencode($retMonth) . '&pledge_fund_id=' . $retFund . '&pledge_status=' . urlencode($retStatus) . '&received_voucher_id=' . $voucherId . '&success=pledge_received');
+                exit;
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                $error = 'Error receiving pledge: ' . $e->getMessage();
+            }
+        }
+    }
+}
+
 // Handle Add or Edit Donor Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!has_permission('donors.manage')) {
@@ -216,6 +311,10 @@ $printSignTitle1 = get_setting('print_sign_title_1', is_madrasa_mode() ? 'تیا
 $printSignTitle2 = get_setting('print_sign_title_2', is_madrasa_mode() ? 'اکاؤنٹنٹ / ناظمِ مالیات (Accountant)' : 'Accountant / Cashier (اکاؤنٹنٹ)');
 $printSignTitle3 = get_setting('print_sign_title_3', is_madrasa_mode() ? 'مہتمم / صدر / مجاز دستخط (Director / Mohtamim)' : 'Director / Mohtamim (دستخط مجاز اتھارٹی)');
 $printFooterNote = get_setting('print_footer_note', 'یہ ایک کمپیوٹرائزڈ آفیشل فنانشل رسید ہے۔ کسی دستی مہر کی ضرورت نہیں۔');
+
+// Cash & Bank Accounts and Income Heads for Quick Receipt
+$assetAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE is_cash_or_bank=1 AND is_active=1 ORDER BY account_code ASC")->fetchAll();
+$incomeAccounts = $pdo->query("SELECT id, account_code, account_name FROM accounts WHERE account_type='income' AND is_active=1 ORDER BY (account_code='4000') DESC, account_code ASC")->fetchAll();
 
 // Tab Navigation & Monthly Pledges / Kafalat Tracker (Feature #1)
 $currentTab = trim($_GET['tab'] ?? 'directory'); // 'directory' or 'pledges'
@@ -919,6 +1018,35 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                 </article>
             </section>
 
+            <?php if (!empty($_GET['received_voucher_id']) && ($_GET['success'] ?? '') === 'pledge_received'): 
+                $recVoucherId = (int)$_GET['received_voucher_id'];
+                $recVoucher = $pdo->query("SELECT v.*, f.name AS fund_name, d.donor_name, d.phone AS donor_phone FROM vouchers v LEFT JOIN funds f ON f.id = v.fund_id LEFT JOIN donors d ON d.id = v.donor_id WHERE v.id = {$recVoucherId}")->fetch();
+            ?>
+                <div class="no-print" style="background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 2px 6px rgba(16,185,129,0.15);">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:28px;">🎉</span>
+                        <div>
+                            <strong style="color:#065f46;font-size:15px;">ماہانہ کفالت کی وصولی کامیابی سے درج ہو گئی! (Voucher Created)</strong>
+                            <div style="font-size:12.5px;color:#047857;margin-top:2px;">
+                                رسید / واؤچر نمبر: <b style="font-family:monospace;font-size:13.5px;"><?=e($recVoucher['voucher_no'] ?? '')?></b> &bull; معاون: <b><?=e($recVoucher['donor_name'] ?? '')?></b> &bull; رقم: <b><?=money($recVoucher['total_amount'] ?? 0)?></b>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <a href="print_voucher.php?id=<?=$recVoucherId?>&autoprint=1" target="_blank" class="btn sm" style="background:#059669;color:#ffffff;border:none;font-weight:700;padding:8px 15px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.12);text-decoration:none;">
+                            🖨️ Print Slip (رسید پرنٹ کریں)
+                        </a>
+                        <?php if (!empty($recVoucher['donor_phone'])): 
+                            $recWaUrl = build_whatsapp_receipt_url($recVoucher, $madrasaName, $madrasaPhone);
+                        ?>
+                            <a href="<?=$recWaUrl?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:none;font-weight:700;padding:8px 15px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.12);text-decoration:none;">
+                                📲 Send WhatsApp (واٹس ایپ رسید)
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- Pledges Month Selector & Table Panel -->
             <article class="panel">
                 <!-- Panel Header with Title on Left and Export/Print Buttons on Right (Exact User Request) -->
@@ -1122,10 +1250,26 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                     $pledgeDayNum = !empty($pl['expected_day']) ? (int)$pl['expected_day'] : 1;
                                                     if ($pledgeDayNum < 1 || $pledgeDayNum > 28) $pledgeDayNum = 1;
                                                     $pledgeVoucherDate = $selectedMonth . '-' . str_pad((string)$pledgeDayNum, 2, '0', STR_PAD_LEFT);
+                                                    $quickReceiveData = [
+                                                        'donor_id' => (int)$pl['id'],
+                                                        'donor_name' => $pl['donor_name'],
+                                                        'phone' => $pl['phone'] ?? '',
+                                                        'amount' => (float)$pAmt,
+                                                        'due_amount' => (float)($dueAmt > 0 ? $dueAmt : $pAmt),
+                                                        'fund_id' => (int)$fundToUse,
+                                                        'fund_name' => (string)($fundName ?: 'Trust General Fund'),
+                                                        'month' => date('F Y', strtotime($selectedMonth . '-01')),
+                                                        'target_date' => $pledgeVoucherDate,
+                                                        'desc' => 'ماہانہ کفالت برائے فنڈ ' . ($fundName ?: 'جنرل') . ' بابت ماہ ' . $monthNameUrdu
+                                                    ];
                                                 ?>
-                                                <a href="income.php?donor_id=<?=$pl['id']?>&amount=<?=$pAmt?>&fund_id=<?=$fundToUse?>&date=<?=urlencode($pledgeVoucherDate)?>&desc=<?=urlencode('ماہانہ کفالت برائے فنڈ ' . ($fundName ?: 'جنرل') . ' بابت ماہ ' . $monthNameUrdu)?>" class="btn success sm" style="background:#15803d;color:#fff;padding:4px 9px;font-size:11.5px;font-weight:700;text-decoration:none;border-radius:4px;" title="Receive this month's pledge">
+                                                <button type="button" 
+                                                        class="btn success sm" 
+                                                        style="background:#15803d;color:#fff;padding:4px 10px;font-size:12px;font-weight:700;border:none;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" 
+                                                        title="Quick Receive this month's pledge (فوری وصولی)"
+                                                        onclick='openQuickReceiveModal(<?=json_encode($quickReceiveData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)?>)'>
                                                     💰 Receive
-                                                </a>
+                                                </button>
                                                 <?php if (!empty($cleanPhone)): ?>
                                                     <a href="<?=e($waUrl)?>" target="_blank" class="btn sm" style="background:#25D366;color:#fff;border-color:#25D366;padding:4px 9px;font-size:11.5px;font-weight:600;text-decoration:none;border-radius:4px;" title="Send polite WhatsApp Reminder">
                                                         💬 WhatsApp
@@ -1191,11 +1335,157 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
             </article>
         <?php endif; ?>
 
+        <!-- Quick Receive Pledge Modal (1-Click Instant Receipt) -->
+        <div id="quickReceiveModal" class="modal-backdrop no-print" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:99999;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);">
+            <div style="background:#ffffff;border-radius:14px;width:100%;max-width:480px;box-shadow:0 25px 35px -5px rgba(0,0,0,0.3);overflow:hidden;border:1px solid #cbd5e1;">
+                <div style="padding:16px 20px;background:#0f172a;color:#ffffff;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;">
+                        <span>💰</span>
+                        <span>Quick Receive Monthly Pledge <span class="ur">(فوری ماہانہ وصولی)</span></span>
+                    </div>
+                    <button type="button" onclick="closeQuickReceiveModal()" style="background:transparent;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1;" title="Close (بند کریں)">&times;</button>
+                </div>
+
+                <form method="post" action="donors.php?tab=pledges" style="padding:20px;">
+                    <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
+                    <input type="hidden" name="action" value="quick_receive_pledge">
+                    <input type="hidden" name="return_month" value="<?=e($selectedMonth)?>">
+                    <input type="hidden" name="return_fund_id" value="<?=$filterPledgeFund?>">
+                    <input type="hidden" name="return_status" value="<?=e($filterPledgeStatus)?>">
+                    <input type="hidden" name="donor_id" id="qrm_donor_id" value="">
+                    <input type="hidden" name="fund_id" id="qrm_fund_id" value="">
+
+                    <!-- Donor & Target Month Info Box -->
+                    <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                            <div>
+                                <div style="font-size:11px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:0.5px;">معاون / ڈونر:</div>
+                                <div style="font-weight:800;font-size:16px;color:#0f172a;margin-top:2px;" id="qrm_donor_name">Donor Name</div>
+                                <div style="font-size:12px;color:#475569;margin-top:3px;" id="qrm_donor_phone">0300-0000000</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;font-weight:700;font-size:11.5px;padding:3px 8px;" id="qrm_month">Month</span>
+                                <div style="font-size:11.5px;color:#0284c7;font-weight:700;margin-top:5px;" id="qrm_fund_name">Fund</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amount & Receipt Date Grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Received Amount <span class="ur">(وصول شدہ رقم PKR)</span> *
+                            </label>
+                            <input type="number" step="0.01" min="1" name="amount" id="qrm_amount" required style="width:100%;font-size:17px;font-weight:800;color:#15803d;padding:8px 12px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Receipt Date <span class="ur">(تاریخ رسید)</span> *
+                            </label>
+                            <input type="date" name="voucher_date" id="qrm_date" required style="width:100%;font-size:13.5px;font-weight:600;padding:9px 12px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Deposit Into & Payment Method Grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Deposit Into <span class="ur">(جمع کھاتہ)</span>
+                            </label>
+                            <select name="asset_account_id" id="qrm_asset_account_id" style="width:100%;font-size:12.5px;font-weight:600;padding:9px 10px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;">
+                                <?php foreach ($assetAccounts as $acc): ?>
+                                    <option value="<?=$acc['id']?>"><?=e($acc['account_code'])?> - <?=e(format_ui_text($acc['account_name']))?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                                Payment Method <span class="ur">(طریقہ کار)</span>
+                            </label>
+                            <select name="payment_method" style="width:100%;font-size:12.5px;font-weight:600;padding:9px 10px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;">
+                                <option value="cash">💵 Cash (نقد خزانہ)</option>
+                                <option value="bank_transfer">🏛️ Bank / Online Transfer</option>
+                                <option value="cheque">📝 Cheque (چیک)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Description / Narration -->
+                    <div style="margin-bottom:18px;">
+                        <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                            Description / Note <span class="ur">(تفصیل و دعا)</span>
+                        </label>
+                        <input type="text" name="description" id="qrm_description" style="width:100%;font-size:12.5px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;" placeholder="ماہانہ کفالت عطیہ">
+                    </div>
+
+                    <!-- Modal Actions & Full Form Link -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid #e2e8f0;flex-wrap:wrap;gap:10px;">
+                        <a href="income.php" id="qrm_adv_link" target="_blank" style="font-size:11.5px;color:#2563eb;text-decoration:none;" title="Open full Income form for foreign currency or attachments">
+                            Advanced Form ↗ <span class="ur">(تفصیلی فارم)</span>
+                        </a>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" onclick="closeQuickReceiveModal()" class="btn secondary" style="padding:9px 16px;font-weight:600;">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn" style="background:#15803d;color:#ffffff;border:none;padding:9px 20px;font-weight:700;font-size:13.5px;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                                ✅ Confirm &amp; Issue Receipt <span class="ur">(وصول کریں)</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <?=render_app_footer($madrasaName)?>
     </main>
 </div>
 
 <script>
+function openQuickReceiveModal(data) {
+    if (!data) return;
+    document.getElementById('qrm_donor_id').value = data.donor_id || '';
+    document.getElementById('qrm_fund_id').value = data.fund_id || '';
+    document.getElementById('qrm_donor_name').textContent = data.donor_name || 'معاون';
+    document.getElementById('qrm_donor_phone').textContent = data.phone ? ('📞 ' + data.phone) : 'بغیر فون نمبر';
+    document.getElementById('qrm_month').textContent = data.month || '';
+    document.getElementById('qrm_fund_name').textContent = '🏷️ ' + (data.fund_name || 'General');
+    document.getElementById('qrm_amount').value = data.due_amount || data.amount || 0;
+    document.getElementById('qrm_date').value = data.target_date || new Date().toISOString().split('T')[0];
+    document.getElementById('qrm_description').value = data.desc || '';
+
+    // Advanced full form fallback link
+    var advLink = document.getElementById('qrm_adv_link');
+    if (advLink) {
+        advLink.href = 'income.php?donor_id=' + encodeURIComponent(data.donor_id) +
+            '&amount=' + encodeURIComponent(data.due_amount || data.amount) +
+            '&fund_id=' + encodeURIComponent(data.fund_id) +
+            '&date=' + encodeURIComponent(data.target_date) +
+            '&desc=' + encodeURIComponent(data.desc);
+    }
+
+    var m = document.getElementById('quickReceiveModal');
+    if (m) {
+        m.style.display = 'flex';
+        setTimeout(function() {
+            var amt = document.getElementById('qrm_amount');
+            if (amt) { amt.focus(); amt.select(); }
+        }, 120);
+    }
+}
+
+function closeQuickReceiveModal() {
+    var m = document.getElementById('quickReceiveModal');
+    if (m) m.style.display = 'none';
+}
+
+// Close modal if user clicks outside of modal dialog
+window.addEventListener('click', function(e) {
+    var m = document.getElementById('quickReceiveModal');
+    if (e.target === m) {
+        closeQuickReceiveModal();
+    }
+});
+
 function togglePledgeFields(isChecked) {
     var c = document.getElementById('pledgeFieldsContainer');
     if (c) c.style.display = isChecked ? 'grid' : 'none';

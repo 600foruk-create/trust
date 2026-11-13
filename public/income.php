@@ -557,6 +557,12 @@ $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
 $madrasaAddress = get_setting('madrasa_address', '');
 $madrasaPhone = get_setting('madrasa_phone', '');
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
+
+// Determine if the income form should be opened on page load
+$isFormOpen = ($editVoucher !== null)
+    || !empty($error)
+    || (!empty($_GET['action']) && $_GET['action'] === 'new')
+    || (!empty($_GET['donor_id']) || !empty($_GET['amount']) || !empty($_GET['prefill_fund']) || !empty($_GET['prefill_amount']));
 ?>
 <!doctype html>
 <html lang="en">
@@ -579,10 +585,12 @@ $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
             </div>
             <div class="btn-row">
                 <?php if ($editVoucher): ?>
-                    <a href="income.php" class="btn secondary sm">＋ New Income Voucher</a>
+                    <a href="income.php" class="btn secondary sm">✕ Cancel Edit <span class="ur">(ترمیم منسوخ)</span></a>
                 <?php else: ?>
-                    <button class="btn blue sm" onclick="document.getElementById('incomeFormCard').scrollIntoView({behavior:'smooth'});">
-                        ＋ New Income Voucher
+                    <button type="button" id="toggleIncomeFormBtn" class="btn <?= $isFormOpen ? 'secondary' : 'blue' ?> sm" onclick="toggleIncomeForm();" style="display:inline-flex;align-items:center;gap:6px;font-weight:700;">
+                        <span id="incomeBtnIcon"><?= $isFormOpen ? '▲' : '＋' ?></span>
+                        <span id="incomeBtnText"><?= $isFormOpen ? 'Hide Form' : 'New Income Voucher' ?></span>
+                        <span class="ur">(نیا واؤچر درج کریں)</span>
                     </button>
                 <?php endif; ?>
             </div>
@@ -649,10 +657,19 @@ $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
         <?php endif; ?>
 
         <!-- Professional Form Card (Add / Edit) -->
-        <article class="form-card" id="incomeFormCard">
-            <div class="form-card-header">
-                <h3><?= $editVoucher ? 'Edit Income Voucher <span class="ur">(واؤچر میں ترمیم کریں)</span> — '.e($editVoucher['voucher_no']) : 'Record New Income Receipt <span class="ur">(رسید وصولی آمدنی)</span>' ?></h3>
-                <p><?= $editVoucher ? 'Modify voucher details and update double-entry journals' : 'Enter donation, fees, Zakat, or charity with automatic double-entry journal posting' ?></p>
+        <article class="form-card" id="incomeFormCard" style="<?= $isFormOpen ? '' : 'display:none;' ?>">
+            <div class="form-card-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+                <div>
+                    <h3 style="margin:0;"><?= $editVoucher ? 'Edit Income Voucher <span class="ur">(واؤچر میں ترمیم کریں)</span> — '.e($editVoucher['voucher_no']) : 'Record New Income Receipt <span class="ur">(رسید وصولی آمدنی)</span>' ?></h3>
+                    <p style="margin:4px 0 0;"><?= $editVoucher ? 'Modify voucher details and update double-entry journals' : 'Enter donation, fees, Zakat, or charity with automatic double-entry journal posting' ?></p>
+                </div>
+                <div>
+                    <?php if ($editVoucher): ?>
+                        <a href="income.php" class="btn secondary sm" style="font-size:12px;">✕ Cancel Edit</a>
+                    <?php else: ?>
+                        <button type="button" class="btn secondary sm" style="font-size:12px;" onclick="toggleIncomeForm(false);">✕ Close Form <span class="ur">(بند کریں)</span></button>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <form method="post" enctype="multipart/form-data">
@@ -855,10 +872,15 @@ $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 
         <!-- Income Vouchers History Table -->
         <article class="panel" id="vouchersLedger" style="margin-top:24px;">
-            <div class="panel-heading">
+            <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                 <div>
-                    <h3>Income Vouchers Ledger <span class="ur">(آمدنی واؤچرز فہرست)</span></h3>
-                    <p>Recent recorded income transactions with instant thermal slips and WhatsApp sharing</p>
+                    <h3 style="margin:0;">Income Vouchers Ledger <span class="ur">(آمدنی واؤچرز فہرست)</span></h3>
+                    <p style="margin:2px 0 0;">Recent recorded income transactions with instant thermal slips and WhatsApp sharing</p>
+                </div>
+                <div>
+                    <button type="button" class="btn blue sm" onclick="toggleIncomeForm(true);" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+                        ＋ New Income Voucher <span class="ur">(نیا واؤچر درج کریں)</span>
+                    </button>
                 </div>
             </div>
 
@@ -1687,6 +1709,42 @@ document.addEventListener('keydown', function(e) {
         searchInput.addEventListener('input', applyLiveFilter);
     }
 })();
+
+function toggleIncomeForm(forceState) {
+    var card = document.getElementById('incomeFormCard');
+    var btn = document.getElementById('toggleIncomeFormBtn');
+    var icon = document.getElementById('incomeBtnIcon');
+    var text = document.getElementById('incomeBtnText');
+    if (!card) return;
+
+    var isCurrentlyHidden = (card.style.display === 'none' || window.getComputedStyle(card).display === 'none');
+    var shouldShow = (forceState !== undefined) ? forceState : isCurrentlyHidden;
+
+    if (shouldShow) {
+        card.style.display = 'block';
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (icon) icon.innerText = '▲';
+        if (text) text.innerText = 'Hide Form';
+        if (btn) {
+            btn.classList.remove('blue');
+            btn.classList.add('secondary');
+        }
+    } else {
+        card.style.display = 'none';
+        if (icon) icon.innerText = '＋';
+        if (text) text.innerText = 'New Income Voucher';
+        if (btn) {
+            btn.classList.remove('secondary');
+            btn.classList.add('blue');
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash === '#incomeFormCard') {
+        toggleIncomeForm(true);
+    }
+});
 </script>
 
 <?php if ($autoSlipVoucher): ?>

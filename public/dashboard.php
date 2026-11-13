@@ -335,8 +335,8 @@ if (!$canApprove) {
                 <p>Welcome to <strong><?=e($madrasaName)?></strong> Financial Management Workspace.</p>
             </div>
             <div class="btn-row">
-                <a href="income.php" class="btn blue sm">＋ Add Income <span class="ur">(آمدنی)</span></a>
-                <a href="expenses.php" class="btn secondary sm">－ Add Expense <span class="ur">(خرچ)</span></a>
+                <a href="income.php?action=new" class="btn blue sm">＋ Add Income <span class="ur">(آمدنی)</span></a>
+                <a href="expenses.php?action=new" class="btn secondary sm">－ Add Expense <span class="ur">(خرچ)</span></a>
                 <span class="date-pill"><?=date('d M Y')?></span>
             </div>
         </section>

@@ -422,6 +422,12 @@ $prefillDate = trim($_GET['voucher_date'] ?? ($_GET['date'] ?? ''));
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $prefillDate)) {
     $prefillDate = '';
 }
+
+// Determine if the expense form should be opened on page load
+$isFormOpen = ($editVoucher !== null)
+    || !empty($error)
+    || (!empty($_GET['action']) && $_GET['action'] === 'new')
+    || (!empty($_GET['beneficiary_id']) || !empty($_GET['amount']) || !empty($_GET['payee_name']) || !empty($_GET['fund_id']));
 ?>
 <!doctype html>
 <html lang="en">
@@ -454,10 +460,12 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $prefillDate)) {
             </div>
             <div class="btn-row">
                 <?php if ($editVoucher): ?>
-                    <a href="expenses.php" class="btn secondary sm">＋ Add New Expense Mode</a>
+                    <a href="expenses.php" class="btn secondary sm">✕ Cancel Edit <span class="ur">(ترمیم منسوخ)</span></a>
                 <?php else: ?>
-                    <button class="btn danger sm" onclick="document.getElementById('expenseFormCard').scrollIntoView({behavior:'smooth'});">
-                        ＋ New Expense Voucher
+                    <button type="button" id="toggleExpenseFormBtn" class="btn <?= $isFormOpen ? 'secondary' : 'danger' ?> sm" onclick="toggleExpenseForm();" style="display:inline-flex;align-items:center;gap:6px;font-weight:700;">
+                        <span id="expenseBtnIcon"><?= $isFormOpen ? '▲' : '＋' ?></span>
+                        <span id="expenseBtnText"><?= $isFormOpen ? 'Hide Form' : 'New Expense Voucher' ?></span>
+                        <span class="ur">(نیا خرچ واؤچر درج کریں)</span>
                     </button>
                 <?php endif; ?>
             </div>
@@ -524,10 +532,19 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $prefillDate)) {
         <?php endif; ?>
 
         <!-- Professional Expense Form Card (Add / Edit) -->
-        <article class="form-card" id="expenseFormCard">
-            <div class="form-card-header">
-                <h3><?= $editVoucher ? 'Edit Expense Voucher <span class="ur">(واؤچر میں ترمیم کریں)</span> — '.e($editVoucher['voucher_no']) : 'Record New Expense Payment <span class="ur">(واؤچر ادائیگی اخراجات)</span>' ?></h3>
-                <p><?= $editVoucher ? 'Modify voucher details and update double-entry journals' : 'Enter teacher salaries, kitchen ration, electricity bills, books, or maintenance' ?></p>
+        <article class="form-card" id="expenseFormCard" style="<?= $isFormOpen ? '' : 'display:none;' ?>">
+            <div class="form-card-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+                <div>
+                    <h3 style="margin:0;"><?= $editVoucher ? 'Edit Expense Voucher <span class="ur">(واؤچر میں ترمیم کریں)</span> — '.e($editVoucher['voucher_no']) : 'Record New Expense Payment <span class="ur">(واؤچر ادائیگی اخراجات)</span>' ?></h3>
+                    <p style="margin:4px 0 0;"><?= $editVoucher ? 'Modify voucher details and update double-entry journals' : 'Enter teacher salaries, kitchen ration, electricity bills, books, or maintenance' ?></p>
+                </div>
+                <div>
+                    <?php if ($editVoucher): ?>
+                        <a href="expenses.php" class="btn secondary sm" style="font-size:12px;">✕ Cancel Edit</a>
+                    <?php else: ?>
+                        <button type="button" class="btn secondary sm" style="font-size:12px;" onclick="toggleExpenseForm(false);">✕ Close Form <span class="ur">(بند کریں)</span></button>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <form method="post" enctype="multipart/form-data">
@@ -686,10 +703,15 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $prefillDate)) {
 
         <!-- Expenses List Table -->
         <article class="panel" id="expensesLedger">
-            <div class="panel-heading">
+            <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                 <div>
-                    <h3>Expense Payments Register</h3>
-                    <p>Records with double-entry ledger status and attached receipts</p>
+                    <h3 style="margin:0;">Expense Payments Register <span class="ur">(اخراجات رجسٹر)</span></h3>
+                    <p style="margin:2px 0 0;">Records with double-entry ledger status and attached receipts</p>
+                </div>
+                <div>
+                    <button type="button" class="btn danger sm" onclick="toggleExpenseForm(true);" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+                        ＋ New Expense Voucher <span class="ur">(نیا واؤچر درج کریں)</span>
+                    </button>
                 </div>
             </div>
 
@@ -956,6 +978,42 @@ function closeReceiptModal() {
         searchInput.addEventListener('input', applyLiveFilter);
     }
 })();
+
+function toggleExpenseForm(forceState) {
+    var card = document.getElementById('expenseFormCard');
+    var btn = document.getElementById('toggleExpenseFormBtn');
+    var icon = document.getElementById('expenseBtnIcon');
+    var text = document.getElementById('expenseBtnText');
+    if (!card) return;
+
+    var isCurrentlyHidden = (card.style.display === 'none' || window.getComputedStyle(card).display === 'none');
+    var shouldShow = (forceState !== undefined) ? forceState : isCurrentlyHidden;
+
+    if (shouldShow) {
+        card.style.display = 'block';
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (icon) icon.innerText = '▲';
+        if (text) text.innerText = 'Hide Form';
+        if (btn) {
+            btn.classList.remove('danger');
+            btn.classList.add('secondary');
+        }
+    } else {
+        card.style.display = 'none';
+        if (icon) icon.innerText = '＋';
+        if (text) text.innerText = 'New Expense Voucher';
+        if (btn) {
+            btn.classList.remove('secondary');
+            btn.classList.add('danger');
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash === '#expenseFormCard') {
+        toggleExpenseForm(true);
+    }
+});
 </script>
 </body>
 </html>

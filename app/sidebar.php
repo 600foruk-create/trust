@@ -707,66 +707,207 @@ $phpVer = PHP_VERSION;
       </div>
     </div>
 
-    <!-- Tab 3: User Guide & Quick Help (Bonus Suggestion 2) -->
-    <div id="aboutTabContent_guide" style="padding:18px 20px;display:none;max-height:420px;overflow-y:auto;">
-      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
-        <span style="font-size:26px;">📖</span>
-        <div>
-          <b style="color:#0369a1;font-size:13.5px;">سافٹ ویئر استعمال کرنے کی بنیادی رہنمائی (Quick User Guide)</b>
-          <div style="font-size:11.5px;color:#0284c7;margin-top:2px;">
-            روزمرہ فنانشل و اکاؤنٹنگ امور کو چلانے کے لیے مختصر ہدایات
+    <!-- Tab 3: User Guide & Quick Help (Interactive Accordion FAQ Style) -->
+    <div id="aboutTabContent_guide" style="padding:16px 20px;display:none;max-height:450px;overflow-y:auto;direction:rtl;text-align:right;">
+      <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;direction:rtl;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:24px;">📖</span>
+          <div>
+            <b style="color:#0369a1;font-size:13.5px;">سافٹ ویئر استعمال کرنے کی رہنمائی و سوالات (User Guide &amp; FAQ)</b>
+            <div style="font-size:11.5px;color:#0284c7;margin-top:2px;">
+              کسی بھی سوال یا عنوان پر کلک کریں تاکہ اس کا تفصیلی جواب کھل جائے
+            </div>
           </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn secondary sm" onclick="expandAllGuideFaqs()" style="font-size:11px;padding:4px 9px;cursor:pointer;border-radius:4px;" title="تمام سوالات کھولیں">سب کھولیں</button>
+          <button type="button" class="btn secondary sm" onclick="collapseAllGuideFaqs()" style="font-size:11px;padding:4px 9px;cursor:pointer;border-radius:4px;" title="تمام سوالات بند کریں">سب بند کریں</button>
         </div>
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:10px;font-size:12.5px;">
-        <!-- Guide 1 -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
-          <strong style="color:#15803d;font-size:13px;display:block;">1. آمدنی اور رسیدات کا اندراج (+ Income):</strong>
-          <p style="margin:4px 0 0;color:#334155;line-height:1.5;">
-            جب بھی نقد، بینک یا آن لائن عطیہ موصول ہو تو <b>+ Income</b> پر جائیں۔ معاون کا نام، فنڈ (عمومی، زکوٰۃ، راشن وغیرہ) اور رقم درج کریں۔ رسید فوری کمپیوٹر سے پرنٹ کریں یا 1-کلک پر واٹس ایپ کر دیں۔
-          </p>
+      <!-- Quick Search Filter -->
+      <div style="margin-bottom:12px;">
+        <input type="text" id="guideSearchInput" placeholder="🔍 سوال یا رہنمائی تلاش کریں (جیسے: رسید، خرچ، کفالت، کھاتہ، بیک اپ)..." onkeyup="filterGuideFaqs(this.value)" style="width:100%;padding:8px 12px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:12.5px;box-sizing:border-box;direction:rtl;text-align:right;">
+      </div>
+
+      <!-- Accordion FAQ List -->
+      <div id="guideAccordionList" style="display:flex;flex-direction:column;gap:8px;">
+        
+        <!-- FAQ 1 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">💰</span>
+              <strong style="color:#0f172a;font-size:13px;">1. آمدنی (Income) اور عطیات کی رسید کیسے جاری کریں؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • بائیں مینو میں <b>+ Income</b> پر کلک فرمائیں۔<br>
+            • معاون (ڈونر) کا نام، وصول شدہ رقم، متعلقہ فنڈ (عمومی، زکوٰۃ، راشن، تعمیرات وغیرہ) اور جمع کھاتہ (کیش ان ہینڈ یا بینک اکاؤنٹ) منتخب کریں۔<br>
+            • <b>Save &amp; Post Receipt</b> پر کلک کرتے ہی باقاعدہ واؤچر و رسید جاری ہو جائے گی۔<br>
+            • رسید جاری ہوتے ہی دو بٹن ملیں گے: <b>🖨️ Print Slip</b> (کمپیوٹرائزڈ رسید فوری پرنٹ کرنے کے لیے) اور <b>📲 Send WhatsApp</b> (ڈونر کو موبائل پر دعائیہ رسید کا لنک بھیجنے کے لیے)۔
+          </div>
         </div>
 
-        <!-- Guide 2 -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
-          <strong style="color:#b91c1c;font-size:13px;display:block;">2. اخراجات کا اندراج و واؤچر (- Expenses):</strong>
-          <p style="margin:4px 0 0;color:#334155;line-height:1.5;">
-            مدرسہ یا ٹرسٹ کے کسی بھی خرچ کے لیے <b>- Expense</b> مینو میں جائیں۔ ادائیگی کی مد (اکاؤنٹ ہیڈ) اور رقم درج کر کے Payment Voucher پرنٹ فرمائیں اور مجاز نگران سے دستخط کروائیں۔
-          </p>
+        <!-- FAQ 2 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">💸</span>
+              <strong style="color:#0f172a;font-size:13px;">2. اخراجات (Expenses) اور ادائیگی کا واؤچر کیسے بنائیں؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • بائیں مینو میں <b>- Expenses</b> پر جائیں۔<br>
+            • خرچ کی مد / اکاؤنٹ ہیڈ منتخب کریں (جیسے اساتذہ و ملازمین تنخواہ، راشن و خوراک، بلز، سفری اخراجات، تعمیری سامان وغیرہ)۔<br>
+            • ادا شدہ رقم، تاریخ اور تفصیل (Narration) درج کر کے محفوظ فرمائیں۔<br>
+            • سسٹم خودکار Payment Voucher بنا دیتا ہے، جسے پرنٹ کر کے خزانچی اور مہتمم / صدر کے دستخط کروا کر فائل میں محفوظ کر لیں۔
+          </div>
         </div>
 
-        <!-- Guide 3 -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
-          <strong style="color:#0284c7;font-size:13px;display:block;">3. ماہانہ کفالت و اقساط ٹریکر (Donors &amp; Pledges):</strong>
-          <p style="margin:4px 0 0;color:#334155;line-height:1.5;">
-            مقررہ ماہانہ معاونین کو <b>Donors &amp; Patrons</b> میں ٹریک کریں۔ ہر ماہ کی ادائیگی اور بقایا جات خودبخود نظر آئیں گے۔ وہاں سے <b>Receive</b> کا بٹن دبا کر فوری رسید بنتی ہے اور <b>WhatsApp</b> کے ذریعے شائستہ یاد دہانی بھیجی جا سکتی ہے۔
-          </p>
+        <!-- FAQ 3 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">👥</span>
+              <strong style="color:#0f172a;font-size:13px;">3. ماہانہ کفالت و اقساط ٹریکر (Pledges Tracker) کا طریقہ کار کیا ہے؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • <b>Donors &amp; Patrons</b> پر جائیں اور <b>Monthly Pledges Tracker</b> ٹیب کھولیں۔<br>
+            • یہاں تمام ماہانہ معاونین، ان کی طے شدہ رقم، رواں ماہ موصولی، اور سابقہ بقایا جات خودبخود نظر آئیں گے۔<br>
+            • <b>💰 Receive بٹن:</b> اس پر کلک کرنے سے ایک فوری ماڈل کھلتا ہے جہاں صرف 1-کلک میں رسید جاری ہو جاتی ہے۔<br>
+            • <b>💬 WhatsApp بٹن:</b> اس پر کلک کر کے آپ 4 سمارٹ ٹیمپلیٹس (شائستہ یاد دہانی، شکریہ و دعا، عمومی اپیل، سالانہ کھاتہ) اپنی مرضی سے ایڈٹ کر کے بھیج سکتے ہیں۔
+          </div>
         </div>
 
-        <!-- Guide 4 -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
-          <strong style="color:#854d0e;font-size:13px;display:block;">4. آن لائن ڈونیشن پورٹل (Public Donate Portal):</strong>
-          <p style="margin:4px 0 0;color:#334155;line-height:1.5;">
-            عوام کو آن لائن عطیات و کفالت درج کرنے کے لیے آپ <b>donate.php</b> کا لنک سوشل میڈیا یا واٹس ایپ پر شیئر کر سکتے ہیں۔ ان کی جمع کردہ ڈپازٹ سلپس ڈونرز پیج پر تصدیق کے لیے حاضر ہو جائیں گی۔
-          </p>
+        <!-- FAQ 4 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">📊</span>
+              <strong style="color:#0f172a;font-size:13px;">4. ڈونر کا سالانہ باقاعدہ کھاتہ و آڈٹ اسٹیٹمنٹ کیسے پرنٹ کریں؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • ڈونرز لسٹ یا ٹریکر میں کسی بھی معاون کے آگے موجود <b>`📊 کھاتہ`</b> بٹن پر کلک کریں۔<br>
+            • ایک باقاعدہ A4 لینڈ اسکیپ / پورٹریٹ اسٹیٹمنٹ کھلے گی جس میں پورے سال یا تاحیات تمام موصولہ عطیات، واؤچر نمبر، تاریخ اور کل رقم درج ہوتی ہے۔<br>
+            • اس پر ادارے کا ہیڈر، لوگو، کل میزان اور تصدیقی دستخطی خانے بنے ہوتے ہیں، جو کہ ڈونر کو ٹیکس یا آڈٹ ریکارڈ کے لیے دی جا سکتی ہے۔
+          </div>
         </div>
 
-        <!-- Guide 5 -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
-          <strong style="color:#4338ca;font-size:13px;display:block;">5. مالیاتی رپورٹس اور لیجر (Reports &amp; Balances):</strong>
-          <p style="margin:4px 0 0;color:#334155;line-height:1.5;">
-            ادارے کا کیش بیلنس، بینک کھاتے، انکم و ایکسپینس اسٹیٹمنٹ اور سالانہ آڈٹ رپورٹ دیکھنے کے لیے <b>Reports</b> مینو کا استعمال فرمائیں۔
-          </p>
+        <!-- FAQ 5 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🌐</span>
+              <strong style="color:#0f172a;font-size:13px;">5. آن لائن ڈونیشن پورٹل (donate.php) اور بینک سلپس کی تصدیق کا طریقہ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • پبلک ڈونیشن پورٹل کا لنک <b>donate.php</b> ہے، جسے آپ واٹس ایپ گروپس، اسٹیٹس یا فیس بک پر شیئر کر سکتے ہیں۔<br>
+            • بیرونی ڈونرز وہاں سے براہ راست عطیہ درج کر کے بینک ڈپازٹ سلپ یا اسکرین شاٹ اپلوڈ کر سکتے ہیں۔<br>
+            • اپلوڈ شدہ سلپس <b>Donors &amp; Patrons</b> کے صفحے پر اوپر <b>"غیر تصدیق شدہ آن لائن رسیدیں"</b> کے باکس میں نظر آتی ہیں، جہاں سے آپ سلپ دیکھ کر 1-کلک میں رسید منظور یا مسترد کر سکتے ہیں۔
+          </div>
         </div>
 
-        <!-- Guide 6 -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
-          <strong style="color:#065f46;font-size:13px;display:block;">6. روزانہ آٹو بیک اپ و تحفظ (Daily Backups):</strong>
-          <p style="margin:4px 0 0;color:#334155;line-height:1.5;">
-            سسٹم ہر رات ڈیٹا بیس کا خودکار بیک اپ بناتا ہے۔ سیٹنگز پیج پر جا کر آپ جب چاہیں ڈیٹا بیس کا لائیو ڈاؤنلوڈ بیک اپ اپنے پاس محفوظ بھی کر سکتے ہیں۔
-          </p>
+        <!-- FAQ 6 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🎓</span>
+              <strong style="color:#0f172a;font-size:13px;">6. طالب علم یا یتیم کی کفالت کو مخصوص ڈونر سے کیسے منسلک کریں؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • ڈونر بناتے یا ایڈٹ کرتے وقت <b>کفیل برائے طالب علم / یتیم (Sponsored Student)</b> کا انتخاب کریں۔<br>
+            • اس سے ڈونر کے نام کے آگے <b>`🎓 کفیل: [طالب علم]`</b> کا بیج آ جائے گا اور واٹس ایپ یاد دہانی یا رسید میں بچے کا نام خودبخود شامل ہو جائے گا۔
+          </div>
         </div>
+
+        <!-- FAQ 7 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">📈</span>
+              <strong style="color:#0f172a;font-size:13px;">7. روزنامچہ (Cashbook)، بینک بیلنس اور مالیاتی رپورٹس کیسے دیکھیں؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • بائیں مینو میں <b>Reports</b> پر تشریف لے جائیں۔<br>
+            • یہاں <b>Daily Cashbook (روزنامچہ)</b>، <b>Fund Summary (فنڈز بیلنس)</b>، اور <b>Income vs Expense</b> کے گوشوارے دستیاب ہیں۔<br>
+            • آپ کسی بھی مخصوص تاریخ یا پورے مہینے کا حساب منتخب کر کے فلٹر اور ایکسل میں ایکسپورٹ بھی کر سکتے ہیں۔
+          </div>
+        </div>
+
+        <!-- FAQ 8 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">💾</span>
+              <strong style="color:#0f172a;font-size:13px;">8. روزانہ خودکار ڈیٹا بیک اپ اور ڈاؤنلوڈ کا طریقہ کیا ہے؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • سافٹ ویئر ہر رات خودبخود ڈیٹابیس کا مکمل بیک اپ بناتا ہے اور پرانے بیک اپس کو محفوظ رکھتا ہے۔<br>
+            • اگر آپ بیک اپ اپنے کمپیوٹر یا یو ایس بی میں محفوظ کرنا چاہیں تو <b>Settings</b> مینو میں جائیں اور <b>Download Database Backup</b> پر کلک فرمائیں۔<br>
+            • About ونڈو میں بھی آخری بیک اپ کی تاریخ ہمیشہ ظاہر رہتی ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 9 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🏢</span>
+              <strong style="color:#0f172a;font-size:13px;">9. ٹرسٹ موڈ (Welfare Trust) اور مدرسہ موڈ (Madrasa) میں کیا فرق ہے؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • اگر آپ <b>Welfare Trust Mode</b> میں ہوں تو سسٹم فلاحی فنڈز، راشن تقسیم، یتامیٰ امداد، اور ٹرسٹ ڈائریکٹر کے عہدے دکھاتا ہے۔<br>
+            • اگر آپ <b>Madrasa Mode</b> میں ہوں تو سسٹم تعلیمی فنڈز، کتب، طلباء کفالت، اور مہتمم / ناظمِ شاخ کی اصطلاحات استعمال کرتا ہے۔<br>
+            • یہ موڈ <b>Settings</b> میں جا کر کسی بھی وقت ایک کلک میں بدلا جا سکتا ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 10 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🔑</span>
+              <strong style="color:#0f172a;font-size:13px;">10. پاس ورڈ تبدیل کرنا اور عملے کے نئے اکاؤنٹس بنانا:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • اپنا پاس ورڈ بدلنے کے لیے سائڈبار میں نچلے حصے پر <b>🔑 Password</b> پر کلک کریں۔<br>
+            • نئے کیشیئر، اساتذہ یا برانچ منیجر کا اکاؤنٹ بنانے کے لیے <b>Users &amp; Branches</b> پر جائیں اور ان کو رول اور مخصوص فنڈز تفویض فرمائیں۔
+          </div>
+        </div>
+
+        <!-- FAQ 11 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🔍</span>
+              <strong style="color:#0f172a;font-size:13px;">11. پرانی یا گمشدہ رسید فوری کیسے تلاش کریں؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • آمدنی یا خرچ کے صفحے پر جائیں اور اوپر سرچ بار میں واؤچر نمبر (جیسے: <code>RV-202611-0001</code>)، ڈونر کا نام یا فون نمبر لکھیں۔ سسٹم فوراً مطلوبہ رسید سامنے لے آئے گا۔
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1116,6 +1257,72 @@ function switchAboutTab(tab) {
         btn.style.borderBottom = '3px solid transparent';
         content.style.display = 'none';
       }
+    }
+  });
+}
+
+// User Guide Interactive Accordion Controllers
+function toggleUserGuideFaq(header) {
+  var item = header.closest('.ug-accordion-item');
+  var body = item.querySelector('.ug-accordion-body');
+  var icon = item.querySelector('.ug-accordion-icon');
+  var isOpen = (body.style.display === 'block');
+
+  if (isOpen) {
+    body.style.display = 'none';
+    header.style.background = '#f8fafc';
+    if (icon) {
+      icon.textContent = '➕';
+      icon.style.color = '#64748b';
+    }
+  } else {
+    body.style.display = 'block';
+    header.style.background = '#eff6ff';
+    if (icon) {
+      icon.textContent = '➖';
+      icon.style.color = '#2563eb';
+    }
+  }
+}
+
+function expandAllGuideFaqs() {
+  document.querySelectorAll('#aboutTabContent_guide .ug-accordion-item').forEach(function(item) {
+    var body = item.querySelector('.ug-accordion-body');
+    var header = item.querySelector('.ug-accordion-header');
+    var icon = item.querySelector('.ug-accordion-icon');
+    if (body) body.style.display = 'block';
+    if (header) header.style.background = '#eff6ff';
+    if (icon) { icon.textContent = '➖'; icon.style.color = '#2563eb'; }
+  });
+}
+
+function collapseAllGuideFaqs() {
+  document.querySelectorAll('#aboutTabContent_guide .ug-accordion-item').forEach(function(item) {
+    var body = item.querySelector('.ug-accordion-body');
+    var header = item.querySelector('.ug-accordion-header');
+    var icon = item.querySelector('.ug-accordion-icon');
+    if (body) body.style.display = 'none';
+    if (header) header.style.background = '#f8fafc';
+    if (icon) { icon.textContent = '➕'; icon.style.color = '#64748b'; }
+  });
+}
+
+function filterGuideFaqs(val) {
+  var term = (val || '').toLowerCase().trim();
+  document.querySelectorAll('#aboutTabContent_guide .ug-accordion-item').forEach(function(item) {
+    var txt = item.textContent.toLowerCase();
+    if (!term || txt.indexOf(term) !== -1) {
+      item.style.display = 'block';
+      if (term.length > 1) {
+        var body = item.querySelector('.ug-accordion-body');
+        var header = item.querySelector('.ug-accordion-header');
+        var icon = item.querySelector('.ug-accordion-icon');
+        if (body) body.style.display = 'block';
+        if (header) header.style.background = '#eff6ff';
+        if (icon) { icon.textContent = '➖'; icon.style.color = '#2563eb'; }
+      }
+    } else {
+      item.style.display = 'none';
     }
   });
 }

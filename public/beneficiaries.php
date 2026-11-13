@@ -1102,26 +1102,26 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                 </div>
 
                 <!-- Filters Bar -->
-                <div class="no-print" style="padding:14px 20px;background:#f8fafc;border-bottom:1px solid var(--line,#e2e8f0);">
-                    <form method="get" style="display:flex;align-items:center;flex-wrap:wrap;gap:12px 14px;">
+                <div class="no-print" style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid var(--line,#e2e8f0);overflow-x:auto;">
+                    <form method="get" style="display:flex;align-items:center;flex-wrap:nowrap;gap:8px 12px;white-space:nowrap;min-width:max-content;">
                         <input type="hidden" name="tab" value="tracker">
 
                         <!-- Category Filter -->
-                        <div style="display:inline-flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;">CATEGORY :</label>
-                            <select name="tracker_category" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
+                        <div style="display:inline-flex;align-items:center;gap:5px;">
+                            <label style="font-size:11.5px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.3px;">CATEGORY :</label>
+                            <select name="tracker_category" onchange="this.form.submit()" style="padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1;font-size:12px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;max-width:135px;">
                                 <option value="all">🏷️ All Categories</option>
-                                <option value="staff" <?=$filterTrackerCat==='staff'?'selected':''?>>👨‍🏫 Staff / Teachers</option>
-                                <option value="student" <?=$filterTrackerCat==='student'?'selected':''?>>🎓 Regular Students</option>
-                                <option value="orphan" <?=$filterTrackerCat==='orphan'?'selected':''?>>🤝 Orphans / Yateem</option>
-                                <option value="beneficiary" <?=$filterTrackerCat==='beneficiary'?'selected':''?>>🏠 Deserving Families</option>
+                                <option value="staff" <?=$filterTrackerCat==='staff'?'selected':''?>>👨‍🏫 Staff</option>
+                                <option value="student" <?=$filterTrackerCat==='student'?'selected':''?>>🎓 Students</option>
+                                <option value="orphan" <?=$filterTrackerCat==='orphan'?'selected':''?>>🤝 Orphans</option>
+                                <option value="beneficiary" <?=$filterTrackerCat==='beneficiary'?'selected':''?>>🏠 Welfare</option>
                             </select>
                         </div>
 
                         <!-- Dedicated Fund Filter -->
-                        <div style="display:inline-flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;">FUND :</label>
-                            <select name="tracker_fund_id" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;max-width:160px;">
+                        <div style="display:inline-flex;align-items:center;gap:5px;">
+                            <label style="font-size:11.5px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.3px;">FUND :</label>
+                            <select name="tracker_fund_id" onchange="this.form.submit()" style="padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1;font-size:12px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;max-width:130px;">
                                 <option value="0">All Funds</option>
                                 <?php foreach ($funds as $f): ?>
                                     <option value="<?=$f['id']?>" <?=$filterTrackerFund === (int)$f['id'] ? 'selected' : ''?>>
@@ -1132,23 +1132,23 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                         </div>
 
                         <!-- Status Filter -->
-                        <div style="display:inline-flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;">STATUS :</label>
-                            <select name="tracker_status" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
+                        <div style="display:inline-flex;align-items:center;gap:5px;">
+                            <label style="font-size:11.5px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.3px;">STATUS :</label>
+                            <select name="tracker_status" onchange="this.form.submit()" style="padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1;font-size:12px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;max-width:90px;">
                                 <option value="all" <?=$filterTrackerStatus === 'all' ? 'selected' : ''?>>All</option>
-                                <option value="pending" <?=$filterTrackerStatus === 'pending' ? 'selected' : ''?>>⏳ Pending Only</option>
-                                <option value="paid" <?=$filterTrackerStatus === 'paid' ? 'selected' : ''?>>✓ Paid Only</option>
+                                <option value="pending" <?=$filterTrackerStatus === 'pending' ? 'selected' : ''?>>⏳ Pending</option>
+                                <option value="paid" <?=$filterTrackerStatus === 'paid' ? 'selected' : ''?>>✓ Paid</option>
                             </select>
                         </div>
 
                         <!-- Select Month -->
-                        <div style="display:inline-flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;">MONTH :</label>
-                            <input type="month" name="month" value="<?=e($selectedMonth)?>" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
+                        <div style="display:inline-flex;align-items:center;gap:5px;">
+                            <label style="font-size:11.5px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.3px;">MONTH :</label>
+                            <input type="month" name="month" value="<?=e($selectedMonth)?>" onchange="this.form.submit()" style="padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1;font-size:12px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;max-width:130px;">
                         </div>
 
                         <?php if ($filterTrackerCat !== 'all' || $filterTrackerFund !== 0 || $filterTrackerStatus !== 'all' || $selectedMonth !== date('Y-m')): ?>
-                            <a href="beneficiaries.php?tab=tracker" class="btn secondary sm" style="padding:6px 10px;font-size:12px;display:inline-flex;align-items:center;gap:4px;" title="Reset All Filters">
+                            <a href="beneficiaries.php?tab=tracker" class="btn secondary sm" style="padding:5px 8px;font-size:11px;display:inline-flex;align-items:center;gap:3px;" title="Reset All Filters">
                                 ✕ Reset
                             </a>
                         <?php endif; ?>

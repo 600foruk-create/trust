@@ -277,10 +277,13 @@ $funds = get_user_allowed_funds();
 $search = trim($_GET['search'] ?? '');
 $filterFund = isset($_GET['fund_id']) ? (int)$_GET['fund_id'] : 0;
 
+$filterType = trim($_GET['filter_type'] ?? '');
+
 $query = "SELECT d.*, f.name AS fund_name, f.fund_code, f.is_restricted,
           COALESCE(SUM(v.total_amount), 0) AS total_donated,
           COUNT(v.id) AS donations_count,
-          MAX(v.id) AS latest_voucher_id
+          MAX(v.id) AS latest_voucher_id,
+          MAX(v.voucher_date) AS latest_voucher_date
           FROM donors d
           LEFT JOIN funds f ON f.id = d.fund_id
           LEFT JOIN vouchers v ON v.donor_id = d.id AND v.voucher_type='income' AND v.status='posted'
@@ -305,10 +308,23 @@ if ($filterFund > 0) {
     $query .= " AND d.fund_id IS NULL";
 }
 
-$query .= " GROUP BY d.id ORDER BY d.id DESC";
+if ($filterType === 'online') {
+    $query .= " AND (d.notes LIKE '%آن لائن%' OR d.notes LIKE '%Online%')";
+} elseif ($filterType === 'proof') {
+    $query .= " AND d.proof_receipt IS NOT NULL AND d.proof_receipt != ''";
+}
+
+if ($filterType === 'lapsed') {
+    $query .= " GROUP BY d.id HAVING (latest_voucher_date IS NULL OR latest_voucher_date < DATE_SUB(CURDATE(), INTERVAL 90 DAY)) ORDER BY d.id DESC";
+} else {
+    $query .= " GROUP BY d.id ORDER BY d.id DESC";
+}
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $donors = $stmt->fetchAll();
+
+$onlineLeadsCount = (int)$pdo->query("SELECT COUNT(*) FROM donors WHERE notes LIKE '%آن لائن%' OR notes LIKE '%Online%'")->fetchColumn();
+$withSlipCount = (int)$pdo->query("SELECT COUNT(*) FROM donors WHERE proof_receipt IS NOT NULL AND proof_receipt != ''")->fetchColumn();
 
 if ($hasFundRestriction) {
     $inFunds = implode(',', array_map('intval', $userFundIds));
@@ -755,6 +771,9 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                 <button type="button" class="btn secondary sm" style="display:inline-flex;align-items:center;gap:5px;" onclick="copyPortalLink()" title="آن لائن پورٹل کا لنک کاپی کر کے واٹس ایپ یا فیس بک پر شیئر کریں">
                     🔗 Copy Link <span class="ur">(شیئر لنک)</span>
                 </button>
+                <a href="print_donation_qr.php" target="_blank" class="btn secondary sm" style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;font-weight:700;display:inline-flex;align-items:center;gap:5px;" title="مسجد یا بینر کے لیے کیو آر پوسٹر پرنٹ کریں">
+                    🖨️ QR Poster <span class="ur">(کیو آر بینر)</span>
+                </a>
                 <?php if (has_permission('donors.manage')): ?>
                     <?php if ($editDonor): ?>
                         <a href="donors.php" class="btn secondary sm">✕ Cancel Editing <span class="ur">(منسوخ کریں)</span></a>
@@ -974,6 +993,15 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                         <?=e($f['name'])?> (<?=$cCount?>)
                     </a>
                 <?php endforeach; ?>
+                <a href="donors.php?filter_type=online<?= $search ? '&search='.urlencode($search) : '' ?>#donorsDirectory" class="btn sm" style="font-size:12px;padding:5px 12px;border-radius:20px;text-decoration:none;background:<?= $filterType === 'online' ? '#2563eb' : '#eff6ff' ?>;color:<?= $filterType === 'online' ? '#fff' : '#1d4ed8' ?>;border:1px solid #bfdbfe;font-weight:700;">
+                    🌐 Online Leads (<?= $onlineLeadsCount ?>)
+                </a>
+                <a href="donors.php?filter_type=proof<?= $search ? '&search='.urlencode($search) : '' ?>#donorsDirectory" class="btn sm" style="font-size:12px;padding:5px 12px;border-radius:20px;text-decoration:none;background:<?= $filterType === 'proof' ? '#059669' : '#f0fdf4' ?>;color:<?= $filterType === 'proof' ? '#fff' : '#047857' ?>;border:1px solid #a7f3d0;font-weight:700;">
+                    📷 With Proof Slip (<?= $withSlipCount ?>)
+                </a>
+                <a href="donors.php?filter_type=lapsed<?= $search ? '&search='.urlencode($search) : '' ?>#donorsDirectory" class="btn sm" style="font-size:12px;padding:5px 12px;border-radius:20px;text-decoration:none;background:<?= $filterType === 'lapsed' ? '#b91c1c' : '#fef2f2' ?>;color:<?= $filterType === 'lapsed' ? '#fff' : '#b91c1c' ?>;border:1px solid #fecaca;font-weight:700;">
+                    ⚠️ Lapsed (غیر فعال - 90+ دن)
+                </a>
             </div>
 
             <!-- Search & Filter Bar -->
@@ -1026,6 +1054,19 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                 🌐 Online Lead
                                             </span>
                                         <?php endif; ?>
+                                        <?php if (!empty($d['proof_receipt'])): ?>
+                                            <a href="<?=e($d['proof_receipt'])?>" target="_blank" class="badge" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;text-decoration:none;font-weight:700;" title="منتقلی رسید یا اسکرین شاٹ دیکھیں">
+                                                📷 Slip
+                                            </a>
+                                        <?php endif; ?>
+                                        <?php 
+                                            $isLapsed = (!empty($d['latest_voucher_date']) && strtotime($d['latest_voucher_date']) < strtotime('-90 days')) || (empty($d['latest_voucher_date']) && (int)$d['donations_count'] === 0);
+                                            if ($isLapsed): 
+                                        ?>
+                                            <span class="badge" style="background:#fef2f2;color:#991b1b;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;" title="پچھلے 90 دن سے کوئی نیا عطیہ موصول نہیں ہوا">
+                                                ⚠️ Lapsed
+                                            </span>
+                                        <?php endif; ?>
                                         <?php if (!empty($d['is_pledge_active'])): ?>
                                             <span class="badge" style="background:#dcfce7;color:#15803d;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;">
                                                 🤝 Pledge: <?=money($d['pledge_amount'])?>/mo
@@ -1053,6 +1094,9 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         <a href="income.php?donor_id=<?=$d['id']?>" class="btn blue sm" style="padding:4px 8px;font-size:11.5px;" title="Issue Donation Receipt">
                                             ＋ Receipt
                                         </a>
+                                        <a href="print_donor_certificate.php?id=<?=$d['id']?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#fffbeb;color:#92400e;border-color:#fde68a;" title="سندِ اعتراف و تشکر پرنٹ کریں">
+                                            📜 سند
+                                        </a>
                                         <?php 
                                         $dPhone = normalize_pakistan_phone($d['phone'] ?? '');
                                         if (!empty($dPhone)): 
@@ -1060,29 +1104,43 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                             $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
                                             $slipToken = ($latestVId > 0 && function_exists('get_voucher_public_token')) ? get_voucher_public_token($latestVId) : '';
                                             $slipLink = ($latestVId > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$latestVId}" . (!empty($slipToken) ? "&token={$slipToken}" : '') : '';
-                                            $msg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
-                                                 . "محترم جناب *" . $d['donor_name'] . "* صاحب!\n"
-                                                 . "امید ہے آپ بخیر و عافیت ہوں گے۔\n"
-                                                 . "*" . $madrasaName . "* کی جانب سے آپ کے مخلصانہ تعاون کا شکریہ اور مالیاتی تفصیل:\n\n"
-                                                 . "💰 *کل عطیات و معاونت اب تک:* *" . money($d['total_donated']) . "*\n"
-                                                 . "📋 *موصول شدہ رسیدات:* " . (int)$d['donations_count'] . " رسیدات\n";
-                                            if (!empty($d['fund_name'])) {
-                                                $msg .= "🏷️ *مخصوص فنڈ:* " . $d['fund_name'] . "\n";
-                                            }
-                                            if (!empty($slipLink)) {
-                                                $msg .= "\n📄 *حالیہ کمپیوٹرائزڈ موصولی رسید (Slip) دیکھنے یا پرنٹ کرنے کے لیے لنک کھولیں:* \n"
-                                                      . $slipLink . "\n";
-                                            }
-                                            $msg .= "\nاللہ تعالیٰ آپ کے اس صدقہ و خیرات کو قبول فرمائے اور آپ کے رزق، جان اور مال میں برکتیں عطا فرمائے۔ آمین۔\n\n"
-                                                 . "جزاکم اللہ خیراً و احسن الجزاء\n"
-                                                 . "*" . $madrasaName . "*";
+                                            
+                                            if ($isLapsed):
+                                                $msg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
+                                                     . "محترم جناب *" . $d['donor_name'] . "* صاحب!\n"
+                                                     . "امید ہے آپ بخیر و عافیت ہوں گے۔\n"
+                                                     . "*" . $madrasaName . "* کی جانب سے دعا ہے کہ اللہ تعالیٰ آپ کے رزق، صحت اور اہل و عیال میں بے شمار برکتیں عطا فرمائے۔\n\n"
+                                                     . "کافی عرصہ سے آپ کی طرف سے مدرسہ و ٹرسٹ کے زیرِ کفالت یتامیٰ و طلباء کے لیے دعائیہ و مالی تعاون کی تجدید نہیں ہو سکی۔ ادارے کے اساتذہ و طلباء آپ کی سابقہ خدمات کو یاد رکھتے ہوئے ہمیشہ دعا گو ہیں۔\n\n"
+                                                     . "نیکی کے اس تسلسل کو دوبارہ جاری رکھنے کے لیے آپ باآسانی آن لائن لنک سے بھی تشریف لا سکتے ہیں:\n"
+                                                     . $baseUrl . "/donate.php\n\n"
+                                                     . "جزاکم اللہ خیراً و احسن الجزاء\n"
+                                                     . "*" . $madrasaName . "*";
+                                            else:
+                                                $msg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
+                                                     . "محترم جناب *" . $d['donor_name'] . "* صاحب!\n"
+                                                     . "امید ہے آپ بخیر و عافیت ہوں گے۔\n"
+                                                     . "*" . $madrasaName . "* کی جانب سے آپ کے مخلصانہ تعاون کا شکریہ اور مالیاتی تفصیل:\n\n"
+                                                     . "💰 *کل عطیات و معاونت اب تک:* *" . money($d['total_donated']) . "*\n"
+                                                     . "📋 *موصول شدہ رسیدات:* " . (int)$d['donations_count'] . " رسیدات\n";
+                                                if (!empty($d['fund_name'])) {
+                                                    $msg .= "🏷️ *مخصوص فنڈ:* " . $d['fund_name'] . "\n";
+                                                }
+                                                if (!empty($slipLink)) {
+                                                    $msg .= "\n📄 *حالیہ کمپیوٹرائزڈ موصولی رسید (Slip) دیکھنے یا پرنٹ کرنے کے لیے لنک کھولیں:* \n"
+                                                          . $slipLink . "\n";
+                                                }
+                                                $msg .= "\nاللہ تعالیٰ آپ کے اس صدقہ و خیرات کو قبول فرمائے اور آپ کے رزق، جان اور مال میں برکتیں عطا فرمائے۔ آمین۔\n\n"
+                                                     . "جزاکم اللہ خیراً و احسن الجزاء\n"
+                                                     . "*" . $madrasaName . "*";
+                                            endif;
+
                                             if ($madrasaPhone) {
                                                 $msg .= "\nرابطہ دفتر: " . $madrasaPhone;
                                             }
                                             $dWaUrl = 'https://api.whatsapp.com/send?phone=' . urlencode($dPhone) . '&text=' . urlencode($msg);
                                         ?>
-                                            <a href="<?=e($dWaUrl)?>" target="_blank" class="btn sm" style="background:#25D366;color:#fff;border:1px solid #16a34a;padding:4px 8px;font-size:11.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:3px;" title="Send Donation Summary & Slip on WhatsApp">
-                                                💬 WhatsApp
+                                            <a href="<?=e($dWaUrl)?>" target="_blank" class="btn sm" style="background:<?=$isLapsed ? '#fff1f2' : '#25D366'?>;color:<?=$isLapsed ? '#be123c' : '#fff'?>;border:1px solid <?=$isLapsed ? '#fecdd3' : '#16a34a'?>;padding:4px 8px;font-size:11.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:3px;" title="<?= $isLapsed ? 'Send Re-engagement Message' : 'Send Donation Summary on WhatsApp'?>">
+                                                <?= $isLapsed ? '💌 Re-engage' : '💬 WhatsApp' ?>
                                             </a>
                                         <?php endif; ?>
                                         <?php if (has_permission('donors.manage')): ?>

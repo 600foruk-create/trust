@@ -319,6 +319,10 @@ function run_schema_and_seed_migrations(PDO $pdo): void {
                 ADD COLUMN pledge_notes VARCHAR(255) NULL AFTER is_pledge_active,
                 ADD INDEX idx_donor_pledge (is_pledge_active, pledge_day)");
         }
+        $chkDonProof = $pdo->query("SHOW COLUMNS FROM donors LIKE 'proof_receipt'")->fetch();
+        if (!$chkDonProof) {
+            $pdo->exec("ALTER TABLE donors ADD COLUMN proof_receipt VARCHAR(255) NULL AFTER notes");
+        }
     } catch (Throwable $e) {}
 
     // Ensure vouchers table has multi-currency, beneficiary and reconciliation columns (Features #3, #4, #5)

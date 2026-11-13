@@ -72,6 +72,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $donorId = (int)($_POST['donor_id'] ?? 0);
         $amount = (float)($_POST['amount'] ?? 0);
         $fundId = (int)($_POST['fund_id'] ?? 0);
+
+        // Failsafe: If fund_id was 0 or unassigned, resolve dynamically from donor or active general fund
+        if ($fundId <= 0) {
+            if ($donorId > 0) {
+                $dFund = $pdo->query("SELECT COALESCE(pledge_fund_id, fund_id) FROM donors WHERE id = {$donorId}")->fetchColumn();
+                if ($dFund && (int)$dFund > 0) {
+                    $fundId = (int)$dFund;
+                }
+            }
+            if ($fundId <= 0) {
+                $mode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
+                $defFund = $pdo->query("SELECT id FROM funds WHERE is_active=1 AND scope IN ('all', '{$mode}') ORDER BY is_restricted ASC, (name LIKE '%general%' OR name LIKE '%عمومی%') DESC, id ASC LIMIT 1")->fetchColumn();
+                $fundId = (int)($defFund ?: 0);
+            }
+            if ($fundId <= 0) {
+                $fundId = (int)($pdo->query("SELECT id FROM funds WHERE is_active=1 ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
+            }
+        }
+
         $date = trim($_POST['voucher_date'] ?? date('Y-m-d'));
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             $date = date('Y-m-d');
@@ -268,7 +287,7 @@ if (isset($_GET['edit_id']) && has_permission('donors.manage')) {
         }
     }
 }
-$showForm = !empty($editDonor) || (!empty($error) && $_SERVER['REQUEST_METHOD'] === 'POST');
+$showForm = !empty($editDonor) || (!empty($error) && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['save_donor', 'update_donor'], true));
 
 // Fetch user allowed active Funds dynamically for categories
 $funds = get_user_allowed_funds();
@@ -1517,7 +1536,22 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                     }
 
                                     $waUrl = "https://api.whatsapp.com/send?phone={$cleanPhone}&text=" . urlencode($remText);
-                                    $fundToUse = $pl['pledge_fund_id'] ?: $pl['fund_id'];
+                                    $fundToUse = (int)($pl['pledge_fund_id'] ?: $pl['fund_id']);
+                                    if ($fundToUse <= 0 && !empty($funds)) {
+                                        $fundToUse = (int)$funds[0]['id'];
+                                    }
+                                    $displayFundName = $pl['pledge_fund_name'] ?: ($pl['fund_name'] ?: '');
+                                    if (empty($displayFundName) && $fundToUse > 0) {
+                                        foreach ($funds as $f) {
+                                            if ((int)$f['id'] === $fundToUse) {
+                                                $displayFundName = $f['name'];
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (empty($displayFundName)) {
+                                        $displayFundName = 'Trust General Fund';
+                                    }
                                 ?>
                                     <tr>
                                         <td style="text-align:center;color:#64748b;font-size:11px;"><?= $srNum++ ?></td>
@@ -1588,10 +1622,10 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                         'prior_arrears' => (float)$priorAmt,
                                                         'total_due_with_arrears' => (float)$totalDueAmt,
                                                         'fund_id' => (int)$fundToUse,
-                                                        'fund_name' => (string)($fundName ?: 'Trust General Fund'),
+                                                        'fund_name' => (string)($displayFundName ?: 'Trust General Fund'),
                                                         'month' => date('F Y', strtotime($selectedMonth . '-01')),
                                                         'target_date' => $pledgeVoucherDate,
-                                                        'desc' => 'ماہانہ کفالت برائے فنڈ ' . ($fundName ?: 'جنرل') . ' بابت ماہ ' . $monthNameUrdu
+                                                        'desc' => 'ماہانہ کفالت برائے فنڈ ' . ($displayFundName ?: 'جنرل') . ' بابت ماہ ' . $monthNameUrdu
                                                     ];
                                                 ?>
                                                 <button type="button" 
@@ -1691,7 +1725,6 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                     <input type="hidden" name="return_fund_id" value="<?=$filterPledgeFund?>">
                     <input type="hidden" name="return_status" value="<?=e($filterPledgeStatus)?>">
                     <input type="hidden" name="donor_id" id="qrm_donor_id" value="">
-                    <input type="hidden" name="fund_id" id="qrm_fund_id" value="">
 
                     <!-- Donor & Target Month Info Box -->
                     <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
@@ -1741,6 +1774,20 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                             </label>
                             <input type="date" name="voucher_date" id="qrm_date" required style="width:100%;font-size:13.5px;font-weight:600;padding:9px 12px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;">
                         </div>
+                    </div>
+
+                    <!-- Target Fund Selection (Visible & Pre-selected) -->
+                    <div style="margin-bottom:14px;">
+                        <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;">
+                            Target Fund <span class="ur">(متعلقہ فنڈ جس میں رقم جمع ہو رہی ہے)</span> *
+                        </label>
+                        <select name="fund_id" id="qrm_fund_id" required style="width:100%;font-size:12.5px;font-weight:700;padding:9px 10px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;background:#f8fafc;" onchange="onModalFundChange(this)">
+                            <?php foreach ($funds as $f): ?>
+                                <option value="<?=$f['id']?>">
+                                    <?=e($f['name'])?> (<?=e($f['fund_code'])?>) <?=$f['is_restricted'] ? ' - [مخصوص]' : ' - [عمومی]'?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
 
                     <!-- Payment Method & Deposit Into Grid -->
@@ -1967,11 +2014,28 @@ function setReceiveAmountType(type) {
     amtInput.select();
 }
 
+function onModalFundChange(sel) {
+    if (!sel) return;
+    var txt = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    var fn = document.getElementById('qrm_fund_name');
+    if (fn && txt) {
+        fn.textContent = '🏷️ ' + txt;
+    }
+}
+
 function openQuickReceiveModal(data) {
     if (!data) return;
     currentQuickData = data;
     document.getElementById('qrm_donor_id').value = data.donor_id || '';
-    document.getElementById('qrm_fund_id').value = data.fund_id || '';
+    var fundSelect = document.getElementById('qrm_fund_id');
+    if (fundSelect) {
+        if (data.fund_id) {
+            fundSelect.value = data.fund_id;
+        }
+        if (!fundSelect.value && fundSelect.options.length > 0) {
+            fundSelect.selectedIndex = 0;
+        }
+    }
     document.getElementById('qrm_donor_name').textContent = data.donor_name || 'معاون';
     document.getElementById('qrm_donor_phone').textContent = data.phone ? ('📞 ' + data.phone) : 'بغیر فون نمبر';
     document.getElementById('qrm_month').textContent = data.month || '';

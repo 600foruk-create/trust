@@ -105,6 +105,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $expenseAccountId = (int)($defExp ?: 0);
         }
 
+        if ($fundId <= 0 && $benId > 0) {
+            $bFund = $pdo->query("SELECT fund_id FROM beneficiaries WHERE id = {$benId}")->fetchColumn();
+            if ($bFund && (int)$bFund > 0) {
+                $fundId = (int)$bFund;
+            }
+        }
+        if ($fundId <= 0) {
+            $mode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
+            $defFund = $pdo->query("SELECT id FROM funds WHERE is_active=1 AND scope IN ('all', '{$mode}') ORDER BY is_restricted ASC, (name LIKE '%general%' OR name LIKE '%عمومی%') DESC, id ASC LIMIT 1")->fetchColumn();
+            $fundId = (int)($defFund ?: 0);
+        }
+        if ($fundId <= 0) {
+            $fundId = (int)($pdo->query("SELECT id FROM funds WHERE is_active=1 ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1);
+        }
+
         if ($amount <= 0 || $benId <= 0) {
             $error = 'براہ کرم درست رقم درج کریں۔';
         } elseif ($fundId <= 0) {
@@ -321,7 +336,7 @@ if (isset($_GET['edit_id']) && has_permission('beneficiaries.manage')) {
     $stmtEdit->execute([(int)$_GET['edit_id']]);
     $editBen = $stmtEdit->fetch();
 }
-$showForm = !empty($editBen) || (!empty($error) && $_SERVER['REQUEST_METHOD'] === 'POST');
+$showForm = !empty($editBen) || (!empty($error) && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['save_beneficiary', 'update_beneficiary'], true));
 
 // Filter & Search
 $filterCat = trim($_GET['category'] ?? 'all');

@@ -158,6 +158,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 }
             }
         }
+        if ($validFundId === null) {
+            // Automatically resolve to the active General Fund
+            $mode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
+            $genFund = $pdo->query("SELECT id, name FROM funds WHERE is_active=1 AND scope IN ('all', '{$mode}') ORDER BY is_restricted ASC, (name LIKE '%general%' OR name LIKE '%عمومی%') DESC, id ASC LIMIT 1")->fetch();
+            if ($genFund) {
+                $validFundId = (int)$genFund['id'];
+                $selectedFundName = $genFund['name'];
+            } elseif (!empty($activeFunds)) {
+                $validFundId = (int)$activeFunds[0]['id'];
+                $selectedFundName = $activeFunds[0]['name'];
+            }
+        }
 
         // Handle Payment Slip Upload if provided on initial submission
         $proofSlipPath = null;
@@ -210,6 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             email = COALESCE(NULLIF(?, ''), email),
                             notes = ?,
                             proof_receipt = COALESCE(?, proof_receipt),
+                            fund_id = COALESCE(fund_id, ?),
                             pledge_amount = ?,
                             pledge_fund_id = ?,
                             pledge_frequency = 'monthly',
@@ -223,6 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             $email,
                             $updatedNotes,
                             $proofSlipPath,
+                            $validFundId,
                             $pkrAmount,
                             $validFundId,
                             $pledgeDay,
@@ -235,6 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             address = COALESCE(NULLIF(?, ''), address),
                             email = COALESCE(NULLIF(?, ''), email),
                             notes = ?,
+                            fund_id = COALESCE(fund_id, ?),
                             pledge_amount = ?,
                             pledge_fund_id = ?,
                             pledge_frequency = 'monthly',
@@ -247,6 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             $cityAddress,
                             $email,
                             $updatedNotes,
+                            $validFundId,
                             $pkrAmount,
                             $validFundId,
                             $pledgeDay,
@@ -261,7 +277,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             address = COALESCE(NULLIF(?, ''), address),
                             email = COALESCE(NULLIF(?, ''), email),
                             notes = ?,
-                            proof_receipt = COALESCE(?, proof_receipt)
+                            proof_receipt = COALESCE(?, proof_receipt),
+                            fund_id = COALESCE(fund_id, ?)
                             WHERE id = ?");
                         $stmtUpd->execute([
                             $donorName,
@@ -269,6 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             $email,
                             $updatedNotes,
                             $proofSlipPath,
+                            $validFundId,
                             $donorId
                         ]);
                     } else {
@@ -276,13 +294,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             donor_name = COALESCE(NULLIF(?, ''), donor_name),
                             address = COALESCE(NULLIF(?, ''), address),
                             email = COALESCE(NULLIF(?, ''), email),
-                            notes = ?
+                            notes = ?,
+                            fund_id = COALESCE(fund_id, ?)
                             WHERE id = ?");
                         $stmtUpd->execute([
                             $donorName,
                             $cityAddress,
                             $email,
                             $updatedNotes,
+                            $validFundId,
                             $donorId
                         ]);
                     }
@@ -1046,15 +1066,29 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
                 <span>عطیہ کا مقصد یا فنڈ منتخب فرمائیں (Select Cause)</span>
             </div>
 
+            <?php
+                $genFundId = 0;
+                foreach ($activeFunds as $af) {
+                    if (stripos($af['name'], 'general') !== false || stripos($af['name'], 'عمومی') !== false) {
+                        $genFundId = (int)$af['id'];
+                        break;
+                    }
+                }
+                if ($genFundId <= 0 && !empty($activeFunds)) {
+                    $genFundId = (int)$activeFunds[0]['id'];
+                }
+            ?>
             <div class="fund-grid">
                 <label class="fund-option">
-                    <input type="radio" name="fund_id" value="0" checked>
+                    <input type="radio" name="fund_id" value="<?=$genFundId?>" checked>
                     <div class="fund-box">
                         <span class="fund-title">🌿 عمومی فلاحی فنڈ (General)</span>
                         <span class="fund-desc">جہاں بھی ٹرسٹ کو سب سے زیادہ ضرورت ہو</span>
                     </div>
                 </label>
-                <?php foreach ($activeFunds as $af): ?>
+                <?php foreach ($activeFunds as $af): 
+                    if ((int)$af['id'] === $genFundId) continue;
+                ?>
                 <label class="fund-option">
                     <input type="radio" name="fund_id" value="<?=$af['id']?>">
                     <div class="fund-box">

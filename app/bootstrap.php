@@ -655,15 +655,24 @@ try {
 } catch (Throwable $e) {}
 
 try {
+    // Quick failsafe: Auto-heal any donors with missing/zero fund_id or pledge_fund_id (e.g. online registered leads)
+    $defFundId = (int)$pdo->query("SELECT id FROM funds WHERE is_active=1 ORDER BY is_restricted ASC, (name LIKE '%general%' OR name LIKE '%عمومی%') DESC, id ASC LIMIT 1")->fetchColumn();
+    if ($defFundId > 0) {
+        $pdo->exec("UPDATE donors SET fund_id = {$defFundId} WHERE fund_id IS NULL OR fund_id <= 0");
+        $pdo->exec("UPDATE donors SET pledge_fund_id = fund_id WHERE (pledge_fund_id IS NULL OR pledge_fund_id <= 0) AND is_pledge_active = 1");
+    }
+} catch (Throwable $e) {}
+
+try {
     $schemaVer = get_setting('schema_version', '');
-    if ($schemaVer !== '2.6') {
+    if ($schemaVer !== '2.7') {
         run_schema_and_seed_migrations($pdo);
-        set_setting('schema_version', '2.6');
+        set_setting('schema_version', '2.7');
     }
 } catch (Throwable $e) {
     try {
         run_schema_and_seed_migrations($pdo);
-        set_setting('schema_version', '2.6');
+        set_setting('schema_version', '2.7');
     } catch (Throwable $ex) {}
 }
 

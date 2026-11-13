@@ -1981,7 +1981,7 @@ if (!in_array($activeTab, $validTabs, true)) {
                             <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
                                 <div class="form-group" style="flex:1;min-width:260px;margin-bottom:0;">
                                     <label style="color:#991b1b;font-weight:700;">Live Admin Password <span class="ur">(ایڈمن لاگ ان پاس ورڈ)</span> *</label>
-                                    <input type="password" name="admin_password" required placeholder="Enter live Admin password to authorize" style="border-color:#fca5a5;">
+                                    <input type="password" name="admin_password" id="dangerAdminPassword" autocomplete="new-password" required placeholder="Enter live Admin password to authorize" style="border-color:#fca5a5;" value="">
                                 </div>
 
                                 <div>
@@ -2086,8 +2086,31 @@ if (!in_array($activeTab, $validTabs, true)) {
             const msg = isTx
                 ? '⚠️ تنبیہ: آپ نے تمام مالیاتی ٹرانزیکشنز و واؤچرز کا صفایا منتخب کیا ہے۔ یہ عمل ناقابل واپسی ہوگا!\n\nکیا آپ منتخب کردہ سیٹنگز کو لاگو کرنے کی تصدیق کرتے ہیں؟'
                 : 'کیا آپ منتخب کردہ موڈ کی ترتیبات اور ڈیفالٹس لاگو کرنے کی تصدیق کرتے ہیں؟';
-            return confirm(msg);
+            const ok = confirm(msg);
+            if (ok) {
+                // Clear password input immediately after submit to prevent caching
+                setTimeout(function() {
+                    const passInput = document.getElementById('dangerAdminPassword');
+                    if (passInput) passInput.value = '';
+                }, 300);
+            }
+            return ok;
         }
+
+        // Wipe clean on page load and prevent browser autofill retention
+        function clearDangerPassword() {
+            const passInput = document.getElementById('dangerAdminPassword');
+            const chk = document.getElementById('confirmDangerCheck');
+            if (passInput) passInput.value = '';
+            if (chk) chk.checked = false;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            clearDangerPassword();
+            setTimeout(clearDangerPassword, 150);
+            setTimeout(clearDangerPassword, 600);
+            setTimeout(clearDangerPassword, 1200);
+        });
         </script>
         <?php endif; ?>
 
@@ -2122,7 +2145,7 @@ if (!in_array($activeTab, $validTabs, true)) {
                         <label style="font-weight:700;display:block;margin-bottom:6px;font-size:13px;color:#1e293b;">
                             Super Admin Live Password <span class="ur">(ایڈمن پاس ورڈ درج کریں)</span> *
                         </label>
-                        <input type="password" name="admin_password" required placeholder="Enter your live password to authorize restore" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13.5px;">
+                        <input type="password" name="admin_password" autocomplete="new-password" required placeholder="Enter your live password to authorize restore" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13.5px;" value="">
                         <small style="color:#64748b;font-size:11px;display:block;margin-top:4px;">سیکیورٹی کی خاطر بیک اپ بحال کرنے کے لیے ایڈمن کا لائیو پاس ورڈ لازمی ہے۔</small>
                     </div>
 
@@ -2162,7 +2185,7 @@ if (!in_array($activeTab, $validTabs, true)) {
                         <label style="font-weight:700;display:block;margin-bottom:6px;font-size:13px;color:#1e293b;">
                             Super Admin Live Password <span class="ur">(ایڈمن پاس ورڈ درج کریں)</span> *
                         </label>
-                        <input type="password" name="admin_password" required placeholder="Enter your live password to authorize restore" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13.5px;">
+                        <input type="password" name="admin_password" autocomplete="new-password" required placeholder="Enter your live password to authorize restore" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13.5px;" value="">
                         <small style="color:#64748b;font-size:11px;display:block;margin-top:4px;">سیکیورٹی کی خاطر بیک اپ بحال کرنے کے لیے ایڈمن کا لائیو پاس ورڈ لازمی ہے۔</small>
                     </div>
 

@@ -588,17 +588,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Handle Clear All Transactions (Live Password Protected)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'clear_transactions') {
+// Handle Danger Zone: Clear Transactions & Apply Mode-Aware Defaults (Live Password Protected)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['clear_transactions', 'danger_reset_defaults'], true)) {
     verify_csrf();
     $adminPassword = $_POST['admin_password'] ?? '';
-    $confirmReset = isset($_POST['confirm_reset']);
+    $confirmReset = isset($_POST['confirm_reset']) || isset($_POST['confirm_danger']);
     $adminUserId = (int)current_user()['id'];
 
+    $targetMode = in_array($_POST['target_mode'] ?? '', ['madrasa', 'trust'], true) ? $_POST['target_mode'] : (is_madrasa_mode() ? 'madrasa' : 'trust');
+    $doResetTx = isset($_POST['reset_transactions']) || ($_POST['action'] === 'clear_transactions' && $confirmReset);
+    $doResetIdentity = isset($_POST['reset_identity']);
+    $doResetFunds = isset($_POST['reset_funds_accounts']);
+    $doResetSignatures = isset($_POST['reset_print_signatures']);
+    $doResetAppeal = isset($_POST['reset_donation_appeal']);
+    $doResetDonors = isset($_POST['reset_donors_students']);
+
     if (empty($adminPassword)) {
-        $error = 'براہ کرم اپنا ایڈمن پاس ورڈ درج کریں۔ (Please enter your admin password).';
+        $error = 'براہ کرم اپنا لائیو ایڈمن پاس ورڈ درج کریں۔ (Please enter your admin password).';
     } elseif (!$confirmReset) {
-        $error = 'براہ کرم تصدیقی چیک باکس پر نشان لگائیں۔ (Please confirm by checking the box).';
+        $error = 'براہ کرم تصدیقی چیک باکس پر نشان لگائیں۔ (Please confirm by checking the verification box).';
+    } elseif (!$doResetTx && !$doResetIdentity && !$doResetFunds && !$doResetSignatures && !$doResetAppeal && !$doResetDonors) {
+        $error = 'براہ کرم کم از کم ایک آپشن منتخب کریں جسے ری سیٹ یا ڈیفالٹ کرنا ہو۔ (Please select at least one reset option).';
     } else {
         try {
             // Check live password of the logged in user
@@ -607,61 +617,144 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $currentHash = $stmtU->fetchColumn();
 
             if (!$currentHash || !password_verify($adminPassword, $currentHash)) {
-                $error = '❌ غلط پاس ورڈ! تصدیق ناکام ہو گئی۔ ٹرانزیکشنز ڈیلیٹ نہیں کی گئیں اور آپ کا ڈیٹا محفوظ ہے۔ (Incorrect password. Authentication failed).';
+                $error = '❌ غلط پاس ورڈ! تصدیق ناکام ہو گئی۔ کوئی تبدیلی نہیں کی گئی اور آپ کا ڈیٹا محفوظ ہے۔ (Incorrect password. Authentication failed).';
             } else {
-                // Password verified! Wipe all financial transactions safely
                 $pdo->beginTransaction();
-
-                // 0. Disable foreign key checks during batch deletion to prevent constraint errors
                 $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
 
-                // 1. Delete salary records/payments if any
-                $tableSalary = $pdo->query("SHOW TABLES LIKE 'salary_payments'")->fetch();
-                if ($tableSalary) {
-                    $pdo->exec("DELETE FROM salary_payments");
+                $appliedActions = [];
+                $tableSalary = false;
+
+                // 1. Wipe Financial Transactions if selected
+                if ($doResetTx) {
+                    $tableSalary = $pdo->query("SHOW TABLES LIKE 'salary_payments'")->fetch();
+                    if ($tableSalary) {
+                        $pdo->exec("DELETE FROM salary_payments");
+                    }
+
+                    try {
+                        $receiptFiles = $pdo->query("SELECT stored_name FROM attachments")->fetchAll(PDO::FETCH_COLUMN) ?: [];
+                        foreach ($receiptFiles as $fName) {
+                            $fPath = __DIR__ . '/uploads/receipts/' . $fName;
+                            if (is_file($fPath)) {
+                                @unlink($fPath);
+                            }
+                        }
+                    } catch (Exception $ex) {}
+
+                    $pdo->exec("DELETE FROM attachments");
+                    $pdo->exec("DELETE FROM journal_lines");
+                    $pdo->exec("DELETE FROM journal_entries");
+                    $pdo->exec("DELETE FROM vouchers");
+                    $appliedActions[] = 'transactions_cleared';
                 }
 
-                // 2. Unlink receipt attachment images from disk
-                try {
-                    $receiptFiles = $pdo->query("SELECT stored_name FROM attachments")->fetchAll(PDO::FETCH_COLUMN) ?: [];
-                    foreach ($receiptFiles as $fName) {
-                        $fPath = __DIR__ . '/uploads/receipts/' . $fName;
-                        if (is_file($fPath)) {
-                            @unlink($fPath);
-                        }
+                // 2. Reset Organization Name & Subtitle to Target Mode
+                if ($doResetIdentity) {
+                    $stmtSet = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    $defaultName = ($targetMode === 'madrasa') ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الحبیب ویلفیئر ٹرسٹ';
+                    $customName = trim($_POST['custom_org_name'] ?? '');
+                    $finalOrgName = $customName !== '' ? $customName : $defaultName;
+                    $finalOrgSubtitle = ($targetMode === 'madrasa') ? 'تعلیم، تربیت اور دینی خدمات' : 'فلاح و بہبود اور انسانی خدمت';
+
+                    $stmtSet->execute(['org_type', $targetMode, $targetMode]);
+                    $stmtSet->execute(['madrasa_name', $finalOrgName, $finalOrgName]);
+                    $stmtSet->execute(['org_subtitle', $finalOrgSubtitle, $finalOrgSubtitle]);
+                    $appliedActions[] = 'identity_reset';
+                }
+
+                // 3. Reset Funds & Default Accounts
+                if ($doResetFunds) {
+                    $stmtSet = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    if ($targetMode === 'madrasa') {
+                        $pdo->exec("UPDATE funds SET is_active = 1 WHERE fund_code = 'MGF' OR scope = 'madrasa'");
+                        $defFundId = $pdo->query("SELECT id FROM funds WHERE fund_code = 'MGF' LIMIT 1")->fetchColumn();
+                    } else {
+                        $pdo->exec("UPDATE funds SET is_active = 1 WHERE fund_code = 'TGF' OR scope = 'trust'");
+                        $defFundId = $pdo->query("SELECT id FROM funds WHERE fund_code = 'TGF' LIMIT 1")->fetchColumn();
                     }
-                } catch (Exception $ex) {}
+                    if ($defFundId) {
+                        $stmtSet->execute(['default_donation_fund_id', (string)$defFundId, (string)$defFundId]);
+                    }
+                    $appliedActions[] = 'funds_activated';
+                }
 
-                // 3. Delete double-entry journal records, attachments and vouchers
-                $pdo->exec("DELETE FROM attachments");
-                $pdo->exec("DELETE FROM journal_lines");
-                $pdo->exec("DELETE FROM journal_entries");
-                $pdo->exec("DELETE FROM vouchers");
+                // 4. Reset Print & Receipt Signatures
+                if ($doResetSignatures) {
+                    $stmtSet = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    if ($targetMode === 'madrasa') {
+                        $s1 = 'تیار کنندہ / کیشیئر (Prepared By)';
+                        $s2 = 'اکاؤنٹنٹ / ناظمِ مالیات (Accountant)';
+                        $s3 = 'مہتمم / صدر / مجاز دستخط (Director / Mohtamim)';
+                    } else {
+                        $s1 = 'Prepared By (تیار کنندہ)';
+                        $s2 = 'Accountant / Cashier (اکاؤنٹنٹ)';
+                        $s3 = 'Director / Chairman (دستخط مجاز اتھارٹی)';
+                    }
+                    $stmtSet->execute(['print_sign_title_1', $s1, $s1]);
+                    $stmtSet->execute(['print_sign_title_2', $s2, $s2]);
+                    $stmtSet->execute(['print_sign_title_3', $s3, $s3]);
+                    $appliedActions[] = 'signatures_reset';
+                }
 
-                // Re-enable foreign key checks
+                // 5. Reset Online Donation Appeal
+                if ($doResetAppeal) {
+                    $stmtSet = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    if ($targetMode === 'madrasa') {
+                        $appTitle = 'دینی و تعلیمی خدمات میں ہمارا ساتھ دیں';
+                        $appText = 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، کتب و تعلیم پر دیانت داری سے خرچ کیے جاتے ہیں۔';
+                    } else {
+                        $appTitle = 'فلاحی و انسانی خدمات میں ہمارا ساتھ دیں';
+                        $appText = 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات راشن تقسیم، مفت علاج، واٹر پروجیکٹس اور بیواؤں و یتیموں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔';
+                    }
+                    $stmtSet->execute(['donation_appeal_title', $appTitle, $appTitle]);
+                    $stmtSet->execute(['donation_appeal_text', $appText, $appText]);
+                    $appliedActions[] = 'appeal_reset';
+                }
+
+                // 6. Clear Test Donors & Beneficiaries
+                if ($doResetDonors) {
+                    $pdo->exec("UPDATE vouchers SET donor_id = NULL");
+                    $pdo->exec("DELETE FROM donors");
+                    $pdo->exec("DELETE FROM beneficiaries");
+                    $appliedActions[] = 'donors_students_cleared';
+                }
+
                 $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
 
-                // 4. Write security audit log
+                // Audit Log
                 $log = $pdo->prepare('INSERT INTO audit_logs (user_id, action, entity_type, details, ip_address) VALUES (?, ?, ?, ?, ?)');
-                $log->execute([$adminUserId, 'clear_all_transactions', 'system', json_encode(['reason' => 'Admin initiated total transactions wipe', 'time' => date('Y-m-d H:i:s')]), $_SERVER['REMOTE_ADDR'] ?? null]);
+                $log->execute([
+                    $adminUserId, 
+                    'danger_defaults_applied', 
+                    'system', 
+                    json_encode(['target_mode' => $targetMode, 'actions' => $appliedActions, 'time' => date('Y-m-d H:i:s')]), 
+                    $_SERVER['REMOTE_ADDR'] ?? null
+                ]);
 
-                // 5. Commit data deletions safely
                 if ($pdo->inTransaction()) {
                     $pdo->commit();
                 }
 
-                // 6. Reset auto-increment counters AFTER commit (DDL statements cause an implicit commit in MySQL)
+                // Reset auto-increment counters AFTER commit
                 try {
-                    $pdo->exec("ALTER TABLE journal_lines AUTO_INCREMENT = 1");
-                    $pdo->exec("ALTER TABLE journal_entries AUTO_INCREMENT = 1");
-                    $pdo->exec("ALTER TABLE vouchers AUTO_INCREMENT = 1");
-                    $pdo->exec("ALTER TABLE attachments AUTO_INCREMENT = 1");
-                    if ($tableSalary) {
-                        $pdo->exec("ALTER TABLE salary_payments AUTO_INCREMENT = 1");
+                    if (in_array('transactions_cleared', $appliedActions, true)) {
+                        $pdo->exec("ALTER TABLE journal_lines AUTO_INCREMENT = 1");
+                        $pdo->exec("ALTER TABLE journal_entries AUTO_INCREMENT = 1");
+                        $pdo->exec("ALTER TABLE vouchers AUTO_INCREMENT = 1");
+                        $pdo->exec("ALTER TABLE attachments AUTO_INCREMENT = 1");
+                        if ($tableSalary) {
+                            $pdo->exec("ALTER TABLE salary_payments AUTO_INCREMENT = 1");
+                        }
+                    }
+                    if (in_array('donors_students_cleared', $appliedActions, true)) {
+                        $pdo->exec("ALTER TABLE donors AUTO_INCREMENT = 1");
+                        $pdo->exec("ALTER TABLE beneficiaries AUTO_INCREMENT = 1");
                     }
                 } catch (Exception $ex) {}
 
-                header('Location: settings.php?tab=danger&success=transactions_cleared');
+                $successCode = in_array('transactions_cleared', $appliedActions, true) ? 'transactions_cleared' : 'danger_defaults_applied';
+                header('Location: settings.php?tab=danger&success=' . urlencode($successCode));
                 exit;
             }
         } catch (Exception $e) {
@@ -671,17 +764,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            $error = 'ٹرانزیکشنز صاف نہیں ہو سکیں: ' . $e->getMessage();
+            $error = 'ڈیفالٹس یا ری سیٹ ایکشن لاگو نہیں ہو سکے: ' . $e->getMessage();
         }
     }
 }
 
-// Fetch current transaction counts
+// Fetch current transaction and entity counts
 $vouchersCount = 0;
 $journalsCount = 0;
+$donorsCount = 0;
+$beneficiariesCount = 0;
 try {
     $vouchersCount = (int)$pdo->query("SELECT COUNT(*) FROM vouchers")->fetchColumn();
     $journalsCount = (int)$pdo->query("SELECT COUNT(*) FROM journal_entries")->fetchColumn();
+    $donorsCount = (int)$pdo->query("SELECT COUNT(*) FROM donors")->fetchColumn();
+    $beneficiariesCount = (int)$pdo->query("SELECT COUNT(*) FROM beneficiaries")->fetchColumn();
 } catch (Exception $e) {}
 
 // Fetch current settings
@@ -814,6 +911,8 @@ if (!in_array($activeTab, $validTabs, true)) {
             <div class="alert success" style="margin-bottom:18px;">
                 <?php if ($_GET['success'] === 'transactions_cleared'): ?>
                     ✓ تمام مالیاتی واؤچرز، رسیدات اور ٹرانزیکشنز کا صفایا کامیابی سے کر دیا گیا ہے۔ تمام کھاتے نئے سرے سے تیار ہیں۔ (All transactions cleared successfully).
+                <?php elseif ($_GET['success'] === 'danger_defaults_applied'): ?>
+                    ✓ منتخب کردہ موڈ کی ترتیبات، ڈیفالٹ نام اور ری سیٹ ایکشنز کامیابی سے لاگو ہو چکے ہیں! سسٹم نئے موڈ کے ساتھ مکمل طور پر تیار ہے۔ (Mode defaults and resets applied successfully).
                 <?php elseif ($_GET['success'] === 'backup_restored'): ?>
                     ✓ ڈیٹا بیس بیک اپ کامیابی کے ساتھ بحال کر دیا گیا ہے! تمام کھاتے، واؤچرز، اور ریکارڈز کامیابی سے اپ ڈیٹ ہو چکے ہیں۔ (Database backup restored successfully).
                 <?php elseif ($_GET['success'] === 'backup_created'): ?>
@@ -1668,70 +1767,328 @@ if (!in_array($activeTab, $validTabs, true)) {
         </div>
 
         <?php elseif ($activeTab === 'danger' && $isSuperAdmin): ?>
-        <!-- Tab 5: Danger Zone -->
+        <!-- Tab 7: Danger Zone & Mode-Aware Defaults Manager -->
         <div style="margin-top: 14px;">
-            <article class="panel" style="border: 2px solid #ef4444; background: #fff5f5; border-radius: 12px;">
-                <div class="panel-heading" style="border-bottom: 1.5px solid #fecaca; background: #fee2e2; padding: 16px 24px;">
+            <article class="panel" style="border: 2px solid #ef4444; background: #fff5f5; border-radius: 12px; overflow:hidden;">
+                <div class="panel-heading" style="border-bottom: 1.5px solid #fecaca; background: #fee2e2; padding: 18px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <span style="font-size:26px;">⚠️</span>
+                        <span style="font-size:28px;">⚠️</span>
                         <div>
-                            <h3 style="color:#991b1b;margin:0;">Danger Zone: Clear All Transactions <span class="ur">(خطرناک زون: تمام ٹرانزیکشنز کا صفایا)</span></h3>
-                            <p style="color:#b91c1c;margin:2px 0 0;font-size:12.5px;">
-                                <span class="ur">یہ آپشن صرف ایڈمن کے لائیو پاس ورڈ سے محفوظ ہے۔ آزمائشی ڈیٹا ختم کرنے یا نیا مالی سال شروع کرنے کے لیے استعمال کریں۔</span>
-                                <span class="en-only" style="display:none;">This action requires the live Admin password. Use to wipe test data or start a new fiscal year.</span>
+                            <h3 style="color:#991b1b;margin:0;font-size:17px;">Mode-Aware Defaults &amp; Danger Zone <span class="ur">(موڈ ترتیبات و خطرناک زون)</span></h3>
+                            <p style="color:#b91c1c;margin:3px 0 0;font-size:12.5px;">
+                                <span class="ur">سسٹم کو ٹیسٹ ڈیٹا سے صاف کرنے، نیا مالی سال شروع کرنے یا مدرسہ/ٹرسٹ موڈ کی ڈیفالٹ ترتیبات لاگو کرنے کے لیے استعمال کریں۔</span>
                             </p>
                         </div>
                     </div>
-                    <div>
-                        <span class="badge badge-red" style="font-size:12px;padding:4px 10px;">
-                            <span class="ur">موجودہ ڈیٹا: <?=$vouchersCount?> واؤچرز (<?=$journalsCount?> انٹریز)</span>
-                            <span class="en-only" style="display:none;">Current Data: <?=$vouchersCount?> vouchers (<?=$journalsCount?> entries)</span>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <span class="badge <?=is_madrasa_mode() ? 'badge-green' : 'badge-blue'?>" style="font-size:12px;padding:5px 11px;">
+                            🏛️ <?=is_madrasa_mode() ? 'Madrasa Mode (دینی درسگاہ)' : 'Trust Mode (فلاحی ٹرسٹ)'?>
+                        </span>
+                        <span class="badge badge-red" style="font-size:12px;padding:5px 11px;">
+                            🧾 <?=$vouchersCount?> واؤچرز (<?=$journalsCount?> انٹریز)
+                        </span>
+                        <span class="badge secondary" style="font-size:12px;padding:5px 11px;">
+                            👥 <?=$donorsCount?> معاونین | 🎓 <?=$beneficiariesCount?> مستحقین
                         </span>
                     </div>
                 </div>
 
-                <div style="padding: 22px 24px;">
-                    <div style="background:#ffffff;border:1px solid #fecaca;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:13px;line-height:1.7;color:#7f1d1d;">
-                        <div class="ur">
-                            <strong>کیا صاف ہوگا اور کیا محفوظ رہے گا؟</strong><br>
-                            • <b>صاف ہو جائے گا:</b> تمام آمدنی و اخراجات کے واؤچرز، ڈبل انٹری جرنل ریکارڈز، رسیدات کی تصاویر، اور کیش/بینک لیجر ہسٹری۔ واؤچر نمبر دوبارہ 1 سے شروع ہوں گے۔<br>
-                            • <b>محفوظ رہے گا:</b> ٹرسٹ / ادارے کی سیٹنگز، تمام فنڈز (Funds)، چارٹ آف اکاؤنٹس (Accounts)، صارفین (Users)، اور تمام معاونین (Donors) بالکل محفوظ رہیں گے۔
-                        </div>
-                        <div class="en-only" style="display:none;">
-                            <strong>What will be cleared and what will be preserved?</strong><br>
-                            • <b>Cleared:</b> All income & expense vouchers, journal entries, receipt photos, and cash/bank ledger history. Voucher numbering will reset to 1.<br>
-                            • <b>Preserved:</b> Organization settings, all Funds, Chart of Accounts, Users, and Donors will remain intact.
-                        </div>
-                    </div>
-
-                    <form method="post" action="settings.php?tab=danger" onsubmit="return confirm('⚠️ Danger!\nAre you sure you want to permanently clear all transaction data? This cannot be undone.');">
+                <div style="padding: 24px;">
+                    <form method="post" action="settings.php?tab=danger" id="dangerZoneForm" onsubmit="return validateDangerSubmit();">
                         <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
-                        <input type="hidden" name="action" value="clear_transactions">
+                        <input type="hidden" name="action" value="danger_reset_defaults">
 
-                        <div style="margin-bottom:16px;">
-                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;color:#991b1b;font-size:13.5px;">
-                                <input type="checkbox" name="confirm_reset" value="1" required style="width:18px;height:18px;accent-color:#dc2626;">
-                                <span class="ur">میں تصدیق کرتا ہوں کہ تمام سابقہ ٹرانزیکشنل ڈیٹا صاف کر دیا جائے۔</span>
-                                <span class="en-only" style="display:none;">I confirm that all previous transactional data should be wiped permanently.</span>
+                        <!-- Step 1: Select Target Mode -->
+                        <div style="background:#ffffff;border:1.5px solid #fca5a5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+                            <label style="display:block;font-size:14px;font-weight:700;color:#991b1b;margin-bottom:12px;">
+                                1. منتخب کردہ موڈ (Select Target Mode) *
                             </label>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;">
+                                <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:2px solid <?=is_madrasa_mode() ? '#16a34a' : '#e2e8f0'?>;border-radius:8px;background:<?=is_madrasa_mode() ? '#f0fdf4' : '#f8fafc'?>;cursor:pointer;" id="labelModeMadrasa">
+                                    <input type="radio" name="target_mode" value="madrasa" id="target_mode_madrasa" <?=is_madrasa_mode() ? 'checked' : ''?> onchange="onDangerModeChange('madrasa')" style="margin-top:3px;accent-color:#16a34a;width:18px;height:18px;">
+                                    <div>
+                                        <b style="font-size:14px;color:#15803d;">🕌 دینی درسگاہ موڈ (Islamic Seminary Mode)</b>
+                                        <p style="margin:3px 0 0;font-size:12px;color:#475569;">
+                                            دینی و تعلیمی شعبہ جات، ناظم و مہتمم دستخط، طلبہ کفالت و مطبخ فنڈز، اور مدرسہ عمومی فنڈ (MGF)۔
+                                        </p>
+                                    </div>
+                                </label>
+
+                                <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:2px solid <?=!is_madrasa_mode() ? '#2563eb' : '#e2e8f0'?>;border-radius:8px;background:<?=!is_madrasa_mode() ? '#eff6ff' : '#f8fafc'?>;cursor:pointer;" id="labelModeTrust">
+                                    <input type="radio" name="target_mode" value="trust" id="target_mode_trust" <?=!is_madrasa_mode() ? 'checked' : ''?> onchange="onDangerModeChange('trust')" style="margin-top:3px;accent-color:#2563eb;width:18px;height:18px;">
+                                    <div>
+                                        <b style="font-size:14px;color:#1d4ed8;">🏢 فلاحی ٹرسٹ موڈ (Welfare Trust Mode)</b>
+                                        <p style="margin:3px 0 0;font-size:12px;color:#475569;">
+                                            فلاحی پروجیکٹس، چیئرمین و فنانس ڈائریکٹر دستخط، راشن، میڈیکل، واٹر اور ٹرسٹ جنرل فنڈ (TGF)۔
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
 
-                        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
-                            <div class="form-group" style="flex:1;min-width:260px;margin-bottom:0;">
-                                <label style="color:#991b1b;font-weight:700;">Live Admin Password <span class="ur">(ایڈمن لاگ ان پاس ورڈ)</span> *</label>
-                                <input type="password" name="admin_password" required placeholder="Enter your live password to authorize wipe" style="border-color:#fca5a5;">
+                        <!-- Step 2: Live Dynamic Defaults Preview -->
+                        <div style="background:#ffffff;border:1.5px solid #cbd5e1;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #f1f5f9;padding-bottom:8px;">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span style="font-size:18px;">👁️</span>
+                                    <b style="font-size:13.5px;color:#1e293b;">منتخب موڈ کے متعلقہ نام اور ڈیفالٹ ترتیبات (Mode Defaults Preview)</b>
+                                </div>
+                                <span id="dangerModeBadge" class="badge <?=is_madrasa_mode() ? 'badge-green' : 'badge-blue'?>">
+                                    <?=is_madrasa_mode() ? '🕌 دینی مدرسہ موڈ' : '🏢 فلاحی ٹرسٹ موڈ'?>
+                                </span>
                             </div>
 
-                            <div>
-                                <button class="btn danger" type="submit" style="padding:10px 22px;font-weight:700;font-size:14px;background:#dc2626;border-color:#b91c1c;">
-                                    🗑️ Clear All Transactions <span class="ur">(تمام ٹرانزیکشنز صاف کریں)</span>
-                                </button>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;font-size:13px;line-height:1.6;">
+                                <div style="background:#f8fafc;padding:10px 14px;border-radius:7px;border:1px solid #e2e8f0;">
+                                    <span style="color:#64748b;display:block;font-size:11.5px;">🏛️ ڈیفالٹ ادارے کا نام (Organization Name):</span>
+                                    <b id="previewOrgName" style="color:#0f172a;font-size:13.5px;"><?=is_madrasa_mode() ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الحبیب ویلفیئر ٹرسٹ'?></b>
+                                </div>
+                                <div style="background:#f8fafc;padding:10px 14px;border-radius:7px;border:1px solid #e2e8f0;">
+                                    <span style="color:#64748b;display:block;font-size:11.5px;">🏷️ ذیلی تعارف (Org Subtitle):</span>
+                                    <span id="previewOrgSubtitle" style="color:#334155;font-weight:600;"><?=is_madrasa_mode() ? 'تعلیم، تربیت اور دینی خدمات' : 'فلاح و بہبود اور انسانی خدمت'?></span>
+                                </div>
+                                <div style="background:#f8fafc;padding:10px 14px;border-radius:7px;border:1px solid #e2e8f0;">
+                                    <span style="color:#64748b;display:block;font-size:11.5px;">🌿 مرکزی بنیادی فنڈ (Primary Default Fund):</span>
+                                    <span id="previewFund" style="color:#16a34a;font-weight:700;"><?=is_madrasa_mode() ? 'Madrasa General Fund (مدرسہ عمومی فنڈ - MGF)' : 'Trust General Fund (ٹرسٹ جنرل فنڈ - TGF)'?></span>
+                                </div>
+                                <div style="background:#f8fafc;padding:10px 14px;border-radius:7px;border:1px solid #e2e8f0;">
+                                    <span style="color:#64748b;display:block;font-size:11.5px;">✍️ رسیدات و واؤچرز کے دستخط (Print Signatures):</span>
+                                    <span id="previewSignatures" style="color:#475569;font-size:12px;"><?=is_madrasa_mode() ? 'تیار کنندہ / کیشیئر | اکاؤنٹنٹ / ناظمِ مالیات | مہتمم / صدر / مجاز دستخط' : 'Prepared By (تیار کنندہ) | Accountant / Cashier (اکاؤنٹنٹ) | Director / Chairman (دستخط مجاز اتھارٹی)'?></span>
+                                </div>
+                            </div>
+
+                            <div style="margin-top:12px;background:#f8fafc;padding:10px 14px;border-radius:7px;border:1px solid #e2e8f0;">
+                                <span style="color:#64748b;display:block;font-size:11.5px;">📢 آن لائن ڈونیشن اپیل (Public Appeal Message):</span>
+                                <span id="previewAppeal" style="color:#475569;font-size:12.5px;"><?=is_madrasa_mode() ? 'دینی و تعلیمی خدمات میں ہمارا ساتھ دیں (یتامیٰ و مستحق طلباء کی کفالت)' : 'فلاحی و انسانی خدمات میں ہمارا ساتھ دیں (راشن، میڈیکل اور بیوہ کفالت)'?></span>
+                            </div>
+
+                            <div style="margin-top:12px;">
+                                <label style="display:block;font-size:12.5px;font-weight:600;color:#475569;margin-bottom:4px;">
+                                    اختیاری: اگر آپ ڈیفالٹ نام کے بجائے ادارے کا کوئی مخصوص نام رکھنا چاہتے ہیں تو یہاں درج کریں (Optional Custom Name):
+                                </label>
+                                <input type="text" name="custom_org_name" id="customOrgNameInput" placeholder="<?=is_madrasa_mode() ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الحبیب ویلفیئر ٹرسٹ'?>" style="width:100%;font-size:13px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;">
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Granular Action Checkboxes -->
+                        <div style="background:#ffffff;border:1.5px solid #fca5a5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+                                <label style="font-size:14px;font-weight:700;color:#991b1b;margin:0;">
+                                    2. کون کون سی سیٹنگز کو ری سیٹ / ڈیفالٹ کرنا ہے؟ (Select Action Items) *
+                                </label>
+                                <div style="display:flex;gap:6px;">
+                                    <button type="button" onclick="toggleAllDangerCheckboxes(true)" class="btn secondary" style="font-size:11.5px;padding:4px 9px;">☑️ تمام منتخب کریں (Select All)</button>
+                                    <button type="button" onclick="toggleAllDangerCheckboxes(false)" class="btn secondary" style="font-size:11.5px;padding:4px 9px;">◻️ تمام غیر منتخب کریں (Uncheck All)</button>
+                                </div>
+                            </div>
+
+                            <div style="display:flex;flex-direction:column;gap:10px;">
+                                <!-- Item 1: Clear All Transactions -->
+                                <label style="display:flex;align-items:flex-start;gap:12px;background:#fef2f2;border:1px solid #fecaca;padding:12px 14px;border-radius:8px;cursor:pointer;">
+                                    <input type="checkbox" name="reset_transactions" value="1" id="cb_reset_tx" style="margin-top:3px;width:18px;height:18px;accent-color:#dc2626;">
+                                    <div style="flex:1;">
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <b style="color:#991b1b;font-size:13.5px;">تمام مالیاتی ٹرانزیکشنز و واؤچرز کا صفایا (Clear All Transactions &amp; Vouchers)</b>
+                                            <span class="badge badge-red" style="font-size:11px;">خطرناک / Data Wipe</span>
+                                        </div>
+                                        <p style="margin:2px 0 0;font-size:12px;color:#7f1d1d;">
+                                            تمام آمدنی و اخراجات کے واؤچرز، رسیدات، جرنل انٹریز، اور منسلک تصاویر مکمل حذف ہو جائیں گی۔ واؤچر نمبر دوبارہ 1 سے شروع ہوں گے۔
+                                        </p>
+                                    </div>
+                                </label>
+
+                                <!-- Item 2: Reset Identity -->
+                                <label style="display:flex;align-items:flex-start;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;padding:12px 14px;border-radius:8px;cursor:pointer;">
+                                    <input type="checkbox" name="reset_identity" value="1" id="cb_reset_id" style="margin-top:3px;width:18px;height:18px;accent-color:#2563eb;">
+                                    <div style="flex:1;">
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <b style="color:#1e293b;font-size:13.5px;">ادارے کا نام اور موڈ ری سیٹ کریں (Reset Org Name &amp; Mode)</b>
+                                            <span class="badge badge-blue" style="font-size:11px;">Identity Setup</span>
+                                        </div>
+                                        <p style="margin:2px 0 0;font-size:12px;color:#475569;">
+                                            ادارے کی شناخت، سب ٹائٹل اور سسٹم ورک فلو کو منتخب کردہ موڈ (مدرسہ یا ٹرسٹ) کے ڈیفالٹ پر منتقل کر دیا جائے گا۔
+                                        </p>
+                                    </div>
+                                </label>
+
+                                <!-- Item 3: Reset Funds & Accounts -->
+                                <label style="display:flex;align-items:flex-start;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;padding:12px 14px;border-radius:8px;cursor:pointer;">
+                                    <input type="checkbox" name="reset_funds_accounts" value="1" id="cb_reset_funds" style="margin-top:3px;width:18px;height:18px;accent-color:#16a34a;">
+                                    <div style="flex:1;">
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <b style="color:#1e293b;font-size:13.5px;">بنیادی فنڈز اور ڈیفالٹ فنڈ فعال کریں (Reset Mode Funds &amp; Default Fund)</b>
+                                            <span class="badge badge-green" style="font-size:11px;">Funds Setup</span>
+                                        </div>
+                                        <p style="margin:2px 0 0;font-size:12px;color:#475569;">
+                                            منتخب موڈ کے بنیادی فنڈ (Madrasa General Fund یا Trust General Fund) کو سسٹم کا مرکزی ڈیفالٹ فنڈ مقرر کر دیا جائے گا۔
+                                        </p>
+                                    </div>
+                                </label>
+
+                                <!-- Item 4: Reset Print Signatures -->
+                                <label style="display:flex;align-items:flex-start;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;padding:12px 14px;border-radius:8px;cursor:pointer;">
+                                    <input type="checkbox" name="reset_print_signatures" value="1" id="cb_reset_signs" style="margin-top:3px;width:18px;height:18px;accent-color:#7c3aed;">
+                                    <div style="flex:1;">
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <b style="color:#1e293b;font-size:13.5px;">رسیدات و واؤچرز کے دستخطی عہدے ری سیٹ کریں (Reset Print Signatures)</b>
+                                            <span class="badge secondary" style="font-size:11px;background:#f3e8ff;color:#6b21a8;border-color:#d8b4fe;">Signatures</span>
+                                        </div>
+                                        <p style="margin:2px 0 0;font-size:12px;color:#475569;">
+                                            پرنٹ رسیدات اور واؤچرز کے تینوں دستخطی خانے منتخب موڈ کے متعلقہ عہدوں (مثلاً: مہتمم / صدر یا چیئرمین / ڈائریکٹر) پر سیٹ ہو جائیں گے۔
+                                        </p>
+                                    </div>
+                                </label>
+
+                                <!-- Item 5: Reset Donation Appeal -->
+                                <label style="display:flex;align-items:flex-start;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;padding:12px 14px;border-radius:8px;cursor:pointer;">
+                                    <input type="checkbox" name="reset_donation_appeal" value="1" id="cb_reset_appeal" style="margin-top:3px;width:18px;height:18px;accent-color:#d97706;">
+                                    <div style="flex:1;">
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <b style="color:#1e293b;font-size:13.5px;">آن لائن ڈونیشن پورٹل کی اپیل ری سیٹ کریں (Reset Public Donation Appeal)</b>
+                                            <span class="badge secondary" style="font-size:11px;background:#fef3c7;color:#92400e;border-color:#fde68a;">Donation Portal</span>
+                                        </div>
+                                        <p style="margin:2px 0 0;font-size:12px;color:#475569;">
+                                            آن لائن ڈونیشن پیج (donate.php) پر عوام کے لیے لکھی گئی اپیل اور پیغام کو منتخب موڈ کے مطابق ری سیٹ کر دیا جائے گا۔
+                                        </p>
+                                    </div>
+                                </label>
+
+                                <!-- Item 6: Clear Test Donors & Beneficiaries -->
+                                <label style="display:flex;align-items:flex-start;gap:12px;background:#fff1f2;border:1px solid #fecdd3;padding:12px 14px;border-radius:8px;cursor:pointer;">
+                                    <input type="checkbox" name="reset_donors_students" value="1" id="cb_reset_donors" style="margin-top:3px;width:18px;height:18px;accent-color:#e11d48;">
+                                    <div style="flex:1;">
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <b style="color:#9f1239;font-size:13.5px;">ٹیسٹ معاونین و طلبہ/مستحقین کی فہرست صاف کریں (Clear Test Donors &amp; Students)</b>
+                                            <span class="badge badge-red" style="font-size:11px;">اختیاری / Test Data Wipe</span>
+                                        </div>
+                                        <p style="margin:2px 0 0;font-size:12px;color:#881337;">
+                                            سسٹم میں موجود تمام آزمائشی معاونین (<?=$donorsCount?>) اور طلبہ/مستحقین (<?=$beneficiariesCount?>) کا ڈیٹا ڈیلیٹ ہو جائے گا۔
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Security Authorization & Submit -->
+                        <div style="background:#ffffff;border:1.5px solid #ef4444;border-radius:10px;padding:18px 20px;">
+                            <div style="margin-bottom:14px;">
+                                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;color:#991b1b;font-size:13.5px;">
+                                    <input type="checkbox" name="confirm_danger" id="confirmDangerCheck" required style="width:19px;height:19px;accent-color:#dc2626;">
+                                    <span class="ur">میں تصدیق کرتا ہوں کہ اوپر منتخب کردہ تمام ایکشنز کو لائیو سسٹم پر لاگو کیا جائے۔ (I authorize applying the selected changes).</span>
+                                </label>
+                            </div>
+
+                            <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1;min-width:260px;margin-bottom:0;">
+                                    <label style="color:#991b1b;font-weight:700;">Live Admin Password <span class="ur">(ایڈمن لاگ ان پاس ورڈ)</span> *</label>
+                                    <input type="password" name="admin_password" required placeholder="Enter live Admin password to authorize" style="border-color:#fca5a5;">
+                                </div>
+
+                                <div>
+                                    <button class="btn danger" type="submit" style="padding:11px 24px;font-weight:700;font-size:14px;background:#dc2626;border-color:#b91c1c;box-shadow:0 3px 6px rgba(220,38,38,0.25);">
+                                        🗑️ Apply Selected Resets &amp; Defaults <span class="ur">(منتخب کردہ ترتیبات لاگو کریں)</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
                 </div>
             </article>
         </div>
+
+        <script>
+        const dangerModeConfig = {
+            madrasa: {
+                badgeClass: "badge badge-green",
+                badgeText: "🕌 دینی مدرسہ موڈ",
+                orgName: "جامعہ دارالعلوم / مدرسہ اسلامیہ",
+                subtitle: "تعلیم، تربیت اور دینی خدمات",
+                fund: "Madrasa General Fund (مدرسہ عمومی فنڈ - MGF)",
+                signatures: "تیار کنندہ / کیشیئر | اکاؤنٹنٹ / ناظمِ مالیات | مہتمم / صدر / مجاز دستخط",
+                appeal: "دینی و تعلیمی خدمات میں ہمارا ساتھ دیں (یتامیٰ و مستحق طلباء کی کفالت)"
+            },
+            trust: {
+                badgeClass: "badge badge-blue",
+                badgeText: "🏢 فلاحی ٹرسٹ موڈ",
+                orgName: "الحبیب ویلفیئر ٹرسٹ",
+                subtitle: "فلاح و بہبود اور انسانی خدمت",
+                fund: "Trust General Fund (ٹرسٹ جنرل فنڈ - TGF)",
+                signatures: "Prepared By (تیار کنندہ) | Accountant / Cashier (اکاؤنٹنٹ) | Director / Chairman (دستخط مجاز اتھارٹی)",
+                appeal: "فلاحی و انسانی خدمات میں ہمارا ساتھ دیں (راشن، میڈیکل اور بیوہ کفالت)"
+            }
+        };
+
+        function onDangerModeChange(mode) {
+            const cfg = dangerModeConfig[mode] || dangerModeConfig.madrasa;
+            
+            // Highlight active mode card
+            const lblM = document.getElementById('labelModeMadrasa');
+            const lblT = document.getElementById('labelModeTrust');
+            if (lblM && lblT) {
+                if (mode === 'madrasa') {
+                    lblM.style.borderColor = '#16a34a';
+                    lblM.style.background = '#f0fdf4';
+                    lblT.style.borderColor = '#e2e8f0';
+                    lblT.style.background = '#f8fafc';
+                } else {
+                    lblT.style.borderColor = '#2563eb';
+                    lblT.style.background = '#eff6ff';
+                    lblM.style.borderColor = '#e2e8f0';
+                    lblM.style.background = '#f8fafc';
+                }
+            }
+
+            // Update Preview fields
+            const badge = document.getElementById('dangerModeBadge');
+            if (badge) {
+                badge.className = cfg.badgeClass;
+                badge.innerText = cfg.badgeText;
+            }
+            const elName = document.getElementById('previewOrgName');
+            if (elName) elName.innerText = cfg.orgName;
+            const elSub = document.getElementById('previewOrgSubtitle');
+            if (elSub) elSub.innerText = cfg.subtitle;
+            const elFund = document.getElementById('previewFund');
+            if (elFund) elFund.innerText = cfg.fund;
+            const elSigns = document.getElementById('previewSignatures');
+            if (elSigns) elSigns.innerText = cfg.signatures;
+            const elApp = document.getElementById('previewAppeal');
+            if (elApp) elApp.innerText = cfg.appeal;
+
+            const nameInput = document.getElementById('customOrgNameInput');
+            if (nameInput) {
+                nameInput.placeholder = cfg.orgName;
+            }
+        }
+
+        function toggleAllDangerCheckboxes(check) {
+            const ids = ['cb_reset_tx', 'cb_reset_id', 'cb_reset_funds', 'cb_reset_signs', 'cb_reset_appeal', 'cb_reset_donors'];
+            ids.forEach(function(id) {
+                const el = document.getElementById(id);
+                if (el) el.checked = check;
+            });
+        }
+
+        function validateDangerSubmit() {
+            const ids = ['cb_reset_tx', 'cb_reset_id', 'cb_reset_funds', 'cb_reset_signs', 'cb_reset_appeal', 'cb_reset_donors'];
+            let anyChecked = false;
+            ids.forEach(function(id) {
+                const el = document.getElementById(id);
+                if (el && el.checked) anyChecked = true;
+            });
+
+            if (!anyChecked) {
+                alert('براہ کرم کم از کم ایک آپشن منتخب کریں جسے ری سیٹ یا ڈیفالٹ کرنا ہو۔\n(Please check at least one reset option).');
+                return false;
+            }
+
+            const isTx = document.getElementById('cb_reset_tx')?.checked;
+            const msg = isTx
+                ? '⚠️ تنبیہ: آپ نے تمام مالیاتی ٹرانزیکشنز و واؤچرز کا صفایا منتخب کیا ہے۔ یہ عمل ناقابل واپسی ہوگا!\n\nکیا آپ منتخب کردہ سیٹنگز کو لاگو کرنے کی تصدیق کرتے ہیں؟'
+                : 'کیا آپ منتخب کردہ موڈ کی ترتیبات اور ڈیفالٹس لاگو کرنے کی تصدیق کرتے ہیں؟';
+            return confirm(msg);
+        }
+        </script>
         <?php endif; ?>
 
         <!-- Modal: Restore Database Backup -->

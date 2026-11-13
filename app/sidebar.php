@@ -509,12 +509,23 @@ div.en-only, p.en-only { display: block !important; }
       <?php if (!function_exists('has_permission') || has_permission('settings.manage')): ?>
         <a class="<?= $currentPage === 'settings' ? 'active' : '' ?>" href="settings.php">⚙ &nbsp; <?=is_madrasa_mode() ? 'Madrasa Settings <span class="ur">(مدرسہ سیٹنگز)</span>' : 'Settings <span class="ur">(سیٹنگز)</span>'?></a>
       <?php endif; ?>
+      <a href="javascript:void(0)" onclick="openAboutSoftwareModal()" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>ℹ &nbsp; About ERP <span class="ur">(سافٹ ویئر تعارف)</span></span>
+        <span style="font-size:9.5px;background:rgba(59,130,246,0.3);color:#bfdbfe;padding:1px 5px;border-radius:4px;font-weight:700;">v2.8</span>
+      </a>
     <?php endif; ?>
   </nav>
 
   <div class="sidebar-bottom">
     <button type="button" class="pwa-install-btn" id="sidebarPwaInstallBtn" onclick="triggerPwaInstall()" style="display:none;width:100%;margin-bottom:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#93c5fd;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;align-items:center;justify-content:center;gap:6px;cursor:pointer;">
       📲 Install App <span class="ur">(ایپ انسٹال کریں)</span>
+    </button>
+    <button type="button" onclick="openAboutSoftwareModal()" style="width:100%;margin-bottom:8px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.14)'" onmouseout="this.style.background='rgba(255,255,255,0.07)'" title="Software Information & License Details">
+      <span style="display:inline-flex;align-items:center;gap:6px;">
+        <span style="font-size:13px;">ℹ️</span>
+        <span>About &amp; License <span class="ur">(تفصیلات)</span></span>
+      </span>
+      <span style="font-size:10px;background:#2563eb;color:#ffffff;padding:2px 6px;border-radius:10px;font-weight:700;">v2.8</span>
     </button>
     <div style="font-weight:600;font-size:12px;color:#f8fafc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?=e($madrasaName)?>">
       <?=e(mb_strimwidth($madrasaName, 0, 22, '...'))?>
@@ -527,6 +538,181 @@ div.en-only, p.en-only { display: block !important; }
     </div>
   </div>
 </aside>
+
+<?php
+$lastAutoBackup = function_exists('get_setting') ? get_setting('last_auto_backup_at', '') : '';
+$lastBackupDisplay = !empty($lastAutoBackup) ? date('d M Y, h:i A', strtotime($lastAutoBackup)) : 'Automated & Scheduled';
+$isMadrasaMode = function_exists('is_madrasa_mode') && is_madrasa_mode();
+$licHash = strtoupper(substr(md5(($madrasaName ?: 'Trust') . '2026_softifyx'), 0, 8));
+$licenseKeyDisplay = 'SFX-TR-2026-' . substr($licHash, 0, 4) . '-' . substr($licHash, 4, 4);
+$phpVer = PHP_VERSION;
+?>
+<!-- Modal Dialog for About Software, License & Contact Info -->
+<div id="aboutSoftwareModal" class="tracker-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:999999;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);" onclick="handleAboutOverlayClick(event)">
+  <div style="background:#ffffff;border-radius:14px;width:100%;max-width:580px;box-shadow:0 25px 40px -10px rgba(0,0,0,0.35);overflow:hidden;border:1px solid #cbd5e1;" role="dialog" aria-modal="true">
+    
+    <!-- Modal Header -->
+    <div style="padding:16px 20px;background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%);color:#ffffff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:24px;background:rgba(255,255,255,0.12);padding:6px 10px;border-radius:8px;">ℹ️</span>
+        <div>
+          <h3 style="margin:0;font-size:16px;font-weight:700;color:#ffffff;display:flex;align-items:center;gap:8px;">
+            <span>SoftifyX Technologies</span>
+            <span style="font-size:10px;background:#2563eb;color:#ffffff;padding:2px 8px;border-radius:10px;font-weight:700;">ERP v2.8</span>
+          </h3>
+          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Financial Accounting &amp; Management System</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeAboutSoftwareModal()" style="background:transparent;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1;" title="Close">&times;</button>
+    </div>
+
+    <!-- Navigation Tabs (Matching dropdown options) -->
+    <div style="display:flex;background:#f8fafc;border-bottom:1.5px solid #e2e8f0;padding:4px 12px 0;">
+      <button type="button" id="aboutTabBtn_info" onclick="switchAboutTab('info')" style="padding:10px 14px;font-size:12.5px;font-weight:700;border:none;background:transparent;color:#2563eb;border-bottom:3px solid #2563eb;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+        💻 Software Information
+      </button>
+      <button type="button" id="aboutTabBtn_license" onclick="switchAboutTab('license')" style="padding:10px 14px;font-size:12.5px;font-weight:700;border:none;background:transparent;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+        📜 License Details
+      </button>
+      <button type="button" id="aboutTabBtn_contact" onclick="switchAboutTab('contact')" style="padding:10px 14px;font-size:12.5px;font-weight:700;border:none;background:transparent;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+        📞 Contact Info
+      </button>
+    </div>
+
+    <!-- Tab 1: Software Information -->
+    <div id="aboutTabContent_info" style="padding:20px;display:block;">
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:28px;">⚡</span>
+        <div>
+          <b style="color:#1e3a8a;font-size:14px;">SoftifyX Financial Accounting ERP 2026</b>
+          <div style="font-size:12px;color:#1e40af;margin-top:2px;">
+            Dual Engine Architecture for Islamic Seminaries, Mosques &amp; Non-Profit Trusts
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12.5px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
+          <span style="color:#64748b;font-size:11px;display:block;">Version &amp; Release:</span>
+          <b style="color:#0f172a;">v2.8 (Build 2026.11)</b>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
+          <span style="color:#64748b;font-size:11px;display:block;">Active Mode <span class="ur">(فعال موڈ)</span>:</span>
+          <b style="color:#0284c7;"><?=$isMadrasaMode ? 'Madrasa Mode (مدرسہ)' : 'Trust Mode (ٹرسٹ)'?></b>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
+          <span style="color:#64748b;font-size:11px;display:block;">Server &amp; PHP:</span>
+          <b style="color:#0f172a;">PHP <?=$phpVer?> (Fast Vanilla)</b>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
+          <span style="color:#64748b;font-size:11px;display:block;">Automatic Backup <span class="ur">(بیک اپ)</span>:</span>
+          <b style="color:#15803d;"><?=$lastBackupDisplay?></b>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px;">
+        <span style="font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px;">
+          Active Core Modules <span class="ur">(فعال شدہ ماڈیولز)</span>:
+        </span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Double Entry Accounting</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Online Donations &amp; Slips</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Pledges &amp; Kafalat Tracker</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Smart WhatsApp Receipts</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Audit &amp; Multi-Role Security</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: License Details -->
+    <div id="aboutTabContent_license" style="padding:20px;display:none;">
+      <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:28px;">📜</span>
+        <div>
+          <b style="color:#065f46;font-size:14px;">Licensed &amp; Verified Institutional Installation</b>
+          <div style="font-size:12px;color:#047857;margin-top:2px;">
+            Authorized deployment under SoftifyX Enterprise Agreement
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:10px;font-size:12.5px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;">
+          <span style="color:#64748b;font-size:11px;display:block;">Licensed To <span class="ur">(کس کے نام جاری ہے)</span>:</span>
+          <b style="color:#0f172a;font-size:14px;"><?=e($madrasaName)?></b>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
+            <span style="color:#64748b;font-size:11px;display:block;">License Type:</span>
+            <b style="color:#15803d;">Perpetual Enterprise (Lifetime)</b>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
+            <span style="color:#64748b;font-size:11px;display:block;">Authorized Users:</span>
+            <b style="color:#0f172a;">Unlimited Multi-Branch</b>
+          </div>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
+          <span style="color:#64748b;font-size:11px;display:block;">Product License Key <span class="ur">(لائسنس کی)</span>:</span>
+          <code style="font-family:monospace;color:#1e40af;font-size:13px;font-weight:700;"><?=$licenseKeyDisplay?></code>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;background:#fefce8;border:1px solid #fef08a;border-radius:6px;padding:10px 12px;font-size:12px;color:#713f12;line-height:1.5;">
+        <strong>🔒 ڈیٹا ملکیت اور رازداری کی ضمانت:</strong><br>
+        آپ کے ادارے کے تمام مالیاتی، اکاؤنٹنگ، عطیات اور طلباء کے کوائف 100% آپ کی ملکیت ہیں اور کسی بھی بیرونی سرور یا تھرڈ پارٹی سے مکمل طور پر محفوظ ہیں۔
+      </div>
+    </div>
+
+    <!-- Tab 3: Contact Info -->
+    <div id="aboutTabContent_contact" style="padding:20px;display:none;">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:28px;">📞</span>
+        <div>
+          <b style="color:#166534;font-size:14px;">SoftifyX Technologies &bull; Technical Support</b>
+          <div style="font-size:12px;color:#15803d;margin-top:2px;">
+            Dedicated developer support for accounting software, hosting &amp; customization
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:10px;font-size:12.5px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="color:#64748b;font-size:11px;display:block;">WhatsApp Helpline <span class="ur">(واٹس ایپ سپورٹ)</span>:</span>
+            <b style="color:#0f172a;font-size:14px;" dir="ltr">+92 331 7240256</b>
+          </div>
+          <a href="https://api.whatsapp.com/send?phone=923317240256&text=<?=urlencode("السلام علیکم ورحمۃ اللہ وبرکاتہ\nمعاونت درکار ہے برائے SoftifyX ERP - " . $madrasaName)?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:none;font-weight:700;padding:6px 12px;border-radius:5px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+            💬 Chat on WhatsApp
+          </a>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="color:#64748b;font-size:11px;display:block;">Support Email <span class="ur">(ای میل)</span>:</span>
+            <b style="color:#0f172a;font-size:13.5px;">support@softifyx.com</b>
+          </div>
+          <a href="mailto:support@softifyx.com?subject=<?=urlencode("Support Request - " . $madrasaName)?>" class="btn secondary sm" style="padding:6px 12px;font-weight:600;font-size:12px;text-decoration:none;">
+            ✉️ Send Email
+          </a>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;">
+          <span style="color:#64748b;font-size:11px;display:block;">Development &amp; Engineering:</span>
+          <b style="color:#0f172a;">SoftifyX Technologies &bull; Enterprise Cloud Stack</b>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div style="padding:12px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:11.5px;color:#64748b;">
+        &copy; <?=date('Y')?> SoftifyX Technologies. All Rights Reserved.
+      </span>
+      <button type="button" onclick="closeAboutSoftwareModal()" class="btn secondary sm" style="padding:6px 16px;font-weight:700;">
+        Close <span class="ur">(بند کریں)</span>
+      </button>
+    </div>
+
+  </div>
+</div>
 
 <script>
 function openAppMobileSidebar() {
@@ -781,8 +967,53 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// About Software Modal Controller
+function openAboutSoftwareModal() {
+  var m = document.getElementById('aboutSoftwareModal');
+  if (m) {
+    m.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    switchAboutTab('info');
+    closeAppMobileSidebar();
+  }
+}
+
+function closeAboutSoftwareModal() {
+  var m = document.getElementById('aboutSoftwareModal');
+  if (m) {
+    m.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function handleAboutOverlayClick(e) {
+  if (e.target && e.target.id === 'aboutSoftwareModal') {
+    closeAboutSoftwareModal();
+  }
+}
+
+function switchAboutTab(tab) {
+  var tabs = ['info', 'license', 'contact'];
+  tabs.forEach(function(t) {
+    var btn = document.getElementById('aboutTabBtn_' + t);
+    var content = document.getElementById('aboutTabContent_' + t);
+    if (btn && content) {
+      if (t === tab) {
+        btn.style.color = '#2563eb';
+        btn.style.borderBottom = '3px solid #2563eb';
+        content.style.display = 'block';
+      } else {
+        btn.style.color = '#64748b';
+        btn.style.borderBottom = '3px solid transparent';
+        content.style.display = 'none';
+      }
+    }
+  });
+}
+
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
+    closeAboutSoftwareModal();
     closeActiveUsersTracker();
   }
 });

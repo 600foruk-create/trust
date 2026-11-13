@@ -1550,7 +1550,7 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         }
                                     }
                                     if (empty($displayFundName)) {
-                                        $displayFundName = 'Trust General Fund';
+                                        $displayFundName = is_madrasa_mode() ? 'Madrasa General Fund' : 'Trust General Fund';
                                     }
                                 ?>
                                     <tr>
@@ -1622,7 +1622,7 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                         'prior_arrears' => (float)$priorAmt,
                                                         'total_due_with_arrears' => (float)$totalDueAmt,
                                                         'fund_id' => (int)$fundToUse,
-                                                        'fund_name' => (string)($displayFundName ?: 'Trust General Fund'),
+                                                        'fund_name' => (string)($displayFundName ?: (is_madrasa_mode() ? 'Madrasa General Fund' : 'Trust General Fund')),
                                                         'month' => date('F Y', strtotime($selectedMonth . '-01')),
                                                         'target_date' => $pledgeVoucherDate,
                                                         'desc' => 'ماہانہ کفالت برائے فنڈ ' . ($displayFundName ?: 'جنرل') . ' بابت ماہ ' . $monthNameUrdu

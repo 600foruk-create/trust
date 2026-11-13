@@ -534,7 +534,7 @@ try {
             </tr>
             <tr>
                 <th>Fund Account <span class="ur">(فنڈ)</span></th>
-                <td><b><?=e($voucher['fund_name'] ?? 'Trust General Fund')?></b> (<?=e($voucher['fund_code'] ?? 'TGF')?>)</td>
+                <td><b><?=e($voucher['fund_name'] ?? (is_madrasa_mode() ? 'Madrasa General Fund' : 'Trust General Fund'))?></b> (<?=e($voucher['fund_code'] ?? (is_madrasa_mode() ? 'MGF' : 'TGF'))?>)</td>
             </tr>
             <tr>
                 <th>Payment Mode <span class="ur">(طریقہ ادائیگی)</span></th>

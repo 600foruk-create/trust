@@ -36,10 +36,11 @@ if ($bankAccount === '01020304050607') {
     } catch (Exception $e) {}
 }
 
-// Fetch active funds for selection
+// Fetch active funds for selection matching current organization mode
 $activeFunds = [];
 try {
-    $activeFunds = $pdo->query("SELECT id, name, fund_code, description, is_restricted FROM funds WHERE is_active = 1 ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $orgMode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
+    $activeFunds = $pdo->query("SELECT id, name, fund_code, description, is_restricted, scope FROM funds WHERE is_active = 1 AND scope IN ('all', '{$orgMode}') ORDER BY is_restricted ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $activeFunds = [];
 }
@@ -1082,8 +1083,8 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
                 <label class="fund-option">
                     <input type="radio" name="fund_id" value="<?=$genFundId?>" checked>
                     <div class="fund-box">
-                        <span class="fund-title">🌿 عمومی فلاحی فنڈ (General)</span>
-                        <span class="fund-desc">جہاں بھی ٹرسٹ کو سب سے زیادہ ضرورت ہو</span>
+                        <span class="fund-title">🌿 <?=is_madrasa_mode() ? 'عمومی تعلیمی فنڈ (Madrasa General)' : 'عمومی فلاحی فنڈ (Trust General)'?></span>
+                        <span class="fund-desc"><?=is_madrasa_mode() ? 'جہاں بھی مدرسہ کو سب سے زیادہ ضرورت ہو' : 'جہاں بھی ٹرسٹ کو سب سے زیادہ ضرورت ہو'?></span>
                     </div>
                 </label>
                 <?php foreach ($activeFunds as $af): 

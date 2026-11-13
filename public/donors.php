@@ -63,6 +63,19 @@ if (isset($_GET['delete_id'])) {
     }
 }
 
+// Dismiss invalid / unverified proof slip
+if (isset($_GET['dismiss_slip_id']) && has_permission('donors.manage')) {
+    $disId = (int)$_GET['dismiss_slip_id'];
+    $disToken = $_GET['token'] ?? '';
+    if (hash_equals($_SESSION['csrf_token'] ?? '', $disToken)) {
+        try {
+            $pdo->prepare("UPDATE donors SET proof_receipt_verified = 2 WHERE id = ?")->execute([$disId]);
+        } catch (Throwable $e) {}
+        header('Location: donors.php?success=slip_dismissed');
+        exit;
+    }
+}
+
 // Quick Receive Pledge (One-click Modal Receipt directly from Tracker)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'quick_receive_pledge') {
     verify_csrf();
@@ -181,6 +194,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $stmtLine->execute([$jeId, $incomeAccountId, $fundId, 'Donation/Income: ' . $narration, 0.00, $amount]);
 
                 $pdo->commit();
+                try {
+                    $pdo->prepare("UPDATE donors SET proof_receipt_verified = 1 WHERE id = ?")->execute([$donorId]);
+                } catch (Throwable $e) {}
 
                 $retMonth = trim($_POST['return_month'] ?? date('Y-m'));
                 $retFund = (int)($_POST['return_fund_id'] ?? 0);
@@ -188,11 +204,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                 header('Location: donors.php?tab=pledges&month=' . urlencode($retMonth) . '&pledge_fund_id=' . $retFund . '&pledge_status=' . urlencode($retStatus) . '&received_voucher_id=' . $voucherId . '&success=pledge_received');
                 exit;
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
                 }
-                $error = 'Error receiving pledge: ' . $e->getMessage();
+                $error = 'رسید جاری کرتے وقت خرابی پیش آئی: ' . $e->getMessage();
+                $activeTab = 'pledges';
             }
         }
     }
@@ -219,6 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $pledgeFrequency = in_array($_POST['pledge_frequency'] ?? '', ['monthly', 'annual', 'quarterly'], true) ? $_POST['pledge_frequency'] : 'monthly';
         $pledgeDay = max(1, min(28, (int)($_POST['pledge_day'] ?? 1)));
         $pledgeNotes = trim($_POST['pledge_notes'] ?? '');
+        $sponsoredBenId = !empty($_POST['sponsored_beneficiary_id']) ? (int)$_POST['sponsored_beneficiary_id'] : null;
 
         // Strict fund validation for restricted users
         if ($hasFundRestriction) {
@@ -237,8 +255,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $error = 'Please enter donor name.';
                 } else {
                     try {
-                        $stmt = $pdo->prepare('INSERT INTO donors (donor_name, phone, email, address, notes, fund_id, pledge_amount, pledge_fund_id, pledge_frequency, pledge_day, is_pledge_active, pledge_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-                        $stmt->execute([$name, $phone ?: null, $email ?: null, $address ?: null, $notes ?: null, $fundId, $pledgeAmount, $pledgeFundId, $pledgeFrequency, $pledgeDay, $pledgeActive, $pledgeNotes ?: null]);
+                        $stmt = $pdo->prepare('INSERT INTO donors (donor_name, phone, email, address, notes, fund_id, pledge_amount, pledge_fund_id, pledge_frequency, pledge_day, is_pledge_active, pledge_notes, sponsored_beneficiary_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                        $stmt->execute([$name, $phone ?: null, $email ?: null, $address ?: null, $notes ?: null, $fundId, $pledgeAmount, $pledgeFundId, $pledgeFrequency, $pledgeDay, $pledgeActive, $pledgeNotes ?: null, $sponsoredBenId]);
                         header('Location: donors.php?success=created');
                         exit;
                     } catch (Exception $e) {
@@ -258,8 +276,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                     if (empty($error)) {
                         try {
-                            $stmt = $pdo->prepare('UPDATE donors SET donor_name = ?, phone = ?, email = ?, address = ?, notes = ?, fund_id = ?, pledge_amount = ?, pledge_fund_id = ?, pledge_frequency = ?, pledge_day = ?, is_pledge_active = ?, pledge_notes = ? WHERE id = ?');
-                            $stmt->execute([$name, $phone ?: null, $email ?: null, $address ?: null, $notes ?: null, $fundId, $pledgeAmount, $pledgeFundId, $pledgeFrequency, $pledgeDay, $pledgeActive, $pledgeNotes ?: null, $donorId]);
+                            $stmt = $pdo->prepare('UPDATE donors SET donor_name = ?, phone = ?, email = ?, address = ?, notes = ?, fund_id = ?, pledge_amount = ?, pledge_fund_id = ?, pledge_frequency = ?, pledge_day = ?, is_pledge_active = ?, pledge_notes = ?, sponsored_beneficiary_id = ? WHERE id = ?');
+                            $stmt->execute([$name, $phone ?: null, $email ?: null, $address ?: null, $notes ?: null, $fundId, $pledgeAmount, $pledgeFundId, $pledgeFrequency, $pledgeDay, $pledgeActive, $pledgeNotes ?: null, $sponsoredBenId, $donorId]);
                             header('Location: donors.php?success=updated');
                             exit;
                         } catch (Exception $e) {
@@ -292,6 +310,12 @@ $showForm = !empty($editDonor) || (!empty($error) && $_SERVER['REQUEST_METHOD'] 
 // Fetch user allowed active Funds dynamically for categories
 $funds = get_user_allowed_funds();
 
+// Fetch active Beneficiaries for student sponsorship mapping
+$allBeneficiaries = [];
+try {
+    $allBeneficiaries = $pdo->query("SELECT id, full_name, category, department_class FROM beneficiaries WHERE is_active = 1 ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {}
+
 // Search and Fund Category Filter
 $search = trim($_GET['search'] ?? '');
 $filterFund = isset($_GET['fund_id']) ? (int)$_GET['fund_id'] : 0;
@@ -299,12 +323,14 @@ $filterFund = isset($_GET['fund_id']) ? (int)$_GET['fund_id'] : 0;
 $filterType = trim($_GET['filter_type'] ?? '');
 
 $query = "SELECT d.*, f.name AS fund_name, f.fund_code, f.is_restricted,
+          sb.full_name AS sponsored_student_name, sb.department_class AS sponsored_student_class,
           COALESCE(SUM(v.total_amount), 0) AS total_donated,
           COUNT(v.id) AS donations_count,
           MAX(v.id) AS latest_voucher_id,
           MAX(v.voucher_date) AS latest_voucher_date
           FROM donors d
           LEFT JOIN funds f ON f.id = d.fund_id
+          LEFT JOIN beneficiaries sb ON sb.id = d.sponsored_beneficiary_id
           LEFT JOIN vouchers v ON v.donor_id = d.id AND v.voucher_type='income' AND v.status='posted'
           WHERE 1=1";
 
@@ -358,6 +384,15 @@ if ($hasProofCol) {
         $withSlipCount = (int)$pdo->query("SELECT COUNT(*) FROM donors WHERE proof_receipt IS NOT NULL AND proof_receipt != ''")->fetchColumn();
     } catch (Throwable $e) {}
 }
+
+$unverifiedSlips = [];
+try {
+    $unverifiedSlips = $pdo->query("SELECT d.*, f.name AS fund_name, f.fund_code 
+        FROM donors d 
+        LEFT JOIN funds f ON f.id = COALESCE(d.pledge_fund_id, d.fund_id) 
+        WHERE d.proof_receipt IS NOT NULL AND d.proof_receipt != '' AND (d.proof_receipt_verified = 0 OR d.proof_receipt_verified IS NULL) 
+        ORDER BY d.id DESC LIMIT 15")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {}
 
 if ($hasFundRestriction) {
     $inFunds = implode(',', array_map('intval', $userFundIds));
@@ -419,6 +454,7 @@ if ($filterPledgeFund > 0) {
 
 // Fetch active pledgers
 $pledgeQuery = "SELECT d.*, f.name AS fund_name, f.fund_code, pf.name AS pledge_fund_name,
+                sb.full_name AS sponsored_student_name, sb.department_class AS sponsored_student_class,
                 COALESCE((
                     SELECT SUM(v.total_amount) 
                     FROM vouchers v 
@@ -430,6 +466,7 @@ $pledgeQuery = "SELECT d.*, f.name AS fund_name, f.fund_code, pf.name AS pledge_
                 FROM donors d
                 LEFT JOIN funds f ON f.id = d.fund_id
                 LEFT JOIN funds pf ON pf.id = d.pledge_fund_id
+                LEFT JOIN beneficiaries sb ON sb.id = d.sponsored_beneficiary_id
                 WHERE d.is_pledge_active = 1";
 if ($hasFundRestriction) {
     $inFunds = implode(',', array_map('intval', $userFundIds));
@@ -872,6 +909,87 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                 <small>Tracked donations</small>
             </article>
         </section>
+
+        <?php if (!empty($unverifiedSlips)): ?>
+        <!-- Online Payment Slips Verification Queue -->
+        <article class="panel" style="border:1.5px solid #10b981;background:#f0fdf4;margin-bottom:24px;border-radius:12px;box-shadow:0 4px 12px rgba(16,185,129,0.12);">
+            <div class="panel-heading" style="border-bottom:1px solid #bbf7d0;padding-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:26px;">📷</span>
+                    <div>
+                        <h3 style="margin:0;font-size:16px;color:#065f46;">آن لائن موصولہ ڈپازٹ سلپس و اسکرین شاٹس (Online Slips &mdash; <?=count($unverifiedSlips)?> زیرِ تصدیق)</h3>
+                        <p style="margin:2px 0 0;font-size:12px;color:#047857;">ڈونرز کے ذریعے اپلوڈ کردہ بینک پرچیوں کی تصدیق کر کے 1-کلک سے وصولی واؤچر جاری فرمائیں</p>
+                    </div>
+                </div>
+                <span class="badge" style="background:#10b981;color:#ffffff;font-weight:700;padding:4px 10px;border-radius:10px;font-size:12px;">
+                    <?=count($unverifiedSlips)?> Slips Pending Verification
+                </span>
+            </div>
+            <div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill, minmax(310px, 1fr));gap:14px;">
+                <?php foreach ($unverifiedSlips as $us): 
+                    $usAmount = (float)$us['pledge_amount'] > 0 ? (float)$us['pledge_amount'] : 0.00;
+                    $usPhoneClean = preg_replace('/[^0-9]/', '', $us['phone'] ?? '');
+                    if (!empty($usPhoneClean) && strpos($usPhoneClean, '0') === 0) $usPhoneClean = '92' . substr($usPhoneClean, 1);
+                    $usWaMsg = "السلام علیکم محترم " . $us['donor_name'] . " صاحب!\n" . $madrasaName . " کی جانب سے آپ کی اپلوڈ کردہ بینک رسید کی موصولی کا شکریہ۔ رقم کی تصدیق کے بعد باقاعدہ کمپیوٹرائزڈ رسید جلد ارسال کی جائے گی۔ جزاکم اللہ خیراً۔";
+                    $usWaUrl = "https://api.whatsapp.com/send?phone={$usPhoneClean}&text=" . urlencode($usWaMsg);
+                    
+                    $usFundId = (int)($us['pledge_fund_id'] ?: ($us['fund_id'] ?: 1));
+                    $usModalData = [
+                        'donor_id' => (int)$us['id'],
+                        'donor_name' => $us['donor_name'],
+                        'phone' => $us['phone'] ?? '',
+                        'amount' => $usAmount > 0 ? $usAmount : 1000,
+                        'due_amount' => $usAmount > 0 ? $usAmount : 1000,
+                        'prior_arrears' => 0.0,
+                        'total_due_with_arrears' => $usAmount > 0 ? $usAmount : 1000,
+                        'fund_id' => $usFundId,
+                        'fund_name' => (string)($us['fund_name'] ?: 'General Fund'),
+                        'month' => date('F Y'),
+                        'target_date' => date('Y-m-d'),
+                        'desc' => 'آن لائن موصولہ عطیہ تصدیق شدہ از سلپ برائے فنڈ ' . ($us['fund_name'] ?: 'جنرل')
+                    ];
+                ?>
+                    <div style="background:#ffffff;border:1.5px solid #a7f3d0;border-radius:10px;padding:14px;box-shadow:0 2px 5px rgba(0,0,0,0.04);display:flex;flex-direction:column;justify-content:space-between;">
+                        <div>
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                                <div>
+                                    <b style="font-size:15px;color:#0f172a;"><?=e($us['donor_name'])?></b>
+                                    <div style="font-size:12px;color:#475569;margin-top:2px;">📞 <?=e($us['phone'] ?: '—')?></div>
+                                </div>
+                                <span class="badge" style="background:#eff6ff;color:#1e40af;font-size:11px;font-weight:700;">
+                                    <?=e($us['fund_name'] ?: 'General')?>
+                                </span>
+                            </div>
+                            <?php if ($usAmount > 0): ?>
+                                <div style="font-size:13px;color:#15803d;font-weight:800;margin-bottom:10px;">
+                                    رقم: <?=money($usAmount)?>
+                                </div>
+                            <?php endif; ?>
+                            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin-bottom:12px;text-align:center;">
+                                <a href="<?=e($us['proof_receipt'])?>" target="_blank" title="پرچی پوری سائز میں دیکھیں" style="display:inline-block;text-decoration:none;">
+                                    <img src="<?=e($us['proof_receipt'])?>" alt="Deposit Slip" style="max-height:120px;max-width:100%;border-radius:4px;object-fit:cover;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                                    <div style="font-size:11px;color:#0369a1;font-weight:700;margin-top:4px;">🔍 کلک کر کے پرچی دیکھیں (View Slip)</div>
+                                </a>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid #f1f5f9;padding-top:10px;">
+                            <button type="button" class="btn success sm" style="background:#15803d;color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:5px;border:none;cursor:pointer;flex:1;" onclick='openQuickReceiveModal(<?=json_encode($usModalData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)?>)'>
+                                ✓ تصدیق و رسید جاری کریں
+                            </button>
+                            <?php if (!empty($usPhoneClean)): ?>
+                                <a href="<?=$usWaUrl?>" target="_blank" class="btn sm" style="background:#25D366;color:#fff;font-size:12px;padding:6px 10px;border-radius:5px;text-decoration:none;" title="Send WhatsApp">
+                                    💬
+                                </a>
+                            <?php endif; ?>
+                            <a href="donors.php?dismiss_slip_id=<?=$us['id']?>&token=<?=csrf_token()?>" class="btn secondary sm" style="font-size:11.5px;padding:6px 8px;border-radius:5px;" onclick="return confirm('کیا آپ واقعی اس پرچی کو مسترد / ہٹانا چاہتے ہیں؟');" title="Dismiss / Mark Invalid">
+                                ✕
+                            </a>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </article>
+        <?php endif; ?>
         <?php endif; ?>
 
         <!-- Professional Donor Form Card (Add / Edit) - Only for users with donors.manage permission -->
@@ -980,6 +1098,17 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                 <label style="font-size:12.5px; font-weight:600;">Expected Day <span class="ur">(متوقع تاریخ)</span></label>
                                 <input type="number" min="1" max="28" name="pledge_day" placeholder="1 to 28 (e.g. 5)" value="<?=e($editDonor['pledge_day'] ?? '1')?>">
                             </div>
+                            <div>
+                                <label style="font-size:12.5px; font-weight:600;">Sponsored Student / Beneficiary <span class="ur">(کفیل برائے طالب علم / یتیم)</span></label>
+                                <select name="sponsored_beneficiary_id">
+                                    <option value="">-- No Specific Student (عام کفالت فنڈ) --</option>
+                                    <?php foreach ($allBeneficiaries as $ben): ?>
+                                        <option value="<?=$ben['id']?>" <?=($editDonor && (int)($editDonor['sponsored_beneficiary_id'] ?? 0) === (int)$ben['id']) ? 'selected' : ''?>>
+                                            <?=e($ben['full_name'])?> (<?=e($ben['category'])?><?=!empty($ben['department_class']) ? ' - '.e($ben['department_class']) : ''?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                             <div style="grid-column: 1 / -1;">
                                 <label style="font-size:12.5px; font-weight:600;">Pledge Details / Tag <span class="ur">(تفصیل جیسے طالب علم، یتیم یا راشن کا نام)</span></label>
                                 <input name="pledge_notes" placeholder="e.g. Sponsorship for Student Ahmad Hifz Class, Ration pack support..." value="<?=e($editDonor['pledge_notes'] ?? '')?>">
@@ -1082,6 +1211,13 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                 <tr>
                                     <td>
                                         <b><?=e($d['donor_name'])?></b>
+                                        <?php if (!empty($d['sponsored_student_name'])): ?>
+                                            <div style="margin-top:3px;">
+                                                <span class="badge" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;" title="کفیل برائے طالب علم">
+                                                    🎓 کفیل: <?=e($d['sponsored_student_name'])?><?=!empty($d['sponsored_student_class']) ? ' ('.e($d['sponsored_student_class']).')' : ''?>
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
                                         <?php if (stripos($d['notes'] ?? '', 'آن لائن') !== false || stripos($d['notes'] ?? '', 'Online') !== false): ?>
                                             <span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;" title="آن لائن پورٹل سے رجسٹرڈ">
                                                 🌐 Online Lead
@@ -1129,6 +1265,9 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         </a>
                                         <a href="print_donor_certificate.php?id=<?=$d['id']?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#fffbeb;color:#92400e;border-color:#fde68a;" title="سندِ اعتراف و تشکر پرنٹ کریں">
                                             📜 سند
+                                        </a>
+                                        <a href="print_donor_statement.php?id=<?=$d['id']?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#f0fdf4;color:#166534;border-color:#bbf7d0;" title="سالانہ کھاتہ و عطیات اسٹیٹمنٹ پرنٹ کریں">
+                                            📊 کھاتہ
                                         </a>
                                         <?php 
                                         $dPhone = normalize_pakistan_phone($d['phone'] ?? '');
@@ -1557,6 +1696,13 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         <td style="text-align:center;color:#64748b;font-size:11px;"><?= $srNum++ ?></td>
                                         <td>
                                             <b><?=e($pl['donor_name'])?></b>
+                                            <?php if (!empty($pl['sponsored_student_name'])): ?>
+                                                <div style="margin-top:3px;">
+                                                    <span class="badge" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;" title="کفیل برائے طالب علم">
+                                                        🎓 کفیل: <?=e($pl['sponsored_student_name'])?><?=!empty($pl['sponsored_student_class']) ? ' ('.e($pl['sponsored_student_class']).')' : ''?>
+                                                    </span>
+                                                </div>
+                                            <?php endif; ?>
                                             <?php if (stripos($pl['notes'] ?? '', 'آن لائن') !== false || stripos($pl['pledge_notes'] ?? '', 'آن لائن') !== false || stripos($pl['notes'] ?? '', 'Online') !== false): ?>
                                                 <span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;" title="آن لائن پورٹل سے رجسٹرڈ">
                                                     🌐 Online
@@ -1635,10 +1781,29 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                         onclick='openQuickReceiveModal(<?=json_encode($quickReceiveData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)?>)'>
                                                     💰 Receive
                                                 </button>
-                                                <?php if (!empty($cleanPhone)): ?>
-                                                    <a href="<?=e($waUrl)?>" target="_blank" class="btn sm" style="background:#25D366;color:#fff;border-color:#25D366;padding:4px 9px;font-size:11.5px;font-weight:600;text-decoration:none;border-radius:4px;" title="Send polite WhatsApp Reminder">
+                                                <a href="print_donor_statement.php?id=<?=$pl['id']?>&year=<?=substr($selectedMonth, 0, 4)?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#f0fdf4;color:#166534;border-color:#bbf7d0;" title="سالانہ کھاتہ و عطیات اسٹیٹمنٹ">
+                                                    📊 کھاتہ
+                                                </a>
+                                                <?php if (!empty($cleanPhone)): 
+                                                    $waModalData = [
+                                                        'donor_id' => (int)$pl['id'],
+                                                        'donor_name' => $pl['donor_name'],
+                                                        'phone' => $cleanPhone,
+                                                        'amount' => (float)$pAmt,
+                                                        'due_amount' => (float)$dueAmt,
+                                                        'total_due' => (float)$totalDueAmt,
+                                                        'prior_arrears' => (float)$priorAmt,
+                                                        'month' => $monthNameUrdu,
+                                                        'month_en' => date('F Y', strtotime($selectedMonth . '-01')),
+                                                        'year' => substr($selectedMonth, 0, 4),
+                                                        'fund' => (string)($displayFundName ?: 'عام فنڈ'),
+                                                        'student' => (string)($pl['sponsored_student_name'] ?? ''),
+                                                        'is_paid' => $isPaid
+                                                    ];
+                                                ?>
+                                                    <button type="button" class="btn sm" style="background:#25D366;color:#fff;border-color:#25D366;padding:4px 9px;font-size:11.5px;font-weight:600;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Smart WhatsApp Reminders & Templates" onclick='openWhatsAppModal(<?=json_encode($waModalData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)?>)'>
                                                         💬 WhatsApp
-                                                    </a>
+                                                    </button>
                                                 <?php endif; ?>
                                                 <a href="donors.php?edit_id=<?=$pl['id']?>#donorFormCard" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;" title="Edit Donor">
                                                     ✏️
@@ -1936,6 +2101,73 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
             </div>
         </div>
 
+        <!-- Smart WhatsApp Message & Templates Modal -->
+        <div id="smartWhatsAppModal" class="modal-backdrop no-print" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:99999;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);">
+            <div style="background:#ffffff;border-radius:14px;width:100%;max-width:540px;box-shadow:0 25px 35px -5px rgba(0,0,0,0.3);overflow:hidden;border:1px solid #cbd5e1;">
+                <div style="padding:16px 20px;background:#15803d;color:#ffffff;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;">
+                        <span>📲</span>
+                        <span>Smart WhatsApp Message &amp; Templates <span class="ur">(واٹس ایپ پیغامات و ٹیمپلیٹس)</span></span>
+                    </div>
+                    <button type="button" onclick="closeWhatsAppModal()" style="background:transparent;border:none;color:#ffffff;font-size:24px;cursor:pointer;line-height:1;" title="Close">&times;</button>
+                </div>
+
+                <div style="padding:20px;">
+                    <!-- Donor Quick Info -->
+                    <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                        <div>
+                            <strong style="color:#166534;font-size:14px;" id="swm_donor_name">معاون</strong>
+                            <div style="font-size:12px;color:#15803d;" id="swm_donor_phone">0300-0000000</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="badge" style="background:#dcfce7;color:#15803d;font-weight:700;font-size:11px;" id="swm_due_badge">Due: Rs. 0</span>
+                            <div style="font-size:11px;color:#166534;margin-top:3px;" id="swm_fund_name">عام فنڈ</div>
+                        </div>
+                    </div>
+
+                    <!-- Template Selector -->
+                    <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;">
+                        Select Message Template <span class="ur">(پیغام کا عنوان و ٹیمپلیٹ منتخب کریں)</span>:
+                    </label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+                        <button type="button" id="tmplBtn_reminder" class="btn sm" onclick="selectWaTemplate('reminder')" style="font-size:11.5px;font-weight:700;padding:8px 10px;text-align:center;border-radius:6px;border:1.5px solid #16a34a;background:#ecfdf5;color:#166534;cursor:pointer;">
+                            📌 شائستہ یاد دہانی (Reminder)
+                        </button>
+                        <button type="button" id="tmplBtn_thankyou" class="btn sm" onclick="selectWaTemplate('thankyou')" style="font-size:11.5px;font-weight:700;padding:8px 10px;text-align:center;border-radius:6px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;">
+                            💖 شکریہ و دعائیہ پیغام (Thank You)
+                        </button>
+                        <button type="button" id="tmplBtn_appeal" class="btn sm" onclick="selectWaTemplate('appeal')" style="font-size:11.5px;font-weight:700;padding:8px 10px;text-align:center;border-radius:6px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;">
+                            📢 فلاحی اپیل (General Appeal)
+                        </button>
+                        <button type="button" id="tmplBtn_statement" class="btn sm" onclick="selectWaTemplate('statement')" style="font-size:11.5px;font-weight:700;padding:8px 10px;text-align:center;border-radius:6px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#475569;cursor:pointer;">
+                            📜 سالانہ کھاتہ لنک (Statement)
+                        </button>
+                    </div>
+
+                    <!-- Editable Message Textarea -->
+                    <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:6px;">
+                        Message Preview &amp; Edit <span class="ur">(پیغام کا پیش نظارہ - آپ اس میں ردوبدل بھی کر سکتے ہیں)</span>:
+                    </label>
+                    <textarea id="swm_message_text" rows="7" style="width:100%;font-size:13px;line-height:1.5;padding:10px 12px;border:1.5px solid #94a3b8;border-radius:6px;box-sizing:border-box;resize:vertical;font-family:inherit;direction:rtl;text-align:right;"></textarea>
+
+                    <!-- Footer Action Buttons -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:8px;">
+                        <button type="button" onclick="copyWaText()" class="btn secondary sm" style="font-weight:700;padding:8px 14px;">
+                            📋 Copy Text <span class="ur">(متن کاپی کریں)</span>
+                        </button>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" onclick="closeWhatsAppModal()" class="btn secondary sm" style="padding:8px 14px;">
+                                Cancel <span class="ur">(منسوخ)</span>
+                            </button>
+                            <button type="button" onclick="sendActiveWa()" class="btn sm" style="background:#25D366;color:#ffffff;border:none;font-weight:700;font-size:13px;padding:8px 18px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(37,211,102,0.3);">
+                                📲 Open in WhatsApp <span class="ur">(واٹس ایپ کھولیں)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <?=render_app_footer($madrasaName)?>
     </main>
 </div>
@@ -2166,6 +2398,117 @@ function copyPortalLink() {
     } else {
         prompt('آن لائن پورٹل کا لنک کاپی کریں:', url);
     }
+}
+
+var activeWaData = null;
+var currentWaTemplate = 'reminder';
+
+function openWhatsAppModal(data) {
+    if (!data) return;
+    activeWaData = data;
+    document.getElementById('swm_donor_name').textContent = data.donor_name || 'معاون';
+    document.getElementById('swm_donor_phone').textContent = data.phone ? ('📞 ' + data.phone) : 'بغیر فون';
+    var dueText = data.is_paid ? 'مکمل ادا (Paid)' : ('واجب الادا: Rs. ' + (data.due_amount || data.amount));
+    document.getElementById('swm_due_badge').textContent = dueText;
+    document.getElementById('swm_fund_name').textContent = '🏷️ ' + (data.fund || 'عام فنڈ');
+
+    selectWaTemplate(data.is_paid ? 'thankyou' : 'reminder');
+
+    var m = document.getElementById('smartWhatsAppModal');
+    if (m) m.style.display = 'flex';
+}
+
+function closeWhatsAppModal() {
+    var m = document.getElementById('smartWhatsAppModal');
+    if (m) m.style.display = 'none';
+}
+
+window.addEventListener('click', function(e) {
+    var m = document.getElementById('smartWhatsAppModal');
+    if (e.target === m) closeWhatsAppModal();
+});
+
+function selectWaTemplate(tmpl) {
+    currentWaTemplate = tmpl;
+    ['reminder', 'thankyou', 'appeal', 'statement'].forEach(function(t) {
+        var btn = document.getElementById('tmplBtn_' + t);
+        if (btn) {
+            if (t === tmpl) {
+                btn.style.border = '1.5px solid #16a34a';
+                btn.style.background = '#ecfdf5';
+                btn.style.color = '#166534';
+            } else {
+                btn.style.border = '1.5px solid #cbd5e1';
+                btn.style.background = '#f8fafc';
+                btn.style.color = '#475569';
+            }
+        }
+    });
+
+    if (!activeWaData) return;
+    var d = activeWaData;
+    var org = "<?=addslashes($madrasaName)?>";
+    var phone = "<?=addslashes($madrasaPhone)?>";
+    var portalUrl = "<?=e(get_app_base_url())?>/donate.php";
+    var statementUrl = "<?=e(get_app_base_url())?>/print_donor_statement.php?id=" + d.donor_id + "&year=" + (d.year || "<?=date('Y')?>");
+
+    var txt = "";
+    if (tmpl === 'reminder') {
+        var arrearsNote = (d.prior_arrears && d.prior_arrears > 0) ? ("\nاور سابقہ غیر ادا شدہ بقایا جات: Rs. " + Number(d.prior_arrears).toLocaleString() + "\nکل واجب الادا رقم: Rs. " + Number(d.total_due).toLocaleString()) : "";
+        txt = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" +
+              "محترم جناب *" + d.donor_name + "* صاحب!\n" +
+              org + " کی جانب سے دلی دعا اور نیک تمنائیں قبول فرمائیں۔\n\n" +
+              "آپ کی جانب سے مقررہ ماہانہ تعاون / کفالت برائے فنڈ (" + d.fund + ") بابت ماہ (" + d.month + ") رقم: Rs. " + Number(d.amount).toLocaleString() + arrearsNote + " کا شائستہ یاد دہانی پیغام ارسال خدمت ہے۔\n\n" +
+              (d.student ? ("🎓 زیرِ کفالت طالب علم: " + d.student + "\n\n") : "") +
+              "اگر آپ یہ رقم ادا فرما چکے ہیں تو برائے مہربانی رسید یا اسکرین شاٹ اس نمبر پر ارسال فرما دیں تاکہ ریکارڈ اپ ڈیٹ کیا جا سکے۔\n\n" +
+              "جزاکم اللہ خیراً و احسن الجزاء\n" +
+              org + (phone ? ("\nرابطہ: " + phone) : "");
+    } else if (tmpl === 'thankyou') {
+        txt = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" +
+              "محترم جناب *" + d.donor_name + "* صاحب!\n" +
+              org + " کی جانب سے دلی تشکر اور دعائیں قبول فرمائیں۔\n\n" +
+              "آپ کی جانب سے مقررہ تعاون برائے فنڈ (" + d.fund + ") کا موصولہ عطیہ ہمارے لیے انتہائی قابل قدر اور طلباء و مستحقین کے لیے تقویت کا باعث ہے۔\n\n" +
+              "اللہ تعالیٰ آپ کے جان، مال اور رزق میں خیر و برکت عطا فرمائے، اور دارین میں اس کا بہترین بدلہ عطا فرمائے۔ آمین۔\n\n" +
+              "جزاکم اللہ خیراً و احسن الجزاء\n" +
+              org + (phone ? ("\nرابطہ: " + phone) : "");
+    } else if (tmpl === 'appeal') {
+        txt = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" +
+              "محترم جناب *" + d.donor_name + "* صاحب!\n" +
+              "امید ہے آپ بخیر و عافیت ہوں گے۔ " + org + " میں دینی، تعلیمی و فلاحی خدمات کا سلسلہ آپ جیسے مخلص احباب کے تعاون سے جاری ہے۔\n\n" +
+              "اگر آپ اس ماہ کسی خصوصی فنڈ (طعام، یتامیٰ کفالت، تعمیرات) میں حصہ لینا چاہیں یا آن لائن عطیہ درج کرنا چاہیں تو درج ذیل لنک پر تشریف لائیں:\n" +
+              portalUrl + "\n\n" +
+              "جزاکم اللہ خیراً و احسن الجزاء\n" +
+              org;
+    } else if (tmpl === 'statement') {
+        txt = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" +
+              "محترم جناب *" + d.donor_name + "* صاحب!\n\n" +
+              org + " میں آپ کی جانب سے موصولہ تمام عطیات و کفالت کا باقاعدہ آڈٹ شدہ سالانہ کھاتہ و اسٹیٹمنٹ تیار ہے۔\n\n" +
+              "📄 اپنی مکمل اسٹیٹمنٹ ملاحظہ فرمانے کے لیے درج ذیل لنک پر کلک فرمائیں:\n" +
+              statementUrl + "\n\n" +
+              "جزاکم اللہ خیراً و احسن الجزاء\n" +
+              org;
+    }
+
+    document.getElementById('swm_message_text').value = txt;
+}
+
+function copyWaText() {
+    var ta = document.getElementById('swm_message_text');
+    if (ta && ta.value) {
+        navigator.clipboard.writeText(ta.value).then(function() {
+            alert('✓ پیغام کا متن کامیابی سے کاپی ہو گیا ہے!');
+        });
+    }
+}
+
+function sendActiveWa() {
+    if (!activeWaData) return;
+    var ta = document.getElementById('swm_message_text');
+    var msg = ta ? ta.value : '';
+    var phone = activeWaData.phone ? activeWaData.phone.replace(/[^0-9]/g, '') : '';
+    if (phone.indexOf('0') === 0) phone = '92' + phone.substring(1);
+    var url = "https://api.whatsapp.com/send?phone=" + encodeURIComponent(phone) + "&text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
 }
 
 function printPledges(mode) {

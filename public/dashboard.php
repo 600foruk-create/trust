@@ -19,6 +19,43 @@ $madrasaAddress = get_setting('madrasa_address', '');
 $madrasaPhone = get_setting('madrasa_phone', '');
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 
+// Today's Scheduled Monthly Pledges
+$todayDay = (int)date('j');
+$currentMonthStr = date('Y-m');
+$todayDuePledges = [];
+if (has_permission('donors.view')) {
+    try {
+        $assignedFundIds = get_user_assigned_fund_ids($userId);
+        $tpSql = "SELECT d.id, d.donor_name, d.phone, d.pledge_amount, d.pledge_day, d.notes,
+                         d.pledge_fund_id, d.fund_id,
+                         f.name AS fund_name, pf.name AS pledge_fund_name,
+                         sb.full_name AS sponsored_student_name,
+                         COALESCE((
+                             SELECT SUM(v.total_amount) 
+                             FROM vouchers v 
+                             WHERE v.donor_id = d.id 
+                               AND v.voucher_type = 'income' 
+                               AND v.status = 'posted' 
+                               AND v.voucher_date LIKE '{$currentMonthStr}%'
+                         ), 0) AS paid_this_month
+                  FROM donors d
+                  LEFT JOIN funds f ON f.id = d.fund_id
+                  LEFT JOIN funds pf ON pf.id = d.pledge_fund_id
+                  LEFT JOIN beneficiaries sb ON sb.id = d.sponsored_beneficiary_id
+                  WHERE d.is_pledge_active = 1 
+                    AND d.pledge_amount > 0 
+                    AND d.pledge_day = {$todayDay}";
+        if (!$canApprove && !empty($assignedFundIds)) {
+            $inF = implode(',', array_map('intval', $assignedFundIds));
+            $tpSql .= " AND (d.fund_id IN ($inF) OR d.pledge_fund_id IN ($inF))";
+        }
+        $tpSql .= " HAVING paid_this_month < pledge_amount ORDER BY d.donor_name ASC";
+        $todayDuePledges = $pdo->query($tpSql)->fetchAll() ?: [];
+    } catch (Throwable $e) {
+        $todayDuePledges = [];
+    }
+}
+
 if (!$canApprove) {
     // ==========================================
     // 1. DATA FOR REGULAR USER / CASHIER ONLY
@@ -303,6 +340,65 @@ if (!$canApprove) {
                 <span class="date-pill"><?=date('d M Y')?></span>
             </div>
         </section>
+
+        <?php if (!empty($todayDuePledges)): 
+            $todayTotalDue = 0;
+            foreach ($todayDuePledges as $tp) {
+                $todayTotalDue += max(0, (float)$tp['pledge_amount'] - (float)$tp['paid_this_month']);
+            }
+        ?>
+            <!-- Today's Scheduled Pledges Alert Banner -->
+            <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:22px;box-shadow:0 4px 6px -1px rgba(245,158,11,0.1);">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-bottom:1px solid #fef3c7;padding-bottom:12px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:24px;">🔔</span>
+                        <div>
+                            <strong style="color:#92400e;font-size:15px;">آج کے متوقع عطیات و اقساط (Today's Scheduled Pledges - <?=date('d F Y')?>)</strong>
+                            <div style="font-size:12px;color:#b45309;margin-top:2px;">
+                                آج <b><?=count($todayDuePledges)?></b> معاونین کے مقررہ عطیات کی تاریخ ہے &bull; کل متوقع رقم: <b><?=money($todayTotalDue)?></b>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="donors.php?tab=pledges&month=<?=date('Y-m')?>&pledge_status=pending" class="btn sm" style="background:#d97706;color:#ffffff;border:none;font-weight:700;padding:6px 14px;border-radius:6px;text-decoration:none;">
+                        📋 ٹریکر پر جائیں (Open Tracker)
+                    </a>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:10px;">
+                    <?php foreach ($todayDuePledges as $tp): 
+                        $tpDue = max(0, (float)$tp['pledge_amount'] - (float)$tp['paid_this_month']);
+                        $tpFund = $tp['pledge_fund_name'] ?: ($tp['fund_name'] ?: 'General');
+                        $tpPhone = normalize_pakistan_phone($tp['phone'] ?? '');
+                        $tpWaUrl = "";
+                        if (!empty($tpPhone)) {
+                            $tpMsg = "السلام علیکم ورحمۃ اللہ وبرکاتہ\nمحترم " . $tp['donor_name'] . " صاحب!\n" . $madrasaName . " کی جانب سے آپ کے مقررہ ماہانہ تعاون برائے (" . $tpFund . ") رقم: " . money($tpDue) . " کی آج تاریخ ادائیگی کے حوالے سے شائستہ یاد دہانی ارسال خدمت ہے۔ جزاکم اللہ خیراً۔";
+                            $tpWaUrl = "https://api.whatsapp.com/send?phone=" . urlencode($tpPhone) . "&text=" . urlencode($tpMsg);
+                        }
+                    ?>
+                        <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <b style="font-size:13px;color:#0f172a;display:block;"><?=e($tp['donor_name'])?></b>
+                                <div style="font-size:11.5px;color:#64748b;margin-top:2px;">
+                                    فنڈ: <span style="color:#0284c7;font-weight:600;"><?=e($tpFund)?></span> &bull; متوقع: <b style="color:#b91c1c;"><?=money($tpDue)?></b>
+                                </div>
+                                <?php if (!empty($tp['sponsored_student_name'])): ?>
+                                    <div style="font-size:10.5px;color:#047857;margin-top:2px;">🎓 طالب علم: <?=e($tp['sponsored_student_name'])?></div>
+                                <?php endif; ?>
+                            </div>
+                            <div style="display:flex;gap:4px;">
+                                <?php if (!empty($tpWaUrl)): ?>
+                                    <a href="<?=$tpWaUrl?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:none;padding:4px 8px;font-size:11px;border-radius:4px;text-decoration:none;" title="Send WhatsApp">
+                                        📲
+                                    </a>
+                                <?php endif; ?>
+                                <a href="donors.php?tab=pledges&month=<?=date('Y-m')?>" class="btn sm" style="background:#0284c7;color:#ffffff;border:none;padding:4px 8px;font-size:11px;border-radius:4px;text-decoration:none;" title="Receive">
+                                    💰
+                                </a>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <?php if (!$canApprove): ?>
             <!-- ============================================================== -->

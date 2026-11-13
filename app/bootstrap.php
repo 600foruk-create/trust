@@ -647,10 +647,18 @@ function run_schema_and_seed_migrations(PDO $pdo): void {
 
 // Auto-seed and schema migrations: version-cached to prevent heavy DDL on every page request
 try {
-    // Quick failsafe for new columns
+    // Quick failsafe for new columns in donors
     $chkProofCol = $pdo->query("SHOW COLUMNS FROM donors LIKE 'proof_receipt'")->fetch();
     if (!$chkProofCol) {
         $pdo->exec("ALTER TABLE donors ADD COLUMN proof_receipt VARCHAR(255) NULL AFTER notes");
+    }
+    $chkProofVer = $pdo->query("SHOW COLUMNS FROM donors LIKE 'proof_receipt_verified'")->fetch();
+    if (!$chkProofVer) {
+        $pdo->exec("ALTER TABLE donors ADD COLUMN proof_receipt_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER proof_receipt");
+    }
+    $chkSponBen = $pdo->query("SHOW COLUMNS FROM donors LIKE 'sponsored_beneficiary_id'")->fetch();
+    if (!$chkSponBen) {
+        $pdo->exec("ALTER TABLE donors ADD COLUMN sponsored_beneficiary_id BIGINT UNSIGNED NULL AFTER pledge_notes, ADD INDEX idx_donor_spon_ben (sponsored_beneficiary_id)");
     }
 } catch (Throwable $e) {}
 

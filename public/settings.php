@@ -393,7 +393,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Handle Settings Update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_settings') {
     verify_csrf();
-    $returnTab = in_array($_POST['return_tab'] ?? '', ['org', 'accounting', 'print'], true) ? $_POST['return_tab'] : 'org';
+    $returnTab = in_array($_POST['return_tab'] ?? '', ['org', 'donations', 'accounting', 'print'], true) ? $_POST['return_tab'] : 'org';
 
     try {
         $stmt = $pdo->prepare('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
@@ -498,6 +498,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute(['print_sign_title_3', $signTitle3]);
             $stmt->execute(['print_receipt_dua', $receiptDua]);
             $stmt->execute(['print_footer_note', $footerNote]);
+        }
+
+        // Save Online Donation & Bank Settings (when submitted from Donations Tab)
+        if (isset($_POST['donation_bank_title'])) {
+            $stmt->execute(['donation_bank_title', trim($_POST['donation_bank_title'] ?? '')]);
+            $stmt->execute(['donation_bank_name', trim($_POST['donation_bank_name'] ?? '')]);
+            $stmt->execute(['donation_bank_account', trim($_POST['donation_bank_account'] ?? '')]);
+            $stmt->execute(['donation_bank_iban', trim($_POST['donation_bank_iban'] ?? '')]);
+            $stmt->execute(['donation_easypaisa', trim($_POST['donation_easypaisa'] ?? '')]);
+            $stmt->execute(['donation_appeal_title', trim($_POST['donation_appeal_title'] ?? '')]);
+            $stmt->execute(['donation_appeal_text', trim($_POST['donation_appeal_text'] ?? '')]);
+            $stmt->execute(['donation_whatsapp', trim($_POST['donation_whatsapp'] ?? '')]);
         }
 
         header('Location: settings.php?tab=' . urlencode($returnTab) . '&success=saved');
@@ -698,6 +710,16 @@ $printSignTitle3 = $settingsRows['print_sign_title_3'] ?? (is_madrasa_mode() ? '
 $printReceiptDua = $settingsRows['print_receipt_dua'] ?? 'اللہ تعالیٰ آپ کے اس صدقہ و عطیہ کو شرف قبولیت بخشے، اور آپ کے جان و مال اور رزق میں بے شمار برکتیں عطا فرمائے۔ آمین۔';
 $printFooterNote = $settingsRows['print_footer_note'] ?? 'یہ ایک کمپیوٹرائزڈ آفیشل فنانشل رسید ہے۔ کسی دستی مہر کی ضرورت نہیں۔';
 
+// Online Donation Portal Settings
+$donationBankTitle = $settingsRows['donation_bank_title'] ?? $madrasaName;
+$donationBankName = $settingsRows['donation_bank_name'] ?? 'Meezan Bank Limited';
+$donationBankAccount = $settingsRows['donation_bank_account'] ?? '';
+$donationBankIban = $settingsRows['donation_bank_iban'] ?? '';
+$donationEasypaisa = $settingsRows['donation_easypaisa'] ?? $madrasaPhone;
+$donationAppealTitle = $settingsRows['donation_appeal_title'] ?? 'تعلیمی و فلاحی خدمات میں ہمارا ساتھ دیں';
+$donationAppealText = $settingsRows['donation_appeal_text'] ?? 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، تعلیم اور غریب گھرانوں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔';
+$donationWhatsapp = $settingsRows['donation_whatsapp'] ?? $madrasaPhone;
+
 // Fetch active users for admin password reset dropdown
 $allUsersList = $pdo->query("SELECT u.id, u.full_name, u.username, r.name AS role_name FROM users u JOIN roles r ON r.id = u.role_id WHERE u.is_active = 1 ORDER BY u.full_name ASC")->fetchAll();
 
@@ -732,7 +754,7 @@ $userRole = $currUser['role'] ?? '';
 $isSuperAdmin = in_array($userRole, ['Super Admin', 'Administrator'], true);
 
 // Available Navigation Tabs (Option A: Clean Top Tabs)
-$validTabs = ['org', 'accounting', 'print', 'security', 'backups'];
+$validTabs = ['org', 'donations', 'accounting', 'print', 'security', 'backups'];
 if ($isSuperAdmin) {
     $validTabs[] = 'danger';
 }
@@ -765,6 +787,9 @@ if (!in_array($activeTab, $validTabs, true)) {
         <div class="tab-nav no-print" style="margin-top:16px;margin-bottom:20px;">
             <a href="settings.php?tab=org" class="tab-link <?=$activeTab === 'org' ? 'active' : ''?>">
                 🏛️ Organization &amp; Identity <span class="ur">(ادارہ و ٹرسٹ تفصیلات)</span>
+            </a>
+            <a href="settings.php?tab=donations" class="tab-link <?=$activeTab === 'donations' ? 'active' : ''?>">
+                💳 Online Donations &amp; Bank Accounts <span class="ur">(آن لائن اپیل و بینک اکاؤنٹس)</span>
             </a>
             <a href="settings.php?tab=accounting" class="tab-link <?=$activeTab === 'accounting' ? 'active' : ''?>">
                 💼 Financial &amp; Accounting <span class="ur">(مالیاتی ترتیبات)</span>
@@ -892,6 +917,125 @@ if (!in_array($activeTab, $validTabs, true)) {
 
                         <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
                             <button class="btn blue" type="submit" style="padding:11px 24px;font-weight:700;">💾 Save Organization Details <span class="ur">(ادارے کی تفصیلات محفوظ کریں)</span></button>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </form>
+
+        <?php elseif ($activeTab === 'donations'): ?>
+        <!-- Tab: Online Donations & Official Bank Accounts -->
+        <form method="post" style="margin-top:14px;">
+            <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
+            <input type="hidden" name="action" value="save_settings">
+            <input type="hidden" name="return_tab" value="donations">
+
+            <div class="content-grid" style="grid-template-columns: 1fr; max-width: 900px;">
+                <article class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Online Donation Page &amp; Bank Accounts <span class="ur">(آن لائن اپیل و بینک اکاؤنٹس برائے عطیات)</span></h3>
+                            <p>Configure official bank details, EasyPaisa/JazzCash, and donation appeal text displayed on the public donation page</p>
+                        </div>
+                    </div>
+
+                    <div style="padding: 22px 26px;">
+                        <!-- Live Public Link Quick Banner -->
+                        <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+                            <div>
+                                <div style="font-weight:800;color:#065f46;font-size:14px;display:flex;align-items:center;gap:6px;">
+                                    <span>🌐</span>
+                                    <span>Public Donation &amp; Pledge Page URL:</span>
+                                </div>
+                                <div style="margin-top:4px;">
+                                    <code style="font-size:13.5px;color:#047857;background:#fff;padding:3px 8px;border-radius:6px;border:1px solid #6ee7b7;font-family:monospace;"><?=e(get_app_base_url())?>/donate.php</code>
+                                </div>
+                                <div style="font-size:12px;color:#047857;margin-top:4px;">
+                                    اس لنک کو فیس بک، واٹس ایپ اسٹیٹس یا اشتہارات پر شیئر کریں تاکہ ڈونرز باآسانی عطیات اور ماہانہ کفالت آن لائن درج کر سکیں۔
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <a href="<?=e(get_app_base_url())?>/donate.php" target="_blank" class="btn sm" style="background:#059669;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;">
+                                    👁️ View Live Page
+                                </a>
+                                <button type="button" class="btn secondary sm" style="border-radius:8px;" onclick="copyPortalLink()">
+                                    📋 Copy Link
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 1. Official Bank Account -->
+                        <div class="setting-section-title">
+                            <span>1. Official Bank Account <span class="ur">(آفیشل بینک اکاؤنٹ برائے رقوم منتقلی)</span></span>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group" style="margin-bottom:16px;">
+                                <label>Account Title <span class="ur">(اکاؤنٹ ٹائٹل)</span> *</label>
+                                <input name="donation_bank_title" value="<?=e($donationBankTitle)?>" placeholder="e.g. Mangalchai Welfare Organization" required>
+                                <small class="muted">Name of trust / entity on bank record</small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom:16px;">
+                                <label>Bank Name <span class="ur">(بینک کا نام)</span> *</label>
+                                <input name="donation_bank_name" value="<?=e($donationBankName)?>" placeholder="e.g. Meezan Bank Limited / HBL / Bank Alfalah" required>
+                                <small class="muted">Bank where trust holds its official account</small>
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group" style="margin-bottom:16px;">
+                                <label>Account Number <span class="ur">(اکاؤنٹ نمبر)</span> *</label>
+                                <input name="donation_bank_account" value="<?=e($donationBankAccount)?>" placeholder="e.g. 01020304050607" required style="font-family:monospace;letter-spacing:1px;">
+                                <small class="muted">Standard account number (1-click copy enabled for donors)</small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom:16px;">
+                                <label>IBAN Number <span class="ur">(آئی بی اے این نمبر - برائے بیرون ملک و آن لائن منتقلی)</span></label>
+                                <input name="donation_bank_iban" value="<?=e($donationBankIban)?>" placeholder="e.g. PK00MEZN0001020304050607" style="font-family:monospace;letter-spacing:1px;">
+                                <small class="muted">24-character International Bank Account Number</small>
+                            </div>
+                        </div>
+
+                        <!-- 2. Mobile Accounts / Wallets -->
+                        <div class="setting-section-title" style="margin-top:24px;">
+                            <span>2. Mobile Accounts &amp; Wallets <span class="ur">(ایزی پیسہ / جاز کیش اکاؤنٹ)</span></span>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label>EasyPaisa / JazzCash Details <span class="ur">(ایزی پیسہ و جاز کیش نمبر و ٹائٹل)</span></label>
+                            <input name="donation_easypaisa" value="<?=e($donationEasypaisa)?>" placeholder="e.g. 0331-7240256 (Title: Admin / Welfare Trust)">
+                            <small class="muted">Displayed on the public portal for quick mobile transfers.</small>
+                        </div>
+
+                        <!-- 3. Appeal Message & WhatsApp Office -->
+                        <div class="setting-section-title" style="margin-top:24px;">
+                            <span>3. Donation Appeal &amp; WhatsApp Office <span class="ur">(عوامی اپیل و واٹس ایپ تصدیق)</span></span>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label>Appeal Headline <span class="ur">(عوامی اپیل کی سرخی)</span></label>
+                            <input name="donation_appeal_title" value="<?=e($donationAppealTitle)?>" placeholder="e.g. تعلیمی و فلاحی خدمات میں ہمارا ساتھ دیں">
+                            <small class="muted">Main bold title shown at the top banner of the donation page.</small>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label>Appeal Description / Hadith <span class="ur">(تفصیلی پیغام یا ترغیب)</span></label>
+                            <textarea name="donation_appeal_text" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" placeholder="تفصیلی پیغام تحریر فرمائیں..."><?=e($donationAppealText)?></textarea>
+                            <small class="muted">Impact statement shown to donors before registration.</small>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:22px;">
+                            <label>Official WhatsApp Number for Receipt Confirmation <span class="ur">(رسیدیں وصول کرنے کا واٹس ایپ نمبر)</span></label>
+                            <input name="donation_whatsapp" value="<?=e($donationWhatsapp)?>" placeholder="e.g. +92 331 7240256">
+                            <small class="muted">When donor submits their donation/transfer, clicking "Send to WhatsApp" opens a chat with this number.</small>
+                        </div>
+
+                        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                            <button class="btn blue" type="submit" style="padding:11px 24px;font-weight:700;">💾 Save Donation &amp; Bank Settings <span class="ur">(ترتیبات محفوظ کریں)</span></button>
+                            <a href="<?=e(get_app_base_url())?>/donate.php" target="_blank" style="color:#059669;font-weight:700;font-size:13.5px;text-decoration:none;">
+                                🌐 Open Public Page in New Tab &rarr;
+                            </a>
                         </div>
                     </div>
                 </article>
@@ -1748,6 +1892,17 @@ document.getElementById('orgLogoInput')?.addEventListener('change', function(e) 
         reader.readAsDataURL(file);
     }
 });
+
+function copyPortalLink() {
+    var url = '<?=e(get_app_base_url())?>/donate.php';
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(function() {
+            alert('✓ آن لائن ڈونیشن پورٹل کا لنک کاپی ہو گیا ہے!\n\n' + url + '\n\nاسے واٹس ایپ یا فیس بک پر شیئر کریں۔');
+        });
+    } else {
+        prompt('آن لائن پورٹل کا لنک کاپی کریں:', url);
+    }
+}
 </script>
 </body>
 </html>

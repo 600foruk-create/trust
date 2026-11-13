@@ -749,6 +749,12 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                 <h1>Donors Directory <span class="ur">(معاونین و عطیہ دہندگان)</span></h1>
             </div>
             <div class="btn-row">
+                <a href="<?=e(get_app_base_url())?>/donate.php" target="_blank" class="btn secondary sm" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-weight:700;display:inline-flex;align-items:center;gap:5px;" title="عوامی ڈونیشن پورٹل اوپن کریں">
+                    🌐 Online Donation Page <span class="ur">(آن لائن پورٹل)</span>
+                </a>
+                <button type="button" class="btn secondary sm" style="display:inline-flex;align-items:center;gap:5px;" onclick="copyPortalLink()" title="آن لائن پورٹل کا لنک کاپی کر کے واٹس ایپ یا فیس بک پر شیئر کریں">
+                    🔗 Copy Link <span class="ur">(شیئر لنک)</span>
+                </button>
                 <?php if (has_permission('donors.manage')): ?>
                     <?php if ($editDonor): ?>
                         <a href="donors.php" class="btn secondary sm">✕ Cancel Editing <span class="ur">(منسوخ کریں)</span></a>
@@ -1015,6 +1021,11 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                 <tr>
                                     <td>
                                         <b><?=e($d['donor_name'])?></b>
+                                        <?php if (stripos($d['notes'] ?? '', 'آن لائن') !== false || stripos($d['notes'] ?? '', 'Online') !== false): ?>
+                                            <span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;" title="آن لائن پورٹل سے رجسٹرڈ">
+                                                🌐 Online Lead
+                                            </span>
+                                        <?php endif; ?>
                                         <?php if (!empty($d['is_pledge_active'])): ?>
                                             <span class="badge" style="background:#dcfce7;color:#15803d;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:700;">
                                                 🤝 Pledge: <?=money($d['pledge_amount'])?>/mo
@@ -1440,6 +1451,11 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         <td style="text-align:center;color:#64748b;font-size:11px;"><?= $srNum++ ?></td>
                                         <td>
                                             <b><?=e($pl['donor_name'])?></b>
+                                            <?php if (stripos($pl['notes'] ?? '', 'آن لائن') !== false || stripos($pl['pledge_notes'] ?? '', 'آن لائن') !== false || stripos($pl['notes'] ?? '', 'Online') !== false): ?>
+                                                <span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;" title="آن لائن پورٹل سے رجسٹرڈ">
+                                                    🌐 Online
+                                                </span>
+                                            <?php endif; ?>
                                             <?php if ($priorAmt > 0): ?>
                                                 <div style="margin-top:4px;">
                                                     <span class="badge" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;" title="Past unpaid arrears (سابقہ غیر ادا شدہ اقساط)">
@@ -2004,6 +2020,17 @@ window.addEventListener('click', function(e) {
     var b = document.getElementById('bulkRemindersModal');
     if (e.target === b) closeBulkRemindersModal();
 });
+
+function copyPortalLink() {
+    var url = '<?=e(get_app_base_url())?>/donate.php';
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(function() {
+            alert('✓ آن لائن ڈونیشن پورٹل کا لنک کاپی ہو گیا ہے!\n\n' + url + '\n\nاسے واٹس ایپ گروپس، اسٹیٹس یا سوشل میڈیا پر شیئر کریں تاکہ لوگ براہِ راست عطیات و کفالت درج کر سکیں۔');
+        });
+    } else {
+        prompt('آن لائن پورٹل کا لنک کاپی کریں:', url);
+    }
+}
 
 function printPledges(mode) {
     var originalTitle = document.title;

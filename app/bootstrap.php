@@ -1025,6 +1025,18 @@ function set_setting(string $key, string $value): bool {
     }
 }
 
+function get_app_base_url(): string {
+    global $config;
+    $configured = trim($config['app']['base_url'] ?? '');
+    if (!empty($configured)) {
+        return rtrim($configured, '/');
+    }
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+    return $scheme . '://' . $host . ($scriptDir && $scriptDir !== '/' ? $scriptDir : '');
+}
+
 function get_backup_dir(): string {
     $dir = dirname(__DIR__) . '/storage/backups';
     if (!is_dir($dir)) {
@@ -1449,6 +1461,10 @@ function build_whatsapp_receipt_url(array $voucher, string $madrasaName, string 
         $amountText = $voucher['foreign_currency'] . " " . number_format((float)$voucher['foreign_amount'], 2) . " (مساوی PKR " . $pkrAmount . ")";
     }
 
+    $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
+    $voucherId = (int)($voucher['id'] ?? 0);
+    $slipLink = ($voucherId > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$voucherId}" : '';
+
     $msg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
          . "محترم جناب *" . $donorName . "* صاحب!\n"
          . "*" . $madrasaName . "* کے لیے آپ کا عطیہ موصول ہو چکا ہے۔\n\n"
@@ -1456,8 +1472,14 @@ function build_whatsapp_receipt_url(array $voucher, string $madrasaName, string 
          . "📅 *تاریخ:* " . $vdate . "\n"
          . "💰 *رقم:* *" . $amountText . "*\n"
          . "🏷️ *فنڈ و مد:* " . $fundName . "\n"
-         . "💳 *طریقہ ادائیگی:* " . $method . "\n\n"
-         . "اللہ تعالیٰ آپ کے اس صدقہ و عطیہ کو شرف قبولیت بخشے، اور آپ کے جان و مال اور رزق میں بے شمار برکتیں عطا فرمائے۔ آمین۔\n\n"
+         . "💳 *طریقہ ادائیگی:* " . $method . "\n\n";
+
+    if (!empty($slipLink)) {
+        $msg .= "📄 *کمپیوٹرائزڈ رسید (PDF / Print Slip) دیکھنے یا ڈاؤن لوڈ کرنے کے لیے نیچے لنک پر کلک کریں:* \n"
+              . $slipLink . "\n\n";
+    }
+
+    $msg .= "اللہ تعالیٰ آپ کے اس صدقہ و عطیہ کو شرف قبولیت بخشے، اور آپ کے جان و مال اور رزق میں بے شمار برکتیں عطا فرمائے۔ آمین۔\n\n"
          . "جزاکم اللہ خیراً و احسن الجزاء\n"
          . "*" . $madrasaName . "*";
     if ($madrasaPhone) {

@@ -279,7 +279,8 @@ $filterFund = isset($_GET['fund_id']) ? (int)$_GET['fund_id'] : 0;
 
 $query = "SELECT d.*, f.name AS fund_name, f.fund_code, f.is_restricted,
           COALESCE(SUM(v.total_amount), 0) AS total_donated,
-          COUNT(v.id) AS donations_count
+          COUNT(v.id) AS donations_count,
+          MAX(v.id) AS latest_voucher_id
           FROM donors d
           LEFT JOIN funds f ON f.id = d.fund_id
           LEFT JOIN vouchers v ON v.donor_id = d.id AND v.voucher_type='income' AND v.status='posted'
@@ -671,6 +672,65 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
         .print-only {
             display: none;
         }
+
+        @media screen and (max-width: 768px) {
+            .topbar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+            .topbar .btn-row {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+            .topbar .btn-row button, .topbar .btn-row a {
+                flex: 1 1 auto !important;
+                justify-content: center !important;
+                text-align: center !important;
+                padding: 8px 12px !important;
+                font-size: 13px !important;
+            }
+            .panel-heading {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+            .panel-heading > div:last-child {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+            .panel-heading > div:last-child a, .panel-heading > div:last-child button {
+                flex: 1 1 auto !important;
+                justify-content: center !important;
+                text-align: center !important;
+                padding: 8px 10px !important;
+                font-size: 12.5px !important;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+            .tab-nav {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                white-space: nowrap !important;
+                display: flex !important;
+                padding-bottom: 4px !important;
+            }
+            .table-wrap {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                width: 100% !important;
+                margin-bottom: 16px !important;
+            }
+            table {
+                min-width: 600px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -980,11 +1040,31 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         <?php 
                                         $dPhone = normalize_pakistan_phone($d['phone'] ?? '');
                                         if (!empty($dPhone)): 
-                                            $orgName = app_setting('org_name', 'منگل چائے ویلفیئر آرگنائزیشن');
-                                            $msg = "السلام علیکم ورحمۃ اللہ وبرکاتہ جناب " . $d['donor_name'] . " صاحب!\nامید ہے آپ بخیر و عافیت ہوں گے۔\n" . $orgName . " کی جانب سے آپ کے تعاون اور دعاؤں کے دلی شکر گزار ہیں۔\nجزاکم اللہ خیرا۔";
-                                            $dWaUrl = 'https://api.whatsapp.com/send?phone=' . $dPhone . '&text=' . urlencode($msg);
+                                            $latestVId = (int)($d['latest_voucher_id'] ?? 0);
+                                            $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
+                                            $slipLink = ($latestVId > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$latestVId}" : '';
+                                            $msg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
+                                                 . "محترم جناب *" . $d['donor_name'] . "* صاحب!\n"
+                                                 . "امید ہے آپ بخیر و عافیت ہوں گے۔\n"
+                                                 . "*" . $madrasaName . "* کی جانب سے آپ کے مخلصانہ تعاون کا شکریہ اور مالیاتی تفصیل:\n\n"
+                                                 . "💰 *کل عطیات و معاونت اب تک:* *" . money($d['total_donated']) . "*\n"
+                                                 . "📋 *موصول شدہ رسیدات:* " . (int)$d['donations_count'] . " رسیدات\n";
+                                            if (!empty($d['fund_name'])) {
+                                                $msg .= "🏷️ *مخصوص فنڈ:* " . $d['fund_name'] . "\n";
+                                            }
+                                            if (!empty($slipLink)) {
+                                                $msg .= "\n📄 *حالیہ کمپیوٹرائزڈ موصولی رسید (Slip) دیکھنے یا پرنٹ کرنے کے لیے لنک کھولیں:* \n"
+                                                      . $slipLink . "\n";
+                                            }
+                                            $msg .= "\nاللہ تعالیٰ آپ کے اس صدقہ و خیرات کو قبول فرمائے اور آپ کے رزق، جان اور مال میں برکتیں عطا فرمائے۔ آمین۔\n\n"
+                                                 . "جزاکم اللہ خیراً و احسن الجزاء\n"
+                                                 . "*" . $madrasaName . "*";
+                                            if ($madrasaPhone) {
+                                                $msg .= "\nرابطہ دفتر: " . $madrasaPhone;
+                                            }
+                                            $dWaUrl = 'https://api.whatsapp.com/send?phone=' . urlencode($dPhone) . '&text=' . urlencode($msg);
                                         ?>
-                                            <a href="<?=e($dWaUrl)?>" target="_blank" class="btn sm" style="background:#25D366;color:#fff;border-color:#25D366;padding:4px 8px;font-size:11.5px;font-weight:600;text-decoration:none;" title="Chat / Send Greeting on WhatsApp">
+                                            <a href="<?=e($dWaUrl)?>" target="_blank" class="btn sm" style="background:#25D366;color:#fff;border:1px solid #16a34a;padding:4px 8px;font-size:11.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:3px;" title="Send Donation Summary & Slip on WhatsApp">
                                                 💬 WhatsApp
                                             </a>
                                         <?php endif; ?>
@@ -1175,6 +1255,27 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
 
                     <!-- Excel, PDF & Print Actions Toolbar (Top Right Corner - Exactly parallel with Title) -->
                     <div class="no-print" style="display:inline-flex;align-items:center;gap:8px;flex-shrink:0;">
+                        <?php
+                        $pledgesShareUrl = (function_exists('get_app_base_url') ? get_app_base_url() : '') . "/donors.php?tab=pledges&month=" . urlencode($selectedMonth);
+                        $waPledgesMsg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
+                                      . "🏢 *" . $madrasaName . "*\n"
+                                      . "🎯 *ماہانہ کفالت و اقساط وصولی رپورٹ (Monthly Pledges Tracker)*\n"
+                                      . "📅 *ماہ:* " . date('F Y', strtotime($selectedMonth . '-01')) . "\n"
+                                      . "----------------------------------------\n"
+                                      . "👥 *کل باقاعدہ معاونین:* " . count($activePledgers) . "\n"
+                                      . "🎯 *ماہانہ ہدف:* " . money($totalMonthlyPledged) . "\n"
+                                      . "✓ *موصول شدہ:* " . money($totalMonthlyReceived) . "\n"
+                                      . "⏳ *بقایا اقساط:* " . money($totalMonthlyPending) . "\n"
+                                      . "----------------------------------------\n"
+                                      . "📄 *مکمل رپورٹ اور پی ڈی ایف دیکھنے / ڈاؤن لوڈ کرنے کے لیے نیچے لنک پر کلک کریں:* \n"
+                                      . $pledgesShareUrl . "\n\n"
+                                      . "جزاکم اللہ خیراً\n*" . $madrasaName . "*";
+                        $waPledgesShareLink = "https://api.whatsapp.com/send?text=" . urlencode($waPledgesMsg);
+                        ?>
+                        <a href="<?=$waPledgesShareLink?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:1px solid #16a34a;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Share monthly pledges summary & PDF link on WhatsApp">
+                            💬 WhatsApp
+                        </a>
+
                         <!-- Excel Export Button -->
                         <a href="donors.php?tab=pledges&export=excel&month=<?=urlencode($selectedMonth)?>&pledge_fund_id=<?=$filterPledgeFund?>&pledge_status=<?=urlencode($filterPledgeStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Export filtered list to Excel (.CSV) - ایکسل ڈاؤنلوڈ">
                             📊 Excel

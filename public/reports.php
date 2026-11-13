@@ -368,6 +368,66 @@ $totalVouchersAmount = !empty($allVouchers) ? array_sum(array_column($allVoucher
         .dossier-table th { background: #f8fafc; color: #0f172a; font-weight: 700; text-align: left; }
         .dossier-table .right { text-align: right; }
         .dossier-title-bar { background: #0f172a; color: #fff; padding: 6px 12px; font-size: 13.5px; font-weight: 700; margin: 18px 0 10px; border-radius: 4px; display: flex; justify-content: space-between; }
+
+        @media screen and (max-width: 768px) {
+            .topbar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+            .topbar .btn-row {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+            .topbar .btn-row a, .topbar .btn-row button {
+                flex: 1 1 auto !important;
+                justify-content: center !important;
+                text-align: center !important;
+                padding: 9px 12px !important;
+                font-size: 13px !important;
+            }
+            .filter-bar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+            }
+            .filter-bar > div {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            .filter-bar input, .filter-bar select {
+                max-width: 60% !important;
+                width: 60% !important;
+            }
+            .filter-bar button {
+                width: 100% !important;
+                padding: 9px !important;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+            .tab-nav {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                white-space: nowrap !important;
+                display: flex !important;
+                padding-bottom: 4px !important;
+            }
+            .table-wrap {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                width: 100% !important;
+                margin-bottom: 16px !important;
+            }
+            table {
+                min-width: 580px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -450,6 +510,43 @@ $totalVouchersAmount = !empty($allVouchers) ? array_sum(array_column($allVoucher
         </div>
         <?php endif; ?>
 
+        <?php
+        $reportShareUrl = (function_exists('get_app_base_url') ? get_app_base_url() : '') . '/reports.php?' . http_build_query($_GET);
+        $reportPeriodText = date('d M Y', strtotime($fromDate)) . ' تا ' . date('d M Y', strtotime($toDate));
+
+        $waReportMsg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
+                     . "🏢 *" . $madrasaName . "*\n"
+                     . "📊 *" . $reportTitleUr . " (" . $reportTitleEn . ")*\n"
+                     . "📅 *مدت (Period):* " . $reportPeriodText . "\n";
+
+        if ($selectedRegionId > 0 && !empty($allRegions)) {
+            $rName = '';
+            foreach ($allRegions as $rg) { if ((int)$rg['id'] === $selectedRegionId) { $rName = $rg['name']; break; } }
+            $waReportMsg .= "🏛️ *صوبہ / ریجن:* " . $rName . "\n";
+        } else {
+            $waReportMsg .= "🏛️ *دائرہ کار (Scope):* ملک بھر کی مجموعی رپورٹ\n";
+        }
+
+        if ($reportType === 'vouchers') {
+            $waReportMsg .= "----------------------------------------\n"
+                          . "📝 *کل واؤچرز:* " . count($allVouchers) . "\n"
+                          . "💰 *مجموعی مالیت:* PKR " . number_format($totalVouchersAmount, 2) . "\n";
+        } else {
+            $waReportMsg .= "----------------------------------------\n"
+                          . "💰 *کل موصولی / آمدنی (Income):* PKR " . number_format($totalIncome, 2) . "\n"
+                          . "💸 *کل ادائیگیاں / اخراجات (Expense):* PKR " . number_format($totalExpense, 2) . "\n"
+                          . "⚖️ *خالص بچت / سرپلس (Net Balance):* PKR " . number_format($netSurplus, 2) . "\n";
+        }
+
+        $waReportMsg .= "----------------------------------------\n"
+                      . "📄 *مکمل کمپیوٹرائزڈ مالیاتی رپورٹ اور پی ڈی ایف دیکھنے / پرنٹ کرنے کے لیے نیچے لنک پر کلک کریں:* \n"
+                      . $reportShareUrl . "\n\n"
+                      . "جزاکم اللہ خیراً\n"
+                      . "*" . $madrasaName . "*";
+
+        $waReportShareLink = "https://api.whatsapp.com/send?text=" . urlencode($waReportMsg);
+        ?>
+
         <header class="topbar no-print">
             <div>
                 <span class="eyebrow">REPORTS</span>
@@ -464,9 +561,12 @@ $totalVouchersAmount = !empty($allVouchers) ? array_sum(array_column($allVoucher
                     <small style="color:var(--muted);"><span class="ur">ٹرسٹ / ادارے کا مجموعی مالیاتی گوشوارہ و فنڈ و پروجیکٹ وائز سرگرمی</span><span class="en-only" style="display:none;">Consolidated institution financial statements and fund activity</span></small>
                 <?php endif; ?>
             </div>
-            <div class="btn-row">
-                <button class="btn secondary sm" onclick="window.print()">
-                    🖨️ Print Report
+            <div class="btn-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <a href="<?=$waReportShareLink?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:1px solid #16a34a;font-weight:700;padding:7px 14px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);" title="Share summary & PDF link on WhatsApp (واٹس ایپ پر رپورٹ شیئر کریں)">
+                    💬 WhatsApp Share <span class="ur">(واٹس ایپ پر بھیجیں)</span>
+                </a>
+                <button class="btn secondary sm" onclick="window.print()" style="font-weight:700;padding:7px 14px;display:inline-flex;align-items:center;gap:6px;">
+                    🖨️ Print Report <span class="ur">(پرنٹ / پی ڈی ایف)</span>
                 </button>
             </div>
         </header>

@@ -310,15 +310,88 @@ try {
             padding-top: 8px;
         }
 
+        @media screen and (max-width: 840px) {
+            body { padding: 8px 6px !important; }
+            .toolbar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+                padding: 10px 12px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .toolbar-left {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 6px !important;
+                justify-content: center !important;
+                width: 100% !important;
+            }
+            .toolbar-btn {
+                flex: 1 1 auto !important;
+                justify-content: center !important;
+                padding: 7px 10px !important;
+                font-size: 12px !important;
+                text-align: center !important;
+            }
+            .page-a4 {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 20px 14px !important;
+                box-sizing: border-box !important;
+                border-radius: 6px !important;
+            }
+            .a4-header h1 {
+                font-size: 20px !important;
+            }
+            .a4-meta {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 6px !important;
+                padding: 10px 12px !important;
+            }
+            .a4-table {
+                font-size: 12px !important;
+            }
+            .a4-table th, .a4-table td {
+                padding: 8px 10px !important;
+            }
+            .amount-box {
+                padding: 12px 14px !important;
+                margin: 16px 0 !important;
+            }
+            .amount-box .amount-val {
+                font-size: 22px !important;
+            }
+            .a4-signatures {
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 18px !important;
+                margin-top: 26px !important;
+            }
+            .sig-block {
+                width: 180px !important;
+            }
+            .slip-thermal-container {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .slip-thermal {
+                width: 100% !important;
+                max-width: 330px !important;
+                box-sizing: border-box !important;
+            }
+        }
+
         @media print {
-            body { padding: 0; background: #fff; }
+            body { padding: 0 !important; margin: 0 !important; background: #fff !important; }
             .toolbar { display: none !important; }
-            .page-a4 { box-shadow: none; border: 1.5px solid #000; margin: 0; width: 100%; padding: 25px; }
+            .page-a4 { box-shadow: none !important; border: 1.5px solid #000 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; padding: 12mm 10mm !important; box-sizing: border-box !important; }
             .slip-thermal-container { width: 100% !important; margin: 0 !important; }
-            .slip-thermal { box-shadow: none; border: none; width: 76mm !important; max-width: 76mm !important; margin: 0 auto !important; padding: 2mm 1mm 10mm !important; }
+            .slip-thermal { box-shadow: none !important; border: none !important; width: 76mm !important; max-width: 76mm !important; margin: 0 auto !important; padding: 2mm 1mm 10mm !important; }
             .thermal-cut-line { color: #000 !important; border-color: #000 !important; }
             @page {
-                margin: <?= $format === 'thermal' ? '0mm' : '10mm' ?>;
+                margin: <?= $format === 'thermal' ? '0mm' : '8mm' ?>;
                 size: <?= $format === 'thermal' ? '80mm auto' : 'A4 portrait' ?>;
             }
         }
@@ -342,12 +415,35 @@ try {
             🧾 Thermal (2 Copies - معاون + دفتر)
         </a>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-        <?php if ($isIncome): 
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;">
+        <?php 
+        $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
+        $slipShareLink = !empty($baseUrl) ? "{$baseUrl}/print_voucher.php?id={$voucherId}" : '';
+
+        if ($isIncome): 
             $waUrl = function_exists('build_whatsapp_receipt_url') ? build_whatsapp_receipt_url($voucher, $madrasaName, $madrasaPhone) : '';
         ?>
             <a href="<?=$waUrl?>" target="_blank" class="toolbar-btn" style="background:#25D366;color:#ffffff;border-color:#22c55e;" title="ڈونر کو واٹس ایپ پر رسید بھیجیں">
                 📲 Send WhatsApp Receipt <span class="ur">(واٹس ایپ رسید)</span>
+            </a>
+        <?php else: 
+            $payeePhone = normalize_pakistan_phone($voucher['donor_phone'] ?? '');
+            $expMsg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
+                    . "محترم جناب *" . ($voucher['payee_name'] ?: 'محترم') . "* صاحب!\n"
+                    . "*" . $madrasaName . "* کی جانب سے ادائیگی واؤچر کی تفصیل:\n\n"
+                    . "📋 *واؤچر نمبر:* " . $voucher['voucher_no'] . "\n"
+                    . "📅 *تاریخ:* " . date('d-m-Y', strtotime($voucher['voucher_date'])) . "\n"
+                    . "💰 *رقم:* *PKR " . number_format((float)$voucher['total_amount'], 2) . "*\n"
+                    . "🏷️ *فنڈ و مد:* " . ($voucher['fund_name'] ?? 'General') . "\n\n";
+            if (!empty($slipShareLink)) {
+                $expMsg .= "📄 *کمپیوٹرائزڈ ادائیگی واؤچر سلپ دیکھنے یا پرنٹ کرنے کے لیے لنک:* \n"
+                         . $slipShareLink . "\n\n";
+            }
+            $expMsg .= "جزاکم اللہ خیراً\n*" . $madrasaName . "*";
+            $expWaUrl = "https://api.whatsapp.com/send?" . (!empty($payeePhone) ? "phone=" . urlencode($payeePhone) . "&" : "") . "text=" . urlencode($expMsg);
+        ?>
+            <a href="<?=$expWaUrl?>" target="_blank" class="toolbar-btn" style="background:#25D366;color:#ffffff;border-color:#22c55e;" title="واٹس ایپ پر واؤچر سلپ بھیجیں">
+                📲 Send WhatsApp Voucher <span class="ur">(واٹس ایپ واؤچر)</span>
             </a>
         <?php endif; ?>
         <button onclick="window.print()" class="toolbar-btn primary" style="background:#16a34a;border-color:#16a34a;">

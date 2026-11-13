@@ -234,7 +234,8 @@ $search = trim($_GET['search'] ?? '');
 
 $query = "SELECT b.*, f.name AS fund_name, f.fund_code, d.donor_name,
           COALESCE((SELECT SUM(v.total_amount) FROM vouchers v WHERE v.beneficiary_id = b.id AND v.status = 'posted'), 0) AS total_disbursed,
-          COALESCE((SELECT COUNT(v.id) FROM vouchers v WHERE v.beneficiary_id = b.id AND v.status = 'posted'), 0) AS vouchers_count
+          COALESCE((SELECT COUNT(v.id) FROM vouchers v WHERE v.beneficiary_id = b.id AND v.status = 'posted'), 0) AS vouchers_count,
+          COALESCE((SELECT MAX(v.id) FROM vouchers v WHERE v.beneficiary_id = b.id AND v.status = 'posted'), 0) AS latest_voucher_id
           FROM beneficiaries b
           LEFT JOIN funds f ON f.id = b.assigned_fund_id
           LEFT JOIN donors d ON d.id = b.assigned_donor_id
@@ -320,7 +321,15 @@ $trackerQuery = "SELECT b.*, f.name AS fund_name, f.fund_code, d.donor_name,
                       AND v.voucher_type = 'expense'
                       AND v.status = 'posted'
                       AND v.voucher_date LIKE '{$selectedMonth}%'
-                ), 0) AS paid_this_month
+                ), 0) AS paid_this_month,
+                COALESCE((
+                    SELECT MAX(v.id)
+                    FROM vouchers v
+                    WHERE v.beneficiary_id = b.id
+                      AND v.voucher_type = 'expense'
+                      AND v.status = 'posted'
+                      AND v.voucher_date LIKE '{$selectedMonth}%'
+                ), 0) AS this_month_voucher_id
                 FROM beneficiaries b
                 LEFT JOIN funds f ON f.id = b.assigned_fund_id
                 LEFT JOIN donors d ON d.id = b.assigned_donor_id
@@ -626,6 +635,65 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
         }
         .print-only {
             display: none;
+        }
+
+        @media screen and (max-width: 768px) {
+            .topbar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+            .topbar .btn-row {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+            .topbar .btn-row button, .topbar .btn-row a {
+                flex: 1 1 auto !important;
+                justify-content: center !important;
+                text-align: center !important;
+                padding: 8px 12px !important;
+                font-size: 13px !important;
+            }
+            .panel-heading {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+            .panel-heading > div:last-child {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+            .panel-heading > div:last-child a, .panel-heading > div:last-child button {
+                flex: 1 1 auto !important;
+                justify-content: center !important;
+                text-align: center !important;
+                padding: 8px 10px !important;
+                font-size: 12.5px !important;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+            .tab-nav {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                white-space: nowrap !important;
+                display: flex !important;
+                padding-bottom: 4px !important;
+            }
+            .table-wrap {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                width: 100% !important;
+                margin-bottom: 16px !important;
+            }
+            table {
+                min-width: 600px !important;
+            }
         }
     </style>
 </head>
@@ -1006,6 +1074,31 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                                                     onclick='openQuickStipendModal(<?=json_encode($quickStipendData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)?>)'>
                                                 💰 Stipend
                                             </button>
+                                            <?php 
+                                            $benPhone = normalize_pakistan_phone($b['phone'] ?? '');
+                                            if (!empty($benPhone)):
+                                                $latestVid = (int)($b['latest_voucher_id'] ?? 0);
+                                                $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
+                                                $slipLink = ($latestVid > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$latestVid}" : '';
+                                                $benMsg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
+                                                        . "محترم جناب *" . $b['full_name'] . "* صاحب!\n"
+                                                        . "*" . $madrasaName . "* کی جانب سے وظیفہ / تعلیمی و فلاحی کفالت ریکارڈ:\n\n"
+                                                        . "📋 *رجسٹریشن نمبر:* " . ($b['reg_no'] ?: ('#' . $b['id'])) . "\n"
+                                                        . "🏷️ *شعبہ / کیٹیگری:* " . ucfirst($b['category']) . ($b['department_class'] ? " (" . $b['department_class'] . ")" : "") . "\n"
+                                                        . "💰 *ماہانہ وظیفہ / تنخواہ:* " . ((float)$b['monthly_stipend_amount'] > 0 ? money($b['monthly_stipend_amount']) : "—") . "\n"
+                                                        . "💵 *کل ادا شدہ اب تک:* " . money($b['total_disbursed']) . " (" . $b['vouchers_count'] . " واؤچرز)\n\n";
+                                                if (!empty($slipLink)) {
+                                                    $benMsg .= "📄 *حالیہ کمپیوٹرائزڈ سلپ (PDF / Print) دیکھنے یا پرنٹ کرنے کے لیے لنک کھولیں:* \n"
+                                                             . $slipLink . "\n\n";
+                                                }
+                                                $benMsg .= "اللہ تعالیٰ آپ کو اور ادارے کو ہر میدان میں ترقی و کامیابی عطا فرمائے۔ آمین۔\n\n"
+                                                         . "جزاکم اللہ خیراً\n*" . $madrasaName . "*";
+                                                $benWaUrl = "https://api.whatsapp.com/send?phone=" . urlencode($benPhone) . "&text=" . urlencode($benMsg);
+                                            ?>
+                                                <a href="<?=$benWaUrl?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:1px solid #16a34a;padding:3px 8px;font-size:11.5px;font-weight:700;border-radius:4px;text-decoration:none;display:inline-flex;align-items:center;gap:3px;" title="Send Record & Slip via WhatsApp (واٹس ایپ پر بھیجیں)">
+                                                    💬 WhatsApp
+                                                </a>
+                                            <?php endif; ?>
                                             <?php if (has_permission('beneficiaries.manage')): ?>
                                                 <a href="beneficiaries.php?edit_id=<?=$b['id']?>#benFormCard" class="btn secondary sm" style="padding:3px 7px;font-size:11px;" title="Edit Details">
                                                     ✏️
@@ -1089,6 +1182,26 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
 
                     <!-- Action buttons -->
                     <div class="no-print" style="display:inline-flex;align-items:center;gap:8px;flex-shrink:0;">
+                        <?php
+                        $payrollShareUrl = (function_exists('get_app_base_url') ? get_app_base_url() : '') . "/beneficiaries.php?tab=tracker&month=" . urlencode($selectedMonth);
+                        $waPayrollMsg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
+                                      . "🏢 *" . $madrasaName . "*\n"
+                                      . "📋 *ماہانہ پے رول و وظائف رپورٹ (Monthly Payroll Tracker)*\n"
+                                      . "📅 *ماہ:* " . date('F Y', strtotime($selectedMonth . '-01')) . "\n"
+                                      . "----------------------------------------\n"
+                                      . "👥 *کل اساتذہ و طلبہ:* " . count($activeTrackerList) . "\n"
+                                      . "💰 *ماہانہ بجٹ:* " . money($totalTrackerBudget) . "\n"
+                                      . "✓ *ادا شدہ:* " . money($totalTrackerPaid) . "\n"
+                                      . "⏳ *بقایا و واجب الادا:* " . money($totalTrackerPending + $totalTrackerPriorArrears) . "\n"
+                                      . "----------------------------------------\n"
+                                      . "📄 *مکمل پے رول شیٹ اور پی ڈی ایف دیکھنے / ڈاؤن لوڈ کرنے کے لیے نیچے لنک پر کلک کریں:* \n"
+                                      . $payrollShareUrl . "\n\n"
+                                      . "جزاکم اللہ خیراً\n*" . $madrasaName . "*";
+                        $waPayrollShareLink = "https://api.whatsapp.com/send?text=" . urlencode($waPayrollMsg);
+                        ?>
+                        <a href="<?=$waPayrollShareLink?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:1px solid #16a34a;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Share monthly payroll summary & PDF link on WhatsApp">
+                            💬 WhatsApp
+                        </a>
                         <a href="beneficiaries.php?tab=tracker&export=excel&month=<?=urlencode($selectedMonth)?>&tracker_category=<?=urlencode($filterTrackerCat)?>&tracker_fund_id=<?=$filterTrackerFund?>&tracker_status=<?=urlencode($filterTrackerStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Export filtered payroll to Excel (.CSV) - ایکسل ڈاؤنلوڈ">
                             📊 Excel
                         </a>
@@ -1225,10 +1338,18 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                                             $cleanPhone = '92' . substr($cleanPhone, 1);
                                         }
                                     }
-                                    $waText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n" .
-                                              "محترم " . $row['full_name'] . " صاحب!\n" .
-                                              $madrasaName . " کی جانب سے ماہانہ وظیفہ / تنخواہ بابت ماہ " . date('F Y', strtotime($selectedMonth . '-01')) . 
-                                              ($isPaid ? " رقم: " . money($mStipend) . " ادا کر دی گئی ہے۔" : " واجب الادا رقم: " . money($totalDueAmt) . " ہے۔") . "\n\nجزاکم اللہ خیراً";
+                                    $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
+                                    $thisVid = (int)($row['this_month_voucher_id'] ?? 0);
+                                    $voucherSlipUrl = ($thisVid > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$thisVid}" : '';
+
+                                    $waText = "السلام علیکم و رحمۃ اللہ و برکاتہ\n\n" .
+                                              "محترم جناب *" . $row['full_name'] . "* صاحب!\n" .
+                                              "*" . $madrasaName . "* کی جانب سے ماہانہ وظیفہ / تنخواہ بابت ماہ *" . date('F Y', strtotime($selectedMonth . '-01')) . "*:\n\n" .
+                                              ($isPaid ? "✓ رقم: *" . money($mStipend) . "* ادا کر دی گئی ہے۔" : "⏳ واجب الادا رقم: *" . money($totalDueAmt) . "* ہے۔") . "\n\n";
+                                    if (!empty($voucherSlipUrl)) {
+                                        $waText .= "📄 *کمپیوٹرائزڈ ادائیگی واؤچر سلپ دیکھنے یا پرنٹ کرنے کے لیے لنک کھولیں:* \n" . $voucherSlipUrl . "\n\n";
+                                    }
+                                    $waText .= "جزاکم اللہ خیراً\n*" . $madrasaName . "*";
                                     $waUrl = !empty($cleanPhone) ? "https://api.whatsapp.com/send?phone={$cleanPhone}&text=" . urlencode($waText) : '';
                                 ?>
                                     <tr>

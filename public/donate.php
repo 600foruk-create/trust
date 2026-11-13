@@ -191,6 +191,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmtCheck->execute([$phoneNorm, $phoneRaw]);
             $existing = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
+            $hasProofCol = false;
+            try {
+                $hasProofCol = (bool)$pdo->query("SHOW COLUMNS FROM donors LIKE 'proof_receipt'")->fetch();
+            } catch (Throwable $e) {}
+
             $donorId = 0;
             if ($existing) {
                 $donorId = (int)$existing['id'];
@@ -198,67 +203,129 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $updatedNotes = $existingNotes ? ($existingNotes . "\n" . $portalNote) : $portalNote;
 
                 if ($isPledge) {
-                    $stmtUpd = $pdo->prepare("UPDATE donors SET 
-                        donor_name = COALESCE(NULLIF(?, ''), donor_name),
-                        address = COALESCE(NULLIF(?, ''), address),
-                        email = COALESCE(NULLIF(?, ''), email),
-                        notes = ?,
-                        proof_receipt = COALESCE(?, proof_receipt),
-                        pledge_amount = ?,
-                        pledge_fund_id = ?,
-                        pledge_frequency = 'monthly',
-                        pledge_day = ?,
-                        is_pledge_active = 1,
-                        pledge_notes = ?
-                        WHERE id = ?");
-                    $stmtUpd->execute([
-                        $donorName,
-                        $cityAddress,
-                        $email,
-                        $updatedNotes,
-                        $proofSlipPath,
-                        $pkrAmount,
-                        $validFundId,
-                        $pledgeDay,
-                        'آن لائن پورٹل سے فعال شدہ' . $currencyNotice,
-                        $donorId
-                    ]);
+                    if ($hasProofCol) {
+                        $stmtUpd = $pdo->prepare("UPDATE donors SET 
+                            donor_name = COALESCE(NULLIF(?, ''), donor_name),
+                            address = COALESCE(NULLIF(?, ''), address),
+                            email = COALESCE(NULLIF(?, ''), email),
+                            notes = ?,
+                            proof_receipt = COALESCE(?, proof_receipt),
+                            pledge_amount = ?,
+                            pledge_fund_id = ?,
+                            pledge_frequency = 'monthly',
+                            pledge_day = ?,
+                            is_pledge_active = 1,
+                            pledge_notes = ?
+                            WHERE id = ?");
+                        $stmtUpd->execute([
+                            $donorName,
+                            $cityAddress,
+                            $email,
+                            $updatedNotes,
+                            $proofSlipPath,
+                            $pkrAmount,
+                            $validFundId,
+                            $pledgeDay,
+                            'آن لائن پورٹل سے فعال شدہ' . $currencyNotice,
+                            $donorId
+                        ]);
+                    } else {
+                        $stmtUpd = $pdo->prepare("UPDATE donors SET 
+                            donor_name = COALESCE(NULLIF(?, ''), donor_name),
+                            address = COALESCE(NULLIF(?, ''), address),
+                            email = COALESCE(NULLIF(?, ''), email),
+                            notes = ?,
+                            pledge_amount = ?,
+                            pledge_fund_id = ?,
+                            pledge_frequency = 'monthly',
+                            pledge_day = ?,
+                            is_pledge_active = 1,
+                            pledge_notes = ?
+                            WHERE id = ?");
+                        $stmtUpd->execute([
+                            $donorName,
+                            $cityAddress,
+                            $email,
+                            $updatedNotes,
+                            $pkrAmount,
+                            $validFundId,
+                            $pledgeDay,
+                            'آن لائن پورٹل سے فعال شدہ' . $currencyNotice,
+                            $donorId
+                        ]);
+                    }
                 } else {
-                    $stmtUpd = $pdo->prepare("UPDATE donors SET 
-                        donor_name = COALESCE(NULLIF(?, ''), donor_name),
-                        address = COALESCE(NULLIF(?, ''), address),
-                        email = COALESCE(NULLIF(?, ''), email),
-                        notes = ?,
-                        proof_receipt = COALESCE(?, proof_receipt)
-                        WHERE id = ?");
-                    $stmtUpd->execute([
-                        $donorName,
-                        $cityAddress,
-                        $email,
-                        $updatedNotes,
-                        $proofSlipPath,
-                        $donorId
-                    ]);
+                    if ($hasProofCol) {
+                        $stmtUpd = $pdo->prepare("UPDATE donors SET 
+                            donor_name = COALESCE(NULLIF(?, ''), donor_name),
+                            address = COALESCE(NULLIF(?, ''), address),
+                            email = COALESCE(NULLIF(?, ''), email),
+                            notes = ?,
+                            proof_receipt = COALESCE(?, proof_receipt)
+                            WHERE id = ?");
+                        $stmtUpd->execute([
+                            $donorName,
+                            $cityAddress,
+                            $email,
+                            $updatedNotes,
+                            $proofSlipPath,
+                            $donorId
+                        ]);
+                    } else {
+                        $stmtUpd = $pdo->prepare("UPDATE donors SET 
+                            donor_name = COALESCE(NULLIF(?, ''), donor_name),
+                            address = COALESCE(NULLIF(?, ''), address),
+                            email = COALESCE(NULLIF(?, ''), email),
+                            notes = ?
+                            WHERE id = ?");
+                        $stmtUpd->execute([
+                            $donorName,
+                            $cityAddress,
+                            $email,
+                            $updatedNotes,
+                            $donorId
+                        ]);
+                    }
                 }
             } else {
-                $stmtIns = $pdo->prepare("INSERT INTO donors 
-                    (donor_name, phone, email, address, notes, proof_receipt, fund_id, pledge_amount, pledge_fund_id, pledge_frequency, pledge_day, is_pledge_active, pledge_notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmtIns->execute([
-                    $donorName,
-                    $phoneNorm,
-                    $email,
-                    $cityAddress,
-                    $portalNote,
-                    $proofSlipPath,
-                    $validFundId,
-                    $isPledge ? $pkrAmount : 0.00,
-                    $isPledge ? $validFundId : null,
-                    'monthly',
-                    $isPledge ? $pledgeDay : 1,
-                    $isPledge ? 1 : 0,
-                    $isPledge ? ('آن لائن رجسٹریشن' . $currencyNotice) : null
-                ]);
+                if ($hasProofCol) {
+                    $stmtIns = $pdo->prepare("INSERT INTO donors 
+                        (donor_name, phone, email, address, notes, proof_receipt, fund_id, pledge_amount, pledge_fund_id, pledge_frequency, pledge_day, is_pledge_active, pledge_notes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmtIns->execute([
+                        $donorName,
+                        $phoneNorm,
+                        $email,
+                        $cityAddress,
+                        $portalNote,
+                        $proofSlipPath,
+                        $validFundId,
+                        $isPledge ? $pkrAmount : 0.00,
+                        $isPledge ? $validFundId : null,
+                        'monthly',
+                        $isPledge ? $pledgeDay : 1,
+                        $isPledge ? 1 : 0,
+                        $isPledge ? ('آن لائن رجسٹریشن' . $currencyNotice) : null
+                    ]);
+                } else {
+                    $stmtIns = $pdo->prepare("INSERT INTO donors 
+                        (donor_name, phone, email, address, notes, fund_id, pledge_amount, pledge_fund_id, pledge_frequency, pledge_day, is_pledge_active, pledge_notes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmtIns->execute([
+                        $donorName,
+                        $phoneNorm,
+                        $email,
+                        $cityAddress,
+                        $portalNote,
+                        $validFundId,
+                        $isPledge ? $pkrAmount : 0.00,
+                        $isPledge ? $validFundId : null,
+                        'monthly',
+                        $isPledge ? $pledgeDay : 1,
+                        $isPledge ? 1 : 0,
+                        $isPledge ? ('آن لائن رجسٹریشن' . $currencyNotice) : null
+                    ]);
+                }
                 $donorId = (int)$pdo->lastInsertId();
             }
 

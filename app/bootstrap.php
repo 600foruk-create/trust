@@ -647,15 +647,23 @@ function run_schema_and_seed_migrations(PDO $pdo): void {
 
 // Auto-seed and schema migrations: version-cached to prevent heavy DDL on every page request
 try {
+    // Quick failsafe for new columns
+    $chkProofCol = $pdo->query("SHOW COLUMNS FROM donors LIKE 'proof_receipt'")->fetch();
+    if (!$chkProofCol) {
+        $pdo->exec("ALTER TABLE donors ADD COLUMN proof_receipt VARCHAR(255) NULL AFTER notes");
+    }
+} catch (Throwable $e) {}
+
+try {
     $schemaVer = get_setting('schema_version', '');
-    if ($schemaVer !== '2.5') {
+    if ($schemaVer !== '2.6') {
         run_schema_and_seed_migrations($pdo);
-        set_setting('schema_version', '2.5');
+        set_setting('schema_version', '2.6');
     }
 } catch (Throwable $e) {
     try {
         run_schema_and_seed_migrations($pdo);
-        set_setting('schema_version', '2.5');
+        set_setting('schema_version', '2.6');
     } catch (Throwable $ex) {}
 }
 

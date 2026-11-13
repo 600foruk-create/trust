@@ -308,14 +308,19 @@ if ($filterFund > 0) {
     $query .= " AND d.fund_id IS NULL";
 }
 
+$hasProofCol = false;
+try {
+    $hasProofCol = (bool)$pdo->query("SHOW COLUMNS FROM donors LIKE 'proof_receipt'")->fetch();
+} catch (Throwable $e) {}
+
 if ($filterType === 'online') {
     $query .= " AND (d.notes LIKE '%آن لائن%' OR d.notes LIKE '%Online%')";
-} elseif ($filterType === 'proof') {
+} elseif ($filterType === 'proof' && $hasProofCol) {
     $query .= " AND d.proof_receipt IS NOT NULL AND d.proof_receipt != ''";
 }
 
 if ($filterType === 'lapsed') {
-    $query .= " GROUP BY d.id HAVING (latest_voucher_date IS NULL OR latest_voucher_date < DATE_SUB(CURDATE(), INTERVAL 90 DAY)) ORDER BY d.id DESC";
+    $query .= " GROUP BY d.id HAVING (MAX(v.voucher_date) IS NULL OR MAX(v.voucher_date) < DATE_SUB(CURDATE(), INTERVAL 90 DAY)) ORDER BY d.id DESC";
 } else {
     $query .= " GROUP BY d.id ORDER BY d.id DESC";
 }
@@ -323,8 +328,17 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $donors = $stmt->fetchAll();
 
-$onlineLeadsCount = (int)$pdo->query("SELECT COUNT(*) FROM donors WHERE notes LIKE '%آن لائن%' OR notes LIKE '%Online%'")->fetchColumn();
-$withSlipCount = (int)$pdo->query("SELECT COUNT(*) FROM donors WHERE proof_receipt IS NOT NULL AND proof_receipt != ''")->fetchColumn();
+$onlineLeadsCount = 0;
+try {
+    $onlineLeadsCount = (int)$pdo->query("SELECT COUNT(*) FROM donors WHERE notes LIKE '%آن لائن%' OR notes LIKE '%Online%'")->fetchColumn();
+} catch (Throwable $e) {}
+
+$withSlipCount = 0;
+if ($hasProofCol) {
+    try {
+        $withSlipCount = (int)$pdo->query("SELECT COUNT(*) FROM donors WHERE proof_receipt IS NOT NULL AND proof_receipt != ''")->fetchColumn();
+    } catch (Throwable $e) {}
+}
 
 if ($hasFundRestriction) {
     $inFunds = implode(',', array_map('intval', $userFundIds));

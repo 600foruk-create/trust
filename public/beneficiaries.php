@@ -1092,6 +1092,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                         <a href="beneficiaries.php?tab=tracker&export=excel&month=<?=urlencode($selectedMonth)?>&tracker_category=<?=urlencode($filterTrackerCat)?>&tracker_fund_id=<?=$filterTrackerFund?>&tracker_status=<?=urlencode($filterTrackerStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Export filtered payroll to Excel (.CSV) - ایکسل ڈاؤنلوڈ">
                             📊 Excel
                         </a>
+                        <button type="button" onclick="window.print()" class="btn sm" style="background:#dc2626;color:#ffffff;border:1px solid #b91c1c;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Save / Download as PDF - پی ڈی ایف محفوظ کریں">
+                            📄 PDF
+                        </button>
                         <button type="button" onclick="window.print()" class="btn secondary sm" style="background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Print Official Payroll Sheet - پرنٹ کریں">
                             🖨️ Print
                         </button>
@@ -1100,26 +1103,26 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
 
                 <!-- Filters Bar -->
                 <div class="no-print" style="padding:14px 20px;background:#f8fafc;border-bottom:1px solid var(--line,#e2e8f0);">
-                    <form method="get" style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;">
+                    <form method="get" style="display:flex;align-items:center;flex-wrap:wrap;gap:12px 14px;">
                         <input type="hidden" name="tab" value="tracker">
 
                         <!-- Category Filter -->
                         <div style="display:inline-flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;">Category <span class="ur">(نوعیت)</span>:</label>
-                            <select name="tracker_category" onchange="this.form.submit()" style="padding:6px 12px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
-                                <option value="all">🏷️ All Categories (تمام)</option>
-                                <option value="staff" <?=$filterTrackerCat==='staff'?'selected':''?>>👨‍🏫 Staff / Teachers (اساتذہ و عملہ)</option>
-                                <option value="student" <?=$filterTrackerCat==='student'?'selected':''?>>🎓 Regular Students (طلبہ)</option>
-                                <option value="orphan" <?=$filterTrackerCat==='orphan'?'selected':''?>>🤝 Orphans / Yateem (یتیم بچے)</option>
-                                <option value="beneficiary" <?=$filterTrackerCat==='beneficiary'?'selected':''?>>🏠 Deserving Families (مستحقین)</option>
+                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;">CATEGORY :</label>
+                            <select name="tracker_category" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
+                                <option value="all">🏷️ All Categories</option>
+                                <option value="staff" <?=$filterTrackerCat==='staff'?'selected':''?>>👨‍🏫 Staff / Teachers</option>
+                                <option value="student" <?=$filterTrackerCat==='student'?'selected':''?>>🎓 Regular Students</option>
+                                <option value="orphan" <?=$filterTrackerCat==='orphan'?'selected':''?>>🤝 Orphans / Yateem</option>
+                                <option value="beneficiary" <?=$filterTrackerCat==='beneficiary'?'selected':''?>>🏠 Deserving Families</option>
                             </select>
                         </div>
 
                         <!-- Dedicated Fund Filter -->
                         <div style="display:inline-flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;">Fund <span class="ur">(فنڈ)</span>:</label>
-                            <select name="tracker_fund_id" onchange="this.form.submit()" style="padding:6px 12px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;min-width:160px;">
-                                <option value="0">All Funds (تمام فنڈز)</option>
+                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;">FUND :</label>
+                            <select name="tracker_fund_id" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;max-width:160px;">
+                                <option value="0">All Funds</option>
                                 <?php foreach ($funds as $f): ?>
                                     <option value="<?=$f['id']?>" <?=$filterTrackerFund === (int)$f['id'] ? 'selected' : ''?>>
                                         <?=e($f['name'])?> (<?=e($f['fund_code'])?>)
@@ -1130,18 +1133,18 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
 
                         <!-- Status Filter -->
                         <div style="display:inline-flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;">Status <span class="ur">(حیثیت)</span>:</label>
-                            <select name="tracker_status" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
-                                <option value="all" <?=$filterTrackerStatus === 'all' ? 'selected' : ''?>>All (تمام)</option>
-                                <option value="pending" <?=$filterTrackerStatus === 'pending' ? 'selected' : ''?>>⏳ Pending Only (غیر ادا شدہ)</option>
-                                <option value="paid" <?=$filterTrackerStatus === 'paid' ? 'selected' : ''?>>✓ Paid Only (مکمل ادا)</option>
+                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;">STATUS :</label>
+                            <select name="tracker_status" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
+                                <option value="all" <?=$filterTrackerStatus === 'all' ? 'selected' : ''?>>All</option>
+                                <option value="pending" <?=$filterTrackerStatus === 'pending' ? 'selected' : ''?>>⏳ Pending Only</option>
+                                <option value="paid" <?=$filterTrackerStatus === 'paid' ? 'selected' : ''?>>✓ Paid Only</option>
                             </select>
                         </div>
 
                         <!-- Select Month -->
                         <div style="display:inline-flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;">Month <span class="ur">(مہینہ)</span>:</label>
-                            <input type="month" name="month" value="<?=e($selectedMonth)?>" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
+                            <label style="font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;">MONTH :</label>
+                            <input type="month" name="month" value="<?=e($selectedMonth)?>" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;background:#ffffff;font-weight:600;color:#0f172a;cursor:pointer;">
                         </div>
 
                         <?php if ($filterTrackerCat !== 'all' || $filterTrackerFund !== 0 || $filterTrackerStatus !== 'all' || $selectedMonth !== date('Y-m')): ?>

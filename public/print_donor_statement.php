@@ -474,3 +474,4 @@ $autoPrint = isset($_GET['autoprint']) && $_GET['autoprint'] === '1';
     <?php endif; ?>
 </body>
 </html>
+

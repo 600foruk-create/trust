@@ -1037,6 +1037,12 @@ function get_app_base_url(): string {
     return $scheme . '://' . $host . ($scriptDir && $scriptDir !== '/' ? $scriptDir : '');
 }
 
+function get_voucher_public_token(int $voucherId): string {
+    global $config;
+    $secret = $config['app']['session_name'] ?? 'madrasa_trust_public_key_2026';
+    return substr(hash_hmac('sha256', "voucher_public_verify_{$voucherId}", $secret), 0, 16);
+}
+
 function get_backup_dir(): string {
     $dir = dirname(__DIR__) . '/storage/backups';
     if (!is_dir($dir)) {
@@ -1463,7 +1469,10 @@ function build_whatsapp_receipt_url(array $voucher, string $madrasaName, string 
 
     $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
     $voucherId = (int)($voucher['id'] ?? 0);
-    $slipLink = ($voucherId > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$voucherId}" : '';
+    $slipToken = ($voucherId > 0 && function_exists('get_voucher_public_token')) ? get_voucher_public_token($voucherId) : '';
+    $slipLink = ($voucherId > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$voucherId}" . (!empty($slipToken) ? "&token={$slipToken}" : '') : '';
+
+    $receiptDua = get_setting('print_receipt_dua', 'اللہ تعالیٰ آپ کے اس صدقہ و عطیہ کو شرف قبولیت بخشے، اور آپ کے جان و مال اور رزق میں بے شمار برکتیں عطا فرمائے۔ آمین۔');
 
     $msg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
          . "محترم جناب *" . $donorName . "* صاحب!\n"
@@ -1479,7 +1488,7 @@ function build_whatsapp_receipt_url(array $voucher, string $madrasaName, string 
               . $slipLink . "\n\n";
     }
 
-    $msg .= "اللہ تعالیٰ آپ کے اس صدقہ و عطیہ کو شرف قبولیت بخشے، اور آپ کے جان و مال اور رزق میں بے شمار برکتیں عطا فرمائے۔ آمین۔\n\n"
+    $msg .= $receiptDua . "\n\n"
          . "جزاکم اللہ خیراً و احسن الجزاء\n"
          . "*" . $madrasaName . "*";
     if ($madrasaPhone) {

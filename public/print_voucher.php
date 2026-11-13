@@ -1,6 +1,5 @@
 <?php
 require __DIR__ . '/../app/bootstrap.php';
-require_login();
 
 $voucherId = (int)($_GET['id'] ?? 0);
 $defaultFormatSetting = get_setting('print_default_format', 'a4');
@@ -33,20 +32,33 @@ if (!$voucher) {
     exit('Voucher not found.');
 }
 
-// Access Control & IDOR Protection:
-$currUser = current_user();
-$currUserId = (int)($currUser['id'] ?? 0);
-$isSuperAdmin = function_exists('is_super_admin') ? is_super_admin($currUser) : in_array($currUser['role'] ?? '', ['Super Admin', 'Administrator'], true);
-
-if (!$isSuperAdmin && $currUserId !== (int)$voucher['created_by']) {
-    $userRegionId = function_exists('get_user_region_id') ? get_user_region_id($currUserId) : 0;
-    if ($userRegionId > 0 && !empty($voucher['region_id']) && (int)$voucher['region_id'] !== $userRegionId) {
-        http_response_code(403);
-        exit('Access Denied: You do not have permission to view or print vouchers from another province/region.');
+// Check for public verification token (allows donors/payees to securely view receipt from WhatsApp without ERP login)
+$publicToken = trim($_GET['token'] ?? '');
+$isPublicVerified = false;
+if (!empty($publicToken) && function_exists('get_voucher_public_token')) {
+    $expectedToken = get_voucher_public_token($voucherId);
+    if (!empty($expectedToken) && hash_equals($expectedToken, $publicToken)) {
+        $isPublicVerified = true;
     }
-    if (!empty($voucher['fund_id']) && function_exists('is_fund_allowed_for_user') && !is_fund_allowed_for_user((int)$voucher['fund_id'], $currUser)) {
-        http_response_code(403);
-        exit('Access Denied: You do not have permission to view or print vouchers for this fund.');
+}
+
+// Access Control & IDOR Protection for internal users:
+if (!$isPublicVerified) {
+    require_login();
+    $currUser = current_user();
+    $currUserId = (int)($currUser['id'] ?? 0);
+    $isSuperAdmin = function_exists('is_super_admin') ? is_super_admin($currUser) : in_array($currUser['role'] ?? '', ['Super Admin', 'Administrator'], true);
+
+    if (!$isSuperAdmin && $currUserId !== (int)$voucher['created_by']) {
+        $userRegionId = function_exists('get_user_region_id') ? get_user_region_id($currUserId) : 0;
+        if ($userRegionId > 0 && !empty($voucher['region_id']) && (int)$voucher['region_id'] !== $userRegionId) {
+            http_response_code(403);
+            exit('Access Denied: You do not have permission to view or print vouchers from another province/region.');
+        }
+        if (!empty($voucher['fund_id']) && function_exists('is_fund_allowed_for_user') && !is_fund_allowed_for_user((int)$voucher['fund_id'], $currUser)) {
+            http_response_code(403);
+            exit('Access Denied: You do not have permission to view or print vouchers for this fund.');
+        }
     }
 }
 
@@ -402,23 +414,31 @@ try {
 <!-- Interactive Toolbar (Hidden during print) -->
 <div class="toolbar">
     <div class="toolbar-left">
-        <a href="<?= $isIncome ? 'income.php' : 'expenses.php' ?>" class="toolbar-btn">
-            &larr; Back
-        </a>
-        <a href="print_voucher.php?id=<?=$voucherId?>&format=a4" class="toolbar-btn <?=$format==='a4'?'active':''?>">
+        <?php if (!$isPublicVerified): ?>
+            <a href="<?= $isIncome ? 'income.php' : 'expenses.php' ?>" class="toolbar-btn">
+                &larr; Back
+            </a>
+        <?php else: ?>
+            <span style="font-size:12px;font-weight:700;color:#15803d;padding:6px 10px;background:#dcfce7;border:1px solid #86efac;border-radius:6px;display:inline-flex;align-items:center;gap:5px;">
+                ✓ Official Verified Voucher <span class="ur">(تصدیق شدہ آفیشل کمپیوٹرائزڈ واؤچر)</span>
+            </span>
+        <?php endif; ?>
+        <?php $tokenParam = $isPublicVerified ? '&token=' . urlencode($publicToken) : ''; ?>
+        <a href="print_voucher.php?id=<?=$voucherId?>&format=a4<?=$tokenParam?>" class="toolbar-btn <?=$format==='a4'?'active':''?>">
             📄 A4 Full Voucher
         </a>
-        <a href="print_voucher.php?id=<?=$voucherId?>&format=thermal&copies=1" class="toolbar-btn <?=$format==='thermal'&&$copies===1?'active':''?>">
+        <a href="print_voucher.php?id=<?=$voucherId?>&format=thermal&copies=1<?=$tokenParam?>" class="toolbar-btn <?=$format==='thermal'&&$copies===1?'active':''?>">
             🧾 Thermal Slip (1 Copy)
         </a>
-        <a href="print_voucher.php?id=<?=$voucherId?>&format=thermal&copies=2" class="toolbar-btn <?=$format==='thermal'&&$copies===2?'active':''?>" title="معاون اور دفتر کے لیے دو کاپیاں ایک ساتھ">
+        <a href="print_voucher.php?id=<?=$voucherId?>&format=thermal&copies=2<?=$tokenParam?>" class="toolbar-btn <?=$format==='thermal'&&$copies===2?'active':''?>" title="معاون اور دفتر کے لیے دو کاپیاں ایک ساتھ">
             🧾 Thermal (2 Copies - معاون + دفتر)
         </a>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;">
         <?php 
         $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
-        $slipShareLink = !empty($baseUrl) ? "{$baseUrl}/print_voucher.php?id={$voucherId}" : '';
+        $slipPubToken = function_exists('get_voucher_public_token') ? get_voucher_public_token($voucherId) : '';
+        $slipShareLink = !empty($baseUrl) ? "{$baseUrl}/print_voucher.php?id={$voucherId}&token={$slipPubToken}" : '';
 
         if ($isIncome): 
             $waUrl = function_exists('build_whatsapp_receipt_url') ? build_whatsapp_receipt_url($voucher, $madrasaName, $madrasaPhone) : '';

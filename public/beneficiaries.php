@@ -62,6 +62,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
         $referenceNo = trim($_POST['reference_no'] ?? '');
         $description = trim($_POST['description'] ?? '');
+        $adjType = trim($_POST['adjustment_type'] ?? 'none');
+        $adjAmount = (float)($_POST['adjustment_amount'] ?? 0);
+        $adjReason = trim($_POST['adjustment_reason'] ?? '');
+        if ($adjAmount > 0 && in_array($adjType, ['bonus', 'deduction'], true)) {
+            if ($adjType === 'bonus') {
+                $description .= " [بشمول عیدی / الاؤنس: +PKR " . number_format($adjAmount, 2) . (!empty($adjReason) ? " ({$adjReason})" : "") . "]";
+            } else {
+                $description .= " [بشمول کٹوتی غیر حاضری: -PKR " . number_format($adjAmount, 2) . (!empty($adjReason) ? " ({$adjReason})" : "") . "]";
+            }
+        }
         $assetAccountId = (int)($_POST['asset_account_id'] ?? 0);
 
         $userCashAcc = get_or_create_user_cash_account($pdo, $userId);
@@ -163,6 +173,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $pdo->rollBack();
                 }
                 $error = 'ادائیگی واؤچر بنانے میں خرابی: ' . $e->getMessage();
+            }
+        }
+    }
+}
+
+// Handle Batch Pay Stipends (Mass Disbursement in 1 Click)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'batch_pay_stipends') {
+    verify_csrf();
+    if (!has_permission('vouchers.create') && !has_permission('expenses.create') && !has_permission('expense.create') && !has_permission('beneficiaries.manage') && !can_approve()) {
+        $error = 'آپ کے پاس اجتماعی ادائیگی واؤچر جاری کرنے کا اختیار نہیں ہے۔';
+    } else {
+        $selectedBens = $_POST['selected_beneficiary_ids'] ?? [];
+        $date = trim($_POST['voucher_date'] ?? date('Y-m-d'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
+        $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
+        $assetAccountId = (int)($_POST['asset_account_id'] ?? 0);
+        $monthLabel = trim($_POST['month_label'] ?? date('F Y'));
+
+        $userCashAcc = get_or_create_user_cash_account($pdo, $userId);
+        $userCashAccId = (int)($userCashAcc['id'] ?? 0);
+        if ($assetAccountId <= 0) $assetAccountId = $userCashAccId;
+
+        if (empty($selectedBens) || !is_array($selectedBens)) {
+            $error = 'براہ کرم کم از کم ایک امیدوار یا استاد منتخب کریں۔';
+        } else {
+            $countSuccess = 0;
+            $pdo->beginTransaction();
+            try {
+                $isDirectPost = has_permission('voucher.direct_post') || can_approve();
+                $voucherStatus = $isDirectPost ? 'posted' : 'draft';
+                $postedAt = $isDirectPost ? date('Y-m-d H:i:s') : null;
+                $userRegId = function_exists('get_user_region_id') ? get_user_region_id($userId) : 0;
+                $voucherRegionId = $userRegId > 0 ? $userRegId : null;
+
+                $defExpStaff = (int)($pdo->query("SELECT id FROM accounts WHERE account_code = '5010' AND is_active = 1 LIMIT 1")->fetchColumn() ?: 0);
+                $defExpStudent = (int)($pdo->query("SELECT id FROM accounts WHERE account_code = '5050' AND is_active = 1 LIMIT 1")->fetchColumn() ?: $defExpStaff);
+
+                $prefix = 'PV-' . date('Ym', strtotime($date)) . '-';
+                $lastNo = $pdo->query("SELECT voucher_no FROM vouchers WHERE voucher_no LIKE '{$prefix}%' ORDER BY id DESC LIMIT 1")->fetchColumn();
+                $nextSeq = 1;
+                if ($lastNo && preg_match('/-(\d+)$/', $lastNo, $m)) {
+                    $nextSeq = (int)$m[1] + 1;
+                }
+
+                $stmtVoucher = $pdo->prepare('INSERT INTO vouchers (voucher_no, voucher_type, voucher_date, fund_id, region_id, beneficiary_id, payee_name, payment_method, reference_no, description, total_amount, status, created_by, posted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmtJe = $pdo->prepare('INSERT INTO journal_entries (voucher_id, region_id, entry_date, narration, status, created_by) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmtLine = $pdo->prepare('INSERT INTO journal_lines (journal_entry_id, account_id, fund_id, description, debit, credit) VALUES (?, ?, ?, ?, ?, ?)');
+
+                foreach ($selectedBens as $benId) {
+                    $benId = (int)$benId;
+                    if ($benId <= 0) continue;
+                    $bData = $pdo->query("SELECT id, full_name, category, monthly_stipend_amount, assigned_fund_id FROM beneficiaries WHERE id = {$benId} AND status='active'")->fetch();
+                    if (!$bData) continue;
+
+                    $pAmount = (float)($_POST['batch_amount'][$benId] ?? $bData['monthly_stipend_amount']);
+                    if ($pAmount <= 0) continue;
+
+                    $bFundId = (int)($bData['assigned_fund_id'] ?: ($funds[0]['id'] ?? 0));
+                    $bExpAccId = ($bData['category'] === 'staff') ? $defExpStaff : $defExpStudent;
+                    $vNo = $prefix . str_pad((string)$nextSeq++, 4, '0', STR_PAD_LEFT);
+                    $desc = "ماہانہ وظیفہ / تنخواہ برائے " . $bData['full_name'] . " بابت ماہ " . $monthLabel;
+
+                    $stmtVoucher->execute([
+                        $vNo, 'expense', $date, $bFundId, $voucherRegionId, $benId,
+                        $bData['full_name'], $paymentMethod, '', $desc, $pAmount,
+                        $voucherStatus, $userId, $postedAt
+                    ]);
+                    $vId = (int)$pdo->lastInsertId();
+
+                    $stmtJe->execute([$vId, $voucherRegionId, $date, $desc, $voucherStatus, $userId]);
+                    $jeId = (int)$pdo->lastInsertId();
+
+                    $stmtLine->execute([$jeId, $bExpAccId, $bFundId, 'Disbursement: ' . $desc, $pAmount, 0.00]);
+                    $stmtLine->execute([$jeId, $assetAccountId, $bFundId, 'Paid via: ' . $desc, 0.00, $pAmount]);
+
+                    $countSuccess++;
+                }
+                $pdo->commit();
+                $retMonth = trim($_POST['return_month'] ?? date('Y-m'));
+                header('Location: beneficiaries.php?tab=tracker&month=' . urlencode($retMonth) . '&success=batch_paid&count=' . $countSuccess);
+                exit;
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                $error = 'اجتماعی ادائیگی میں خرابی: ' . $e->getMessage();
             }
         }
     }
@@ -372,6 +468,7 @@ $allThisMonthPaidMap = $pdo->query("SELECT beneficiary_id, SUM(total_amount) AS 
                                     GROUP BY beneficiary_id")->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
 
 $activeTrackerList = [];
+$pendingTrackerList = [];
 $totalTrackerBudget = 0;
 $totalTrackerPaid = 0;
 $totalTrackerPendingCount = 0;
@@ -435,6 +532,7 @@ foreach ($rawTrackerList as $row) {
     $totalTrackerPriorArrears += $priorArrears;
     if ($dueThisMonth > 0 || $priorArrears > 0) {
         $totalTrackerPendingCount++;
+        $pendingTrackerList[] = $row;
     }
 
     if ($filterTrackerStatus === 'pending' && $isPaid && $priorArrears <= 0) continue;
@@ -1079,7 +1177,8 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                                             if (!empty($benPhone)):
                                                 $latestVid = (int)($b['latest_voucher_id'] ?? 0);
                                                 $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
-                                                $slipLink = ($latestVid > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$latestVid}" : '';
+                                                $slipToken = ($latestVid > 0 && function_exists('get_voucher_public_token')) ? get_voucher_public_token($latestVid) : '';
+                                                $slipLink = ($latestVid > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$latestVid}" . (!empty($slipToken) ? "&token={$slipToken}" : '') : '';
                                                 $benMsg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
                                                         . "محترم جناب *" . $b['full_name'] . "* صاحب!\n"
                                                         . "*" . $madrasaName . "* کی جانب سے وظیفہ / تعلیمی و فلاحی کفالت ریکارڈ:\n\n"
@@ -1202,6 +1301,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                         <a href="<?=$waPayrollShareLink?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:1px solid #16a34a;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Share monthly payroll summary & PDF link on WhatsApp">
                             💬 WhatsApp
                         </a>
+                        <?php if (!empty($pendingTrackerList)): ?>
+                            <button type="button" onclick="openBatchPayModal()" class="btn sm" style="background:#4338ca;color:#ffffff;border:1px solid #3730a3;font-weight:700;padding:7px 12px;font-size:13px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Pay all pending stipends/salaries in 1 click (اجتماعی ادائیگی)">
+                                ⚡ Batch Pay (<?=count($pendingTrackerList)?>)
+                            </button>
+                        <?php endif; ?>
                         <a href="beneficiaries.php?tab=tracker&export=excel&month=<?=urlencode($selectedMonth)?>&tracker_category=<?=urlencode($filterTrackerCat)?>&tracker_fund_id=<?=$filterTrackerFund?>&tracker_status=<?=urlencode($filterTrackerStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Export filtered payroll to Excel (.CSV) - ایکسل ڈاؤنلوڈ">
                             📊 Excel
                         </a>
@@ -1340,7 +1444,8 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                                     }
                                     $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
                                     $thisVid = (int)($row['this_month_voucher_id'] ?? 0);
-                                    $voucherSlipUrl = ($thisVid > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$thisVid}" : '';
+                                    $slipToken = ($thisVid > 0 && function_exists('get_voucher_public_token')) ? get_voucher_public_token($thisVid) : '';
+                                    $voucherSlipUrl = ($thisVid > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$thisVid}" . (!empty($slipToken) ? "&token={$slipToken}" : '') : '';
 
                                     $waText = "السلام علیکم و رحمۃ اللہ و برکاتہ\n\n" .
                                               "محترم جناب *" . $row['full_name'] . "* صاحب!\n" .
@@ -1574,6 +1679,29 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                         </div>
                     </div>
 
+                    <!-- Allowance / Deduction Adjustment (Optional) -->
+                    <div style="background:#f8fafc;border:1.5px dashed #94a3b8;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <span style="font-size:11.5px;font-weight:700;color:#334155;">⚖️ الاؤنس یا کٹوتی (Allowance / Deduction - اختیاری):</span>
+                            <span id="qsm_adj_summary" style="font-size:11px;font-weight:700;color:#64748b;">کوئی رد و بدل نہیں</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1.2fr 1fr 1.3fr;gap:8px;">
+                            <div>
+                                <select id="qsm_adj_type" name="adjustment_type" onchange="calculateStipendTotal()" style="width:100%;font-size:11.5px;font-weight:600;padding:6px;border:1px solid #cbd5e1;border-radius:5px;background:#ffffff;">
+                                    <option value="none">نارمل (No Change)</option>
+                                    <option value="bonus">➕ عیدی / بونس / اضافہ (Bonus)</option>
+                                    <option value="deduction">➖ غیر حاضری / کٹوتی (Deduction)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <input type="number" step="0.01" min="0" id="qsm_adj_amount" name="adjustment_amount" placeholder="رقم PKR" oninput="calculateStipendTotal()" style="width:100%;font-size:12px;font-weight:700;padding:6px;border:1px solid #cbd5e1;border-radius:5px;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <input type="text" id="qsm_adj_reason" name="adjustment_reason" placeholder="وجہ (مثلاً عیدی / 2 دن چھٹی)" style="width:100%;font-size:11.5px;padding:6px;border:1px solid #cbd5e1;border-radius:5px;box-sizing:border-box;">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Fund & Expense Head Grid -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
                         <div>
@@ -1682,6 +1810,110 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
             </div>
         </div>
 
+        <!-- Batch Pay Stipends Modal (Mass Disbursement) -->
+        <div id="batchPayModal" class="modal-backdrop no-print" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:99999;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);">
+            <div style="background:#ffffff;border-radius:14px;width:100%;max-width:720px;box-shadow:0 25px 35px -5px rgba(0,0,0,0.3);overflow:hidden;border:1px solid #cbd5e1;max-height:88vh;display:flex;flex-direction:column;">
+                <div style="padding:16px 20px;background:#0f172a;color:#ffffff;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;">
+                        <span>⚡</span>
+                        <span>Batch Pay Pending Salaries &amp; Stipends <span class="ur">(اجتماعی ادائیگی وظائف و تنخواہیں)</span></span>
+                    </div>
+                    <button type="button" onclick="closeBatchPayModal()" style="background:transparent;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1;" title="Close">&times;</button>
+                </div>
+
+                <form method="post" action="beneficiaries.php?tab=tracker" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+                    <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
+                    <input type="hidden" name="action" value="batch_pay_stipends">
+                    <input type="hidden" name="return_month" value="<?=e($selectedMonth)?>">
+                    <input type="hidden" name="month_label" value="<?=date('F Y', strtotime($selectedMonth . '-01'))?>">
+
+                    <div style="padding:12px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:12px;">
+                        <div>
+                            <label style="display:block;font-size:11.5px;font-weight:700;color:#334155;margin-bottom:4px;">تاریخ ادائیگی (Date):</label>
+                            <input type="date" name="voucher_date" value="<?=date('Y-m-d')?>" required style="width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:6px;font-size:12.5px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11.5px;font-weight:700;color:#334155;margin-bottom:4px;">طریقہ ادائیگی (Method):</label>
+                            <select name="payment_method" style="width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:6px;font-size:12.5px;box-sizing:border-box;">
+                                <option value="cash">💵 Cash (نقد)</option>
+                                <option value="bank_transfer">🏛️ Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11.5px;font-weight:700;color:#334155;margin-bottom:4px;">ادائیگی کھاتہ (Paid From):</label>
+                            <select name="asset_account_id" style="width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:6px;font-size:12.5px;box-sizing:border-box;">
+                                <?php if (!empty($userCashAcc)): ?>
+                                    <option value="<?=$userCashAcc['id']?>" selected>
+                                        💼 <?=e($userCashAcc['account_code'])?> - <?=e($userCashAcc['account_name'])?>
+                                    </option>
+                                <?php endif; ?>
+                                <?php foreach ($bankAccounts as $bAcc): ?>
+                                    <option value="<?=$bAcc['id']?>">
+                                        🏛️ <?=e($bAcc['account_code'])?> - <?=e($bAcc['account_name'])?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="padding:14px 18px;overflow-y:auto;flex:1;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <label style="font-size:12.5px;font-weight:700;color:#0f172a;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                                <input type="checkbox" id="selectAllBatch" onchange="toggleSelectAllBatch(this)" checked> تمام منتخب کریں (Select All)
+                            </label>
+                            <span style="font-size:12px;color:#64748b;">ماہ: <strong><?=date('F Y', strtotime($selectedMonth . '-01'))?></strong></span>
+                        </div>
+
+                        <?php if (empty($pendingTrackerList)): ?>
+                            <div style="text-align:center;padding:30px;color:#15803d;font-weight:700;">
+                                🎉 تمام اساتذہ و طلبہ کی اس ماہ کی ادائیگیاں مکمل ہیں، کوئی بقایا نہیں!
+                            </div>
+                        <?php else: ?>
+                            <div style="display:flex;flex-direction:column;gap:8px;">
+                                <?php 
+                                $batchInitialTotal = 0;
+                                foreach ($pendingTrackerList as $pRow): 
+                                    $pDue = (float)($pRow['total_due_with_arrears'] ?? $pRow['monthly_stipend_amount']);
+                                    $batchInitialTotal += $pDue;
+                                ?>
+                                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;gap:10px;">
+                                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;min-width:0;">
+                                            <input type="checkbox" name="selected_beneficiary_ids[]" value="<?=$pRow['id']?>" class="batch-chk" checked onchange="updateBatchTotal()">
+                                            <div>
+                                                <strong style="font-size:13.5px;color:#0f172a;display:block;"><?=e($pRow['full_name'])?></strong>
+                                                <span style="font-size:11.5px;color:#64748b;">
+                                                    <?=ucfirst($pRow['category'])?> &bull; فنڈ: <?=e($pRow['fund_name'] ?: 'General')?>
+                                                </span>
+                                            </div>
+                                        </label>
+                                        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                                            <span style="font-size:11.5px;color:#475569;">PKR</span>
+                                            <input type="number" step="0.01" min="1" name="batch_amount[<?=$pRow['id']?>]" value="<?=$pDue?>" class="batch-amt-input" oninput="updateBatchTotal()" style="width:110px;font-size:13px;font-weight:700;color:#b91c1c;padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;text-align:right;">
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div style="padding:14px 18px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                        <div>
+                            <span style="font-size:13px;color:#334155;">مجموعی ادائیگی رقم:</span>
+                            <strong id="batchTotalDisplay" style="font-size:17px;color:#15803d;margin-left:6px;"><?=money($batchInitialTotal ?? 0)?></strong>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" onclick="closeBatchPayModal()" class="btn secondary sm" style="padding:8px 14px;font-weight:700;">منسوخ کریں</button>
+                            <?php if (!empty($pendingTrackerList)): ?>
+                                <button type="submit" class="btn" style="background:#15803d;color:#ffffff;border:none;padding:8px 18px;font-weight:700;border-radius:6px;cursor:pointer;" onclick="return confirm('کیا آپ واقعی منتخب کردہ تمام اساتذہ و طلبہ کی تنخواہیں ادا کرنا چاہتے ہیں؟');">
+                                    ✅ جاری کریں (Disburse All)
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <?=render_app_footer($madrasaName)?>
     </main>
 </div>
@@ -1741,24 +1973,53 @@ function onStipendAccountChange() {
 }
 
 var currentQuickStipendData = null;
+var currentBaseStipendAmount = 0;
+
+function calculateStipendTotal() {
+    var adjType = document.getElementById('qsm_adj_type') ? document.getElementById('qsm_adj_type').value : 'none';
+    var adjAmt = parseFloat(document.getElementById('qsm_adj_amount') ? document.getElementById('qsm_adj_amount').value : 0) || 0;
+    var summarySpan = document.getElementById('qsm_adj_summary');
+    var finalAmount = currentBaseStipendAmount;
+
+    if (adjType === 'bonus' && adjAmt > 0) {
+        finalAmount += adjAmt;
+        if (summarySpan) {
+            summarySpan.textContent = '+PKR ' + adjAmt.toLocaleString() + ' (اضافہ)';
+            summarySpan.style.color = '#15803d';
+        }
+    } else if (adjType === 'deduction' && adjAmt > 0) {
+        finalAmount = Math.max(0, finalAmount - adjAmt);
+        if (summarySpan) {
+            summarySpan.textContent = '-PKR ' + adjAmt.toLocaleString() + ' (کٹوتی)';
+            summarySpan.style.color = '#b91c1c';
+        }
+    } else {
+        if (summarySpan) {
+            summarySpan.textContent = 'کوئی رد و بدل نہیں';
+            summarySpan.style.color = '#64748b';
+        }
+    }
+    var amtInput = document.getElementById('qsm_amount');
+    if (amtInput) amtInput.value = finalAmount;
+}
 
 function setStipendAmountType(type) {
     if (!currentQuickStipendData) return;
-    var amtInput = document.getElementById('qsm_amount');
     var descInput = document.getElementById('qsm_description');
     if (type === 'total_due') {
-        amtInput.value = currentQuickStipendData.total_due_with_arrears || currentQuickStipendData.monthly_amount;
+        currentBaseStipendAmount = parseFloat(currentQuickStipendData.total_due_with_arrears || currentQuickStipendData.monthly_amount) || 0;
         if (descInput) {
             descInput.value = currentQuickStipendData.desc + ' (بشمول سابقہ واجبات)';
         }
     } else {
-        amtInput.value = currentQuickStipendData.due_this_month || currentQuickStipendData.monthly_amount;
+        currentBaseStipendAmount = parseFloat(currentQuickStipendData.due_this_month || currentQuickStipendData.monthly_amount) || 0;
         if (descInput) {
             descInput.value = currentQuickStipendData.desc;
         }
     }
-    amtInput.focus();
-    amtInput.select();
+    calculateStipendTotal();
+    var amtInput = document.getElementById('qsm_amount');
+    if (amtInput) { amtInput.focus(); amtInput.select(); }
 }
 
 function openQuickStipendModal(data) {
@@ -1772,7 +2033,16 @@ function openQuickStipendModal(data) {
 
     // Default amount to due_this_month (or total_due_with_arrears if due_this_month is 0)
     var defaultAmt = (data.due_this_month !== undefined && data.due_this_month > 0) ? data.due_this_month : (data.monthly_amount || data.amount || 0);
-    document.getElementById('qsm_amount').value = defaultAmt;
+    currentBaseStipendAmount = parseFloat(defaultAmt) || 0;
+
+    var adjTypeEl = document.getElementById('qsm_adj_type');
+    if (adjTypeEl) adjTypeEl.value = 'none';
+    var adjAmtEl = document.getElementById('qsm_adj_amount');
+    if (adjAmtEl) adjAmtEl.value = '';
+    var adjReasonEl = document.getElementById('qsm_adj_reason');
+    if (adjReasonEl) adjReasonEl.value = '';
+    calculateStipendTotal();
+
     document.getElementById('qsm_date').value = new Date().toISOString().split('T')[0];
     document.getElementById('qsm_description').value = data.desc || '';
 
@@ -1844,13 +2114,47 @@ function closeQuickStipendModal() {
     if (m) m.style.display = 'none';
 }
 
-// Close modal if user clicks outside of modal dialog
+function openBatchPayModal() {
+    var m = document.getElementById('batchPayModal');
+    if (m) m.style.display = 'flex';
+    updateBatchTotal();
+}
+
+function closeBatchPayModal() {
+    var m = document.getElementById('batchPayModal');
+    if (m) m.style.display = 'none';
+}
+
+function toggleSelectAllBatch(master) {
+    var chks = document.querySelectorAll('.batch-chk');
+    chks.forEach(function(c) { c.checked = master.checked; });
+    updateBatchTotal();
+}
+
+function updateBatchTotal() {
+    var total = 0;
+    var chks = document.querySelectorAll('.batch-chk');
+    chks.forEach(function(c) {
+        if (c.checked) {
+            var row = c.closest('div');
+            var amtInput = row ? row.querySelector('.batch-amt-input') : null;
+            if (amtInput) {
+                total += parseFloat(amtInput.value) || 0;
+            }
+        }
+    });
+    var d = document.getElementById('batchTotalDisplay');
+    if (d) d.textContent = 'Rs. ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+// Close modals if user clicks outside of modal dialog
 window.addEventListener('click', function(e) {
     var m = document.getElementById('quickStipendModal');
-    if (e.target === m) {
-        closeQuickStipendModal();
-    }
+    if (e.target === m) closeQuickStipendModal();
+    var b = document.getElementById('batchPayModal');
+    if (e.target === b) closeBatchPayModal();
 });
+
 function toggleBenForm(forceOpen) {
     var card = document.getElementById('benFormCard');
     var btn = document.getElementById('toggleBenBtn');

@@ -407,6 +407,7 @@ $firstVoucherMap = $pdo->query("SELECT donor_id, MIN(voucher_date) AS first_date
 
 // Status Filtering & Prior Arrears Computation
 $activePledgers = [];
+$allPendingPledgers = [];
 $totalMonthlyPledged = 0;
 $totalMonthlyReceived = 0;
 $totalPendingPledgers = 0;
@@ -452,6 +453,10 @@ foreach ($rawPledgers as $pl) {
     $pl['due_this_month'] = $dueThisMonth;
     $pl['total_due_with_arrears'] = $totalDueWithArrears;
     $pl['is_paid'] = $isPaid;
+
+    if ($dueThisMonth > 0 || $priorArrears > 0) {
+        $allPendingPledgers[] = $pl;
+    }
 
     if ($filterPledgeStatus === 'pending' && $isPaid && $priorArrears <= 0) continue;
     if ($filterPledgeStatus === 'paid' && (!$isPaid || $priorArrears > 0)) continue;
@@ -1042,7 +1047,8 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         if (!empty($dPhone)): 
                                             $latestVId = (int)($d['latest_voucher_id'] ?? 0);
                                             $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
-                                            $slipLink = ($latestVId > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$latestVId}" : '';
+                                            $slipToken = ($latestVId > 0 && function_exists('get_voucher_public_token')) ? get_voucher_public_token($latestVId) : '';
+                                            $slipLink = ($latestVId > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$latestVId}" . (!empty($slipToken) ? "&token={$slipToken}" : '') : '';
                                             $msg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
                                                  . "محترم جناب *" . $d['donor_name'] . "* صاحب!\n"
                                                  . "امید ہے آپ بخیر و عافیت ہوں گے۔\n"
@@ -1275,6 +1281,10 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                         <a href="<?=$waPledgesShareLink?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:1px solid #16a34a;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Share monthly pledges summary & PDF link on WhatsApp">
                             💬 WhatsApp
                         </a>
+
+                        <button type="button" onclick="openBulkRemindersModal()" class="btn sm" style="background:#ea580c;color:#ffffff;border:1px solid #c2410c;font-weight:700;padding:7px 12px;font-size:13px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="View all pending donors & send WhatsApp reminders">
+                            📢 Reminders (<?=count($allPendingPledgers)?>)
+                        </button>
 
                         <!-- Excel Export Button -->
                         <a href="donors.php?tab=pledges&export=excel&month=<?=urlencode($selectedMonth)?>&pledge_fund_id=<?=$filterPledgeFund?>&pledge_status=<?=urlencode($filterPledgeStatus)?>" class="btn sm" style="background:#15803d;color:#ffffff;border:1px solid #166534;font-weight:700;padding:7px 14px;font-size:13px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.06);white-space:nowrap;" title="Export filtered list to Excel (.CSV) - ایکسل ڈاؤنلوڈ">
@@ -1727,6 +1737,70 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
             </div>
         </div>
 
+        <!-- Bulk WhatsApp Reminders Modal -->
+        <div id="bulkRemindersModal" class="modal-backdrop no-print" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:99999;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);">
+            <div style="background:#ffffff;border-radius:14px;width:100%;max-width:640px;box-shadow:0 25px 35px -5px rgba(0,0,0,0.3);overflow:hidden;border:1px solid #cbd5e1;max-height:88vh;display:flex;flex-direction:column;">
+                <div style="padding:16px 20px;background:#0f172a;color:#ffffff;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;">
+                        <span>📢</span>
+                        <span>Pending Reminders List <span class="ur">(بقایا دار معاونین کی فہرست و یاد دہانی)</span></span>
+                    </div>
+                    <button type="button" onclick="closeBulkRemindersModal()" style="background:transparent;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1;" title="Close">&times;</button>
+                </div>
+
+                <div style="padding:12px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <div style="font-size:12.5px;color:#334155;">
+                        <strong>ماہ:</strong> <?=date('F Y', strtotime($selectedMonth . '-01'))?> &bull; 
+                        <strong>کل بقایا دار معاونین:</strong> <span style="color:#b91c1c;font-weight:800;"><?=count($allPendingPledgers)?></span>
+                    </div>
+                    <button type="button" onclick="copyPendingPhones()" class="btn secondary sm" style="font-size:11.5px;padding:4px 10px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                        📋 Copy All Phone Numbers
+                    </button>
+                </div>
+
+                <div style="padding:16px 18px;overflow-y:auto;flex:1;">
+                    <?php if (empty($allPendingPledgers)): ?>
+                        <div style="text-align:center;padding:30px;color:#15803d;font-weight:700;">
+                            🎉 تمام معاونین کی اس ماہ کی کفالت موصول ہو چکی ہے، کوئی بقایا دار نہیں!
+                        </div>
+                    <?php else: ?>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <?php 
+                            $phoneList = [];
+                            foreach ($allPendingPledgers as $pp): 
+                                $clPhone = normalize_pakistan_phone($pp['phone'] ?? '');
+                                if (!empty($clPhone)) $phoneList[] = $clPhone;
+                                $remWaUrl = function_exists('build_whatsapp_reminder_url') ? build_whatsapp_reminder_url($pp, $madrasaName, $madrasaPhone, date('F Y', strtotime($selectedMonth . '-01'))) : '';
+                            ?>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;gap:10px;">
+                                    <div style="min-width:0;flex:1;">
+                                        <strong style="font-size:13.5px;color:#0f172a;display:block;"><?=e($pp['donor_name'])?></strong>
+                                        <div style="font-size:12px;color:#64748b;margin-top:2px;">
+                                            📞 <?=e($pp['phone'] ?: 'بغیر فون نمبر')?> &bull; 
+                                            واجب الادا: <strong style="color:#b91c1c;"><?=money($pp['total_due_with_arrears'] ?? $pp['pledge_amount'])?></strong>
+                                            <?php if (!empty($pp['pledge_fund_name'])): ?>
+                                                &bull; <span style="color:#0284c7;"><?=e($pp['pledge_fund_name'])?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div style="flex-shrink:0;">
+                                        <?php if (!empty($clPhone)): ?>
+                                            <a href="<?=$remWaUrl?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:none;font-weight:700;font-size:11.5px;padding:6px 12px;border-radius:5px;display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
+                                                📲 WhatsApp
+                                            </a>
+                                        <?php else: ?>
+                                            <span style="font-size:11px;color:#94a3b8;">No Phone</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <textarea id="hiddenPendingPhones" style="display:none;"><?=implode(', ', $phoneList)?></textarea>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
         <?=render_app_footer($madrasaName)?>
     </main>
 </div>
@@ -1906,6 +1980,31 @@ function toggleDonorForm(forceOpen) {
         }
     }
 }
+function openBulkRemindersModal() {
+    var m = document.getElementById('bulkRemindersModal');
+    if (m) m.style.display = 'flex';
+}
+function closeBulkRemindersModal() {
+    var m = document.getElementById('bulkRemindersModal');
+    if (m) m.style.display = 'none';
+}
+function copyPendingPhones() {
+    var el = document.getElementById('hiddenPendingPhones');
+    if (el && el.value) {
+        navigator.clipboard.writeText(el.value).then(function() {
+            alert('تمام بقایا داروں کے فون نمبرز کاپی ہو گئے ہیں:\n' + el.value);
+        });
+    } else {
+        alert('کوئی فون نمبر موجود نہیں ہے۔');
+    }
+}
+
+// Close modals if clicked outside
+window.addEventListener('click', function(e) {
+    var b = document.getElementById('bulkRemindersModal');
+    if (e.target === b) closeBulkRemindersModal();
+});
+
 function printPledges(mode) {
     var originalTitle = document.title;
     if (mode === 'pdf') {

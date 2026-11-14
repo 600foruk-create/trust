@@ -115,6 +115,26 @@ if (has_permission('donors.view')) {
     }
 }
 
+// Check Over-Budget Accounts for current month (Budgeting & Expense Control)
+$overBudgets = [];
+if ($canApprove || has_permission('budgets.view')) {
+    try {
+        $curYm = date('Y-m');
+        $bgtSql = "SELECT b.budget_amount, b.alert_threshold_percent, a.account_code, a.account_name,
+                          COALESCE(SUM(jl.debit - jl.credit), 0) AS actual_spent
+                   FROM budgets b
+                   JOIN accounts a ON a.id = b.account_id
+                   LEFT JOIN journal_lines jl ON jl.account_id = a.id
+                   LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted' AND DATE_FORMAT(je.entry_date, '%Y-%m') = b.fiscal_month
+                   WHERE b.fiscal_month = '{$curYm}' AND b.budget_amount > 0
+                   GROUP BY b.id, a.id
+                   HAVING actual_spent >= (b.budget_amount * (b.alert_threshold_percent / 100))";
+        $overBudgets = $pdo->query($bgtSql)->fetchAll() ?: [];
+    } catch (Throwable $e) {
+        $overBudgets = [];
+    }
+}
+
 if (!$canApprove) {
     // ==========================================
     // 1. DATA FOR REGULAR USER / CASHIER ONLY
@@ -756,6 +776,30 @@ if (!$canApprove) {
             <!-- APPROVER / CHECKER / ADMIN MAIN INSTITUTIONAL DASHBOARD        -->
             <!-- ============================================================== -->
 
+            <!-- Monthly Budget Over-Limit Alert Banner -->
+            <?php if (!empty($overBudgets)): ?>
+                <div id="budgetAlertBanner" style="background:#fef2f2;border:1.5px solid #ef4444;border-radius:14px;padding:16px 20px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;box-shadow:0 3px 6px rgba(239,68,68,0.1);position:relative;">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <span style="font-size:30px;">🚨</span>
+                        <div>
+                            <strong style="color:#991b1b;font-size:15px;display:block;">ماہانہ بجٹ الرٹ (Monthly Budget Limit Warning): <?=count($overBudgets)?> اخراجات کھاتے مقررہ حد سے تجاوز کر چکے ہیں!</strong>
+                            <div style="font-size:12.5px;color:#7f1d1d;margin-top:3px;">
+                                <?php 
+                                $bgtNames = array_map(fn($ob) => e($ob['account_name']) . ' (' . round(($ob['actual_spent'] / $ob['budget_amount']) * 100) . '%)', array_slice($overBudgets, 0, 3));
+                                ?>
+                                متاثرہ شعبے: <?=implode(' &bull; ', $bgtNames)?>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <a href="budgets.php" class="btn sm" style="background:#dc2626;color:#ffffff;text-decoration:none;font-weight:700;padding:7px 14px;border-radius:6px;">
+                            📊 بجٹ تفصیلات دیکھیں
+                        </a>
+                        <button type="button" onclick="dismissDashboardAlert('budgetAlertBanner')" style="background:transparent;border:none;color:#991b1b;font-size:20px;cursor:pointer;padding:2px 8px;font-weight:bold;line-height:1;" title="Dismiss (بند کریں)">✕</button>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- Database Backup Reminder Banner (Shows if no backup in 7+ days) -->
             <?php if ($canApprove && $daysSinceLastBackup >= 7): ?>
                 <div id="backupReminderBanner" style="background:#fff7ed;border:1.5px solid #f97316;border-radius:14px;padding:16px 20px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;box-shadow:0 3px 6px rgba(249,115,22,0.1);position:relative;">
@@ -1293,7 +1337,7 @@ function dismissDashboardAlert(id) {
     }
 }
 document.addEventListener('DOMContentLoaded', function() {
-    ['todayPledgesBanner', 'backupReminderBanner', 'cashierHighCashBanner', 'adminOverLimitBanner'].forEach(function(id) {
+    ['todayPledgesBanner', 'backupReminderBanner', 'cashierHighCashBanner', 'adminOverLimitBanner', 'budgetAlertBanner'].forEach(function(id) {
         if (sessionStorage.getItem('dismissed_' + id) === '1') {
             var el = document.getElementById(id);
             if (el) el.style.display = 'none';

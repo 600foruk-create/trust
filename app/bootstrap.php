@@ -446,6 +446,141 @@ function run_schema_and_seed_migrations(PDO $pdo): void {
         }
     } catch (Throwable $e) {}
 
+    // Ensure vouchers table has attendance & salary breakdown columns
+    try {
+        $chkAtt = $pdo->query("SHOW COLUMNS FROM vouchers LIKE 'attendance_days'")->fetch();
+        if (!$chkAtt) {
+            $pdo->exec("ALTER TABLE vouchers 
+                ADD COLUMN attendance_days INT DEFAULT 30 AFTER beneficiary_id,
+                ADD COLUMN absent_days INT DEFAULT 0 AFTER attendance_days,
+                ADD COLUMN salary_deduction DECIMAL(12,2) DEFAULT 0.00 AFTER absent_days,
+                ADD COLUMN salary_allowance DECIMAL(12,2) DEFAULT 0.00 AFTER salary_deduction");
+        }
+    } catch (Throwable $e) {}
+
+    // Ensure audit_logs table exists
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          user_id BIGINT UNSIGNED NULL,
+          action VARCHAR(100) NOT NULL,
+          entity_type VARCHAR(50) NULL,
+          entity_id BIGINT UNSIGNED NULL,
+          details TEXT NULL,
+          ip_address VARCHAR(45) NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_al_user (user_id),
+          INDEX idx_al_action (action),
+          INDEX idx_al_created (created_at)
+        ) ENGINE=InnoDB");
+    } catch (Throwable $e) {}
+
+    // Ensure budgets table exists
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS budgets (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          account_id BIGINT UNSIGNED NOT NULL,
+          fiscal_month VARCHAR(7) NOT NULL,
+          budget_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+          alert_threshold_percent INT UNSIGNED NOT NULL DEFAULT 80,
+          created_by BIGINT UNSIGNED NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY uniq_acc_month (account_id, fiscal_month),
+          INDEX idx_bgt_month (fiscal_month)
+        ) ENGINE=InnoDB");
+    } catch (Throwable $e) {}
+
+    // Ensure inventory tables exist (In-Kind Donations & Ration Stock)
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS inventory_items (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          item_code VARCHAR(30) NOT NULL UNIQUE,
+          item_name VARCHAR(150) NOT NULL,
+          category ENUM('ration', 'construction', 'books', 'medical', 'general') NOT NULL DEFAULT 'ration',
+          unit VARCHAR(30) NOT NULL DEFAULT 'KG',
+          current_stock DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          min_alert_qty DECIMAL(12,2) NOT NULL DEFAULT 5.00,
+          estimated_unit_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          notes TEXT NULL,
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_inv_cat (category),
+          INDEX idx_inv_active (is_active)
+        ) ENGINE=InnoDB");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS inventory_transactions (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          transaction_type ENUM('in_donation', 'out_consumption', 'adjustment') NOT NULL,
+          item_id INT UNSIGNED NOT NULL,
+          donor_id BIGINT UNSIGNED NULL,
+          quantity DECIMAL(12,2) NOT NULL,
+          unit VARCHAR(30) NOT NULL,
+          unit_value DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          total_estimated_value DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+          recipient_department VARCHAR(150) NULL,
+          reference_no VARCHAR(50) NULL,
+          notes TEXT NULL,
+          created_by BIGINT UNSIGNED NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_inv_tx_item (item_id),
+          INDEX idx_inv_tx_donor (donor_id),
+          INDEX idx_inv_tx_type (transaction_type),
+          INDEX idx_inv_tx_date (created_at)
+        ) ENGINE=InnoDB");
+
+        // Seed initial standard items if empty
+        $invCount = (int)$pdo->query("SELECT COUNT(*) FROM inventory_items")->fetchColumn();
+        if ($invCount === 0) {
+            $initialItems = [
+                ['ITM-001', 'آٹا فائن / گندم (Wheat Flour)', 'ration', 'بوری (50 KG)', 0, 5, 4500.00],
+                ['ITM-002', 'باسمتی چاول (Basmati Rice)', 'ration', 'بوری (50 KG)', 0, 5, 8500.00],
+                ['ITM-003', 'کوکنگ آئل / گھی (Cooking Oil / Ghee)', 'ration', 'لیٹر (Liters)', 0, 20, 480.00],
+                ['ITM-004', 'سفید چینی (White Sugar)', 'ration', 'بوری (50 KG)', 0, 3, 6200.00],
+                ['ITM-005', 'دال چنا / دال مونگ (Lentils / Pulses)', 'ration', 'KG', 0, 25, 320.00],
+                ['ITM-006', 'درسی کتب و قرآن کریم (Textbooks & Quran)', 'books', 'کتب (Sets)', 0, 10, 1200.00],
+                ['ITM-007', 'تعمیراتی سیمنٹ (Cement Sacks)', 'construction', 'بوری (Sacks)', 0, 20, 1350.00]
+            ];
+            $stmtInv = $pdo->prepare("INSERT INTO inventory_items (item_code, item_name, category, unit, current_stock, min_alert_qty, estimated_unit_price) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            foreach ($initialItems as $itm) {
+                $stmtInv->execute($itm);
+            }
+        }
+    } catch (Throwable $e) {}
+
+    // Ensure campaigns table exists (Ramadan, Zakat, Qurbani, Winter)
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS campaigns (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          campaign_code VARCHAR(30) NOT NULL UNIQUE,
+          title VARCHAR(150) NOT NULL,
+          category ENUM('ramadan', 'zakat', 'qurbani', 'winter', 'building', 'general') NOT NULL DEFAULT 'ramadan',
+          target_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+          raised_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+          start_date DATE NULL,
+          end_date DATE NULL,
+          appeal_message TEXT NULL,
+          status ENUM('active', 'completed', 'draft') NOT NULL DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_cmp_status (status),
+          INDEX idx_cmp_cat (category)
+        ) ENGINE=InnoDB");
+
+        $cmpCount = (int)$pdo->query("SELECT COUNT(*) FROM campaigns")->fetchColumn();
+        if ($cmpCount === 0) {
+            $initialCampaigns = [
+                ['RAM-2027', 'رمضان المبارک راشن و افطار مہم (Ramadan Ration & Iftar Drive)', 'ramadan', 500000.00, 0, date('Y-02-01'), date('Y-04-10'), "محترم ڈونر صاحب! السلام علیکم ورحمۃ اللہ۔\nرمضان المبارک کی بابرکت آمد کے پیش نظر ہمارا ادارہ مستحق طلبہ اور نادار سفید پوش خاندانوں میں راشن پیکیجز اور روزانہ سحری و افطاری کا اہتمام کر رہا ہے۔\nایک راشن پیکج: 8,500 روپے\nآپ کی زکوٰۃ و عطیات ان تک پہنچانے کا امانت دار۔ جزاکم اللہ خیراً۔"],
+                ['ZAK-2027', 'سالانہ زکوٰۃ و صدقات وصولی مہم (Annual Zakat & Sadaqah Appeal)', 'zakat', 1000000.00, 0, date('Y-01-01'), date('Y-12-31'), "محترم ڈونر صاحب! السلام علیکم ورحمۃ اللہ۔\nسالانہ زکوٰۃ کی شرعی و مستند تقسیم کے لیے ادارے کا زکوٰۃ فنڈ مکمل طور پر غیر مسلم و غیر مستحق سے محفوظ اور شرعی اصولوں کے مطابق صرف مستحقینِ زکوٰۃ پر صرف کیا جاتا ہے۔\nآن لائن عطیہ یا بینک تفصیلات کے لیے رابطہ فرمائیں۔"],
+                ['QUR-2027', 'عید الاضحیٰ قربانی کھالیں و قربانی گوشت مہم (Qurbani Campaign)', 'qurbani', 350000.00, 0, date('Y-05-01'), date('Y-07-01'), "السلام علیکم! عید الاضحیٰ کے پرمسرت موقع پر اپنی قربانی کی کھالیں اور قربانی فنڈ ادارے کے یتامیٰ و مساکین کے لیے وقف فرما کر ثوابِ دارین حاصل کریں۔"],
+                ['WIN-2026', 'سرمائی امدادی مہم برائے گرم بستر و لحاف (Winter Relief Drive)', 'winter', 200000.00, 0, date('Y-11-01'), date('Y-02-28'), "السلام علیکم! شدید سردی میں مستحق نادار خاندانوں اور یتیم بچوں کو گرم کپڑے، لحاف اور بستر فراہم کرنے کی خصوصی مہم میں بھرپور حصہ لیں۔"]
+            ];
+            $stmtCmp = $pdo->prepare("INSERT INTO campaigns (campaign_code, title, category, target_amount, raised_amount, start_date, end_date, appeal_message, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')");
+            foreach ($initialCampaigns as $cmp) {
+                $stmtCmp->execute($cmp);
+            }
+        }
+    } catch (Throwable $e) {}
+
     // One-time execution: Seed 2 sample provinces (KPK, Punjab) & replace test users with provincial director/cashier accounts
     $provSeeded = get_setting('provincial_hierarchy_seeded', '0');
     if ($provSeeded !== '1') {
@@ -805,6 +940,57 @@ function get_all_permissions_definition(): array {
             'regions.manage' => ['label' => 'Manage Regions & Provinces', 'ur' => 'صوبے بنانا اور ڈائریکٹر مقرر کرنا'],
             'team.manage' => ['label' => 'Manage Regional Team & Cashiers', 'ur' => 'اپنی صوبائی ٹیم کے کیشیئرز و فیلڈ اسٹاف بنانا'],
         ],
+        'Budgets & Control (بجٹ و اخراجات کنٹرول)' => [
+            'budgets.view' => ['label' => 'View Monthly Budgets', 'ur' => 'ماہانہ بجٹ دیکھنا'],
+            'budgets.manage' => ['label' => 'Manage Budgets & Limits', 'ur' => 'ماہانہ بجٹ مقرر یا تبدیل کرنا'],
+        ],
+        'Inventory & Ration Stock (راشن و سامان انوینٹری)' => [
+            'inventory.view' => ['label' => 'View Inventory & Stock', 'ur' => 'اسٹاک و راشن انوینٹری دیکھنا'],
+            'inventory.manage' => ['label' => 'Manage Inward, Outward & Items', 'ur' => 'راشن وصولی، اخراج و اشیاء کا انتظام'],
+        ],
+        'Campaigns & Appeals (رمضان و موسمی مہمات)' => [
+            'campaigns.view' => ['label' => 'View Campaigns', 'ur' => 'مہمات و فنڈ ریزنگ دیکھنا'],
+            'campaigns.manage' => ['label' => 'Manage Campaigns & WhatsApp Appeals', 'ur' => 'مہمات بنانا اور واٹس ایپ اپیلز بھیجنا'],
+        ],
+        'Audit Trail & Security (سیکیورٹی آڈٹ لاگ)' => [
+            'audit.view' => ['label' => 'View Audit Trail Logs', 'ur' => 'حساس سرگرمیوں کا آڈٹ لاگ دیکھنا'],
+        ],
+    ];
+}
+}
+
+if (!function_exists('log_audit_trail')) {
+function log_audit_trail(string $action, ?string $entityType = null, ?int $entityId = null, $details = null, ?int $userId = null): bool {
+    global $pdo;
+    try {
+        if ($userId === null && function_exists('current_user')) {
+            $u = current_user();
+            $userId = $u ? (int)$u['id'] : null;
+        }
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+        if (is_array($details)) {
+            $details = json_encode($details, JSON_UNESCAPED_UNICODE);
+        }
+        $stmt = $pdo->prepare("INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)");
+        return $stmt->execute([$userId, $action, $entityType, $entityId, $details, $ip]);
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+}
+
+if (!function_exists('get_account_monthly_budget')) {
+function get_account_monthly_budget(PDO $pdo, int $accountId, string $fiscalMonth): array {
+    $stmt = $pdo->prepare("SELECT * FROM budgets WHERE account_id = ? AND fiscal_month = ? LIMIT 1");
+    $stmt->execute([$accountId, $fiscalMonth]);
+    $b = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$b) {
+        return ['budget_amount' => 0.00, 'alert_threshold_percent' => 80, 'has_budget' => false];
+    }
+    return [
+        'budget_amount' => (float)$b['budget_amount'],
+        'alert_threshold_percent' => (int)($b['alert_threshold_percent'] ?: 80),
+        'has_budget' => true
     ];
 }
 }

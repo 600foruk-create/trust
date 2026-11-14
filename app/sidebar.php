@@ -476,12 +476,24 @@ div.en-only, p.en-only { display: block !important; }
       <a class="<?= $currentPage === 'expenses' ? 'active' : '' ?>" href="expenses.php">－ &nbsp; Expenses <span class="ur">(اخراجات)</span></a>
     <?php endif; ?>
 
+    <?php if (!function_exists('has_permission') || has_permission('budgets.view') || has_permission('budgets.manage')): ?>
+      <a class="<?= $currentPage === 'budgets' ? 'active' : '' ?>" href="budgets.php">📊 &nbsp; Budgets &amp; Limits <span class="ur">(ماہانہ بجٹ)</span></a>
+    <?php endif; ?>
+
     <?php if (!function_exists('has_permission') || has_permission('donors.view') || has_permission('donors.manage')): ?>
       <a class="<?= $currentPage === 'donors' ? 'active' : '' ?>" href="donors.php">◎ &nbsp; <?=is_madrasa_mode() ? 'Donors & Patrons <span class="ur">(معاونین و سرپرست)</span>' : 'Donors <span class="ur">(معاونین و ڈونرز)</span>'?></a>
     <?php endif; ?>
 
+    <?php if (!function_exists('has_permission') || has_permission('campaigns.view') || has_permission('campaigns.manage')): ?>
+      <a class="<?= $currentPage === 'campaigns' ? 'active' : '' ?>" href="campaigns.php">📢 &nbsp; Campaigns &amp; Appeals <span class="ur">(رمضان و زکوٰۃ مہمات)</span></a>
+    <?php endif; ?>
+
     <?php if (!function_exists('has_permission') || has_permission('beneficiaries.view') || has_permission('beneficiaries.manage')): ?>
       <a class="<?= $currentPage === 'beneficiaries' ? 'active' : '' ?>" href="beneficiaries.php">🎓 &nbsp; <?=is_madrasa_mode() ? 'Students & Beneficiaries <span class="ur">(طلبہ و مستحقین)</span>' : 'Beneficiaries & Welfare <span class="ur">(مستحقین و راشن)</span>'?></a>
+    <?php endif; ?>
+
+    <?php if (!function_exists('has_permission') || has_permission('inventory.view') || has_permission('inventory.manage')): ?>
+      <a class="<?= $currentPage === 'inventory' ? 'active' : '' ?>" href="inventory.php">📦 &nbsp; Inventory &amp; Ration <span class="ur">(راشن و سامان اسٹاک)</span></a>
     <?php endif; ?>
 
     <a class="<?= $currentPage === 'zakat_calculator' ? 'active' : '' ?>" href="zakat_calculator.php">🧮 &nbsp; Zakat Calculator <span class="ur">(زکوٰۃ کیلکولیٹر)</span></a>
@@ -511,6 +523,9 @@ div.en-only, p.en-only { display: block !important; }
       <span class="nav-label">ADMINISTRATION</span>
       <?php if (!function_exists('has_permission') || has_permission('users.manage') || has_permission('team.manage')): ?>
         <a class="<?= $currentPage === 'users' ? 'active' : '' ?>" href="users.php">♙ &nbsp; <?=(function_exists('is_regional_director') && is_regional_director()) ? (is_madrasa_mode() ? 'My Madrasa Team <span class="ur">(مدرسہ ٹیم)</span>' : 'My Regional Team <span class="ur">(صوبائی ٹیم)</span>') : (is_madrasa_mode() ? 'Users & Branches <span class="ur">(اساتذہ و شاخیں)</span>' : 'Users & Provinces <span class="ur">(صارفین و برانچز)</span>')?></a>
+      <?php endif; ?>
+      <?php if (!function_exists('has_permission') || has_permission('audit.view') || (function_exists('is_super_admin') && is_super_admin())): ?>
+        <a class="<?= $currentPage === 'audit_log' ? 'active' : '' ?>" href="audit_log.php">🛡️ &nbsp; Audit Trail &amp; Logs <span class="ur">(سیکیورٹی لاگز)</span></a>
       <?php endif; ?>
       <?php if (!function_exists('has_permission') || has_permission('settings.manage')): ?>
         <a class="<?= $currentPage === 'settings' ? 'active' : '' ?>" href="settings.php">⚙ &nbsp; <?=is_madrasa_mode() ? 'Madrasa Settings <span class="ur">(مدرسہ سیٹنگز)</span>' : 'Settings <span class="ur">(سیٹنگز)</span>'?></a>
@@ -588,9 +603,9 @@ $phpVer = PHP_VERSION;
         <div>
           <h3 style="margin:0;font-size:16px;font-weight:700;color:#ffffff;display:flex;align-items:center;gap:8px;">
             <span>SoftifyX Technologies</span>
-            <span style="font-size:10px;background:#2563eb;color:#ffffff;padding:2px 8px;border-radius:10px;font-weight:700;">ERP v2.8</span>
+            <span style="font-size:10px;background:#2563eb;color:#ffffff;padding:2px 8px;border-radius:10px;font-weight:700;">ERP v2.9</span>
           </h3>
-          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Financial Accounting &amp; Management System</p>
+          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Enterprise Accounting &amp; Institutional ERP</p>
         </div>
       </div>
       <button type="button" onclick="closeAboutSoftwareModal()" style="background:transparent;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1;" title="Close">&times;</button>
@@ -644,7 +659,7 @@ $phpVer = PHP_VERSION;
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12.5px;">
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
           <span style="color:#64748b;font-size:11px;display:block;">Version &amp; Release:</span>
-          <b style="color:#0f172a;">v2.8 (Build 2026.11)</b>
+          <b style="color:#0f172a;">v2.9 (Enterprise Edition)</b>
         </div>
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;">
           <span style="color:#64748b;font-size:11px;display:block;">Active Mode <span class="ur">(فعال موڈ)</span>:</span>
@@ -670,9 +685,12 @@ $phpVer = PHP_VERSION;
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Pledges &amp; Kafalat Tracker</span>
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Smart WhatsApp Receipts &amp; Pay Slips</span>
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Cash Handover &amp; Deposit Slips</span>
-          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Staff Payroll &amp; Stipends</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Staff Payroll &amp; Attendance</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Budgets &amp; Limits Control</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">In-Kind Ration Inventory</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Seasonal Campaigns</span>
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Public Donor Verification</span>
-          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Audit &amp; Multi-Role Security</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Audit Trail &amp; 2FA PIN</span>
         </div>
       </div>
     </div>
@@ -1013,6 +1031,103 @@ $phpVer = PHP_VERSION;
             • اگر آخری بیک اپ لیے 7 دن سے زیادہ ہو جائیں تو ایڈمن ڈیش بورڈ پر اورنج سیکیورٹی الرٹ خودکار ظاہر ہوتا ہے۔<br>
             • الرٹ میں دیے گئے <b>"📥 تازہ ڈیٹا بیس بیک اپ ڈاؤن لوڈ کریں"</b> بٹن پر کلک کر کے صرف 1 سیکنڈ میں مکمل ڈیٹابیس فائل اپنے کمپیوٹر میں محفوظ کر لیں۔<br>
             • کسی بھی ناگہانی سرور خرابی کی صورت میں <b>Settings -> Database Backups</b> میں جا کر <b>Upload &amp; Restore Backup</b> سے سابقہ فائل اپلوڈ کر کے پورا ڈیٹا سیکنڈوں میں بحال کیا جا سکتا ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 18 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">📊</span>
+              <strong style="color:#0f172a;font-size:13px;">18. ماہانہ اخراجات کا بجٹ (Monthly Budget) کیسے مقرر کریں اور اوور سپینڈنگ الرٹس؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • بائیں مینو میں <b>Budgets &amp; Limits</b> پر تشریف لے جائیں۔<br>
+            • مطلوبہ مہینہ منتخب کریں اور جس خرچ کی مد (جیسے مطبخ، بجلی بل، مرمت، تنخواہ) کا بجٹ مقرر کرنا ہو اس کے آگے <b>"✏️ بجٹ سیٹ کریں"</b> پر کلک کر کے رقم درج کریں۔<br>
+            • سسٹم ہر خرچ کے بعد خودکار طور پر بجٹ کے استعمال کا فیصد بار (سبز، اورنج، لال) اپڈیٹ کرتا رہتا ہے۔<br>
+            • اگر کسی بھی شعبے کا خرچ مقررہ بجٹ کے 80% یا 100% سے تجاوز کرے تو مین ڈیش بورڈ پر فوری ریڈ الرٹ بینر ظاہر ہو جاتا ہے تاکہ غیر ضروری اخراجات فوری روکے جا سکیں۔
+          </div>
+        </div>
+
+        <!-- FAQ 19 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🌾</span>
+              <strong style="color:#0f172a;font-size:13px;">19. راشن، اناج اور سامان کی انوینٹری (In-Kind Donation &amp; Ration Stock) کا اندراج کیسے کریں؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • مدارس و فلاحی اداروں میں نقد رقم کے علاوہ راشن (آٹا، چاول، گھی، چینی) یا تعمیراتی سامان ڈونرز کی جانب سے عطیہ کیا جاتا ہے۔<br>
+            • بائیں مینو میں <b>Inventory &amp; Ration</b> کھولیں اور <b>"📥 + وصولی راشن و عطیہ"</b> بٹن پر کلک کریں۔ ڈونر کا نام، جنس کی مقدار اور تخمینہ قیمت درج کریں تو اسٹاک خودکار بڑھ جائے گا۔<br>
+            • جب یہ راشن طعام گاہ (مطبخ) یا مستحقین کو جاری کیا جائے تو <b>"📤 - ترسیل و اخراج مطبخ"</b> بٹن سے اخراج درج کریں جس سے گودام کا دستیاب اسٹاک خودکار کم ہو جائے گا۔
+          </div>
+        </div>
+
+        <!-- FAQ 20 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">📅</span>
+              <strong style="color:#0f172a;font-size:13px;">20. اساتذہ و ملازمین کی حاضری، غیر حاضری کٹوتی (Salary Deductions) اور نیٹ تنخواہ سلپ کا طریقہ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • ملازم یا استاد کو ماہانہ تنخواہ ادا کرتے وقت <b>"💰 Stipend / Salary"</b> ونڈو میں <b>Staff Attendance &amp; Leave</b> کا باکس نظر آتا ہے۔<br>
+            • آپ صرف غیر حاضری کے دن (Absent Days مثلاً 2 دن) درج کریں، سسٹم بنیادی تنخواہ میں سے روزانہ کی اجرت کے حساب سے کٹوتی کی رقم خودکار بنا دیتا ہے۔<br>
+            • اگر کوئی عیدی یا الاؤنس دینا ہو تو وہ بھی شامل کیا جا سکتا ہے۔ نیٹ قابلِ ادائیگی رقم خودکار بنتی ہے اور پرنٹ ہونے والی <b>ماہانہ تنخواہ پرچی (Pay Slip)</b> پر حاضری، غیر حاضری اور کٹوتی کی مکمل تفصیلات واضح پرنٹ ہوتی ہیں۔
+          </div>
+        </div>
+
+        <!-- FAQ 21 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🌙</span>
+              <strong style="color:#0f172a;font-size:13px;">21. رمضان المبارک، عید الاضحیٰ و زکوٰۃ مہمات (Seasonal Campaigns) اور واٹس ایپ اپیلز بھیجنا:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • بائیں مینو میں <b>Campaigns &amp; Appeals</b> پر جائیں۔ یہاں رمضان راشن مہم، زکوٰۃ مہم، قربانی کھالیں اور ونٹر ریلیف کے اہداف (Targets) اور جمع شدہ رقوم کی پیشرفت بار نظر آتی ہے۔<br>
+            • نیچے موجود <b>WhatsApp Appeal Dispatcher</b> سے آپ اپنے تمام معاونین، ماہانہ کفیلین یا بڑے ڈونرز کو فلٹر کر سکتے ہیں۔<br>
+            • ہر ڈونر کے آگے موجود <b>"💬 WhatsApp Appeal"</b> بٹن دبانے سے ڈونر کے نام اور ادارے کے آن لائن ڈونیشن لنک و بینک اکاؤنٹ پر مشتمل خوبصورت اپیل میسج خود بخود تیار ہو کر واٹس ایپ پر کھل جاتا ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 22 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🛡️</span>
+              <strong style="color:#0f172a;font-size:13px;">22. تفصیلی آڈٹ لاگ (Audit Trail) کے ذریعے حساس مالیاتی تبدیلیوں اور سرگرمیوں کی نگرانی:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • بائیں مینو میں <b>Audit Trail &amp; Logs</b> کھولیں۔<br>
+            • یہ صفحہ مالیاتی شفافیت کے لیے سسٹم میں ہونے والی ہر اہم کارروائی (واؤچر بنانا، ایڈٹ کرنا، کینسل کرنا، لاگ ان، پاس ورڈ کی تبدیلی، انوینٹری اخراج) کا تاریخ، صارف، کمپیوٹر آئی پی اور تفصیلی تبدیلیوں کے ساتھ مستقل ریکارڈ رکھتا ہے۔<br>
+            • آڈٹ ریکارڈ کو تاریخ اور صارف کے حساب سے سرچ کیا جا سکتا ہے اور ایکسل (CSV) میں ڈاؤنلوڈ یا پرنٹ بھی کیا جا سکتا ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 23 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🔐</span>
+              <strong style="color:#0f172a;font-size:13px;">23. ایڈمن دو فیکٹر سیکیورٹی پن (2FA Security PIN) کو فعال اور تبدیل کرنے کا طریقہ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • ایڈمن اکاؤنٹ کی اضافی حفاظت کے لیے <b>Settings ⚙️ -> Security &amp; Passwords</b> ٹیب کھولیں۔<br>
+            • یہاں <b>"Admin Two-Factor Security PIN"</b> کے پینل میں چیک باکس آن کریں اور اپنا 4 یا 6 ہندسوں کا ماسٹر پن (جیسے: 7860) درج کر کے محفوظ کر لیں۔<br>
+            • 2FA آن ہونے کے بعد جب بھی ایڈمن لاگ ان کرے گا یا ڈینجر زون میں ڈیٹا صاف کرنے کی کوشش کرے گا، تو سسٹم پاس ورڈ کے علاوہ یہ سیکیورٹی پن بھی لازمی طلب کرے گا جس سے کوئی بھی دوسرا شخص پاس ورڈ ملنے پر بھی سسٹم کو نقصان نہیں پہنچا سکتا۔
           </div>
         </div>
 

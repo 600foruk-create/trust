@@ -649,12 +649,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// Handle Save Admin 2FA PIN Settings
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_admin_2fa') {
+    verify_csrf();
+    $enable2fa = isset($_POST['admin_2fa_enabled']) ? '1' : '0';
+    $newPin = trim($_POST['admin_security_pin'] ?? '');
+    if ($enable2fa === '1' && (strlen($newPin) < 4 || !ctype_digit($newPin))) {
+        $error = 'سیکیورٹی پن کم از کم 4 ہندسوں (صرف اعداد) پر مشتمل ہونا چاہیے۔ (Security PIN must be at least 4 digits).';
+    } else {
+        if ($newPin !== '') {
+            set_setting('admin_security_pin', $newPin);
+        }
+        set_setting('admin_2fa_enabled', $enable2fa);
+        if (function_exists('log_audit_trail')) {
+            log_audit_trail('update_2fa_settings', 'setting', null, ['enabled' => $enable2fa]);
+        }
+        $success = 'دو فیکٹر سیکیورٹی پن کی ترتیبات کامیابی کے ساتھ محفوظ ہو گئی ہیں۔ (2FA Security Settings Updated).';
+    }
+}
+
 // Handle Danger Zone: Clear Transactions & Apply Mode-Aware Defaults (Live Password Protected)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['clear_transactions', 'danger_reset_defaults'], true)) {
     verify_csrf();
     $adminPassword = $_POST['admin_password'] ?? '';
     $confirmReset = isset($_POST['confirm_reset']) || isset($_POST['confirm_danger']);
     $adminUserId = (int)current_user()['id'];
+
+    $is2faActive = (get_setting('admin_2fa_enabled', '0') === '1');
+    $masterPin = get_setting('admin_security_pin', '7860');
+    $enteredPin = trim($_POST['danger_security_pin'] ?? '');
 
     $targetMode = in_array($_POST['target_mode'] ?? '', ['madrasa', 'trust'], true) ? $_POST['target_mode'] : (is_madrasa_mode() ? 'madrasa' : 'trust');
     $doResetTx = isset($_POST['reset_transactions']) || ($_POST['action'] === 'clear_transactions' && $confirmReset);
@@ -680,6 +703,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 
             if (!$currentHash || !password_verify($adminPassword, $currentHash)) {
                 $error = '❌ غلط پاس ورڈ! تصدیق ناکام ہو گئی۔ کوئی تبدیلی نہیں کی گئی اور آپ کا ڈیٹا محفوظ ہے۔ (Incorrect password. Authentication failed).';
+            } elseif ($is2faActive && $enteredPin !== $masterPin) {
+                $error = '❌ غلط سیکیورٹی پن (Security PIN)! ڈیٹا کے تحفظ کے لیے ڈینجر زون کارروائی روک دی گئی ہے۔ (Invalid Security PIN).';
             } else {
                 $pdo->beginTransaction();
                 $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
@@ -1730,6 +1755,58 @@ if (!in_array($activeTab, $validTabs, true)) {
                         </div>
                     </form>
                 </article>
+
+                <!-- Panel 3: Two-Factor Authentication (2FA) & Master Security PIN -->
+                <?php 
+                $curr2fa = (get_setting('admin_2fa_enabled', '0') === '1');
+                $currPin = get_setting('admin_security_pin', '7860');
+                ?>
+                <article class="panel" style="border: 1.5px solid #fed7aa; background: #fffaf5; grid-column: 1 / -1;">
+                    <div class="panel-heading" style="background:#ffedd5;border-bottom:1px solid #fed7aa;display:flex;justify-content:space-between;align-items:center;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="font-size:24px;">🔐</span>
+                            <div>
+                                <h3 style="color:#9a3412;margin:0;">Admin Two-Factor Security PIN <span class="ur">(ایڈمن دو فیکٹر سیکیورٹی پن و ماسٹر کوڈ)</span></h3>
+                                <p style="color:#c2410c;margin:2px 0 0;font-size:12.5px;">Add an extra secondary security barrier for Super Admins and high-risk Danger Zone operations</p>
+                            </div>
+                        </div>
+                        <span class="badge" style="background:<?=$curr2fa ? '#15803d' : '#94a3b8'?>;color:#ffffff;font-size:12px;padding:5px 12px;border-radius:12px;font-weight:700;">
+                            <?=$curr2fa ? '✓ 2FA فعال ہے (Active)' : 'غیر فعال (Disabled)'?>
+                        </span>
+                    </div>
+                    <form method="post" action="settings.php?tab=security#passwordSection" style="padding: 20px 24px;">
+                        <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
+                        <input type="hidden" name="action" value="save_admin_2fa">
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center;">
+                            <div>
+                                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#ffffff;padding:12px 14px;border:1.5px solid #fdba74;border-radius:8px;">
+                                    <input type="checkbox" name="admin_2fa_enabled" value="1" <?=$curr2fa ? 'checked' : ''?> style="width:18px;height:18px;accent-color:#ea580c;cursor:pointer;">
+                                    <div>
+                                        <b style="color:#9a3412;font-size:13.5px;display:block;">ایڈمن لاگ ان پر 2FA سیکیورٹی پن لازمی کریں</b>
+                                        <span style="color:#64748b;font-size:11.5px;">Enable secondary PIN prompt on Admin sign-in</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label style="display:block;font-size:12.5px;font-weight:700;color:#9a3412;margin-bottom:6px;">
+                                    Master Security PIN <span class="ur">(سیکیورٹی پن - کم از کم 4 ہندسے)</span> *
+                                </label>
+                                <input type="password" name="admin_security_pin" value="<?=e($currPin)?>" maxlength="8" placeholder="e.g. 7860" style="width:100%;font-size:18px;font-weight:700;letter-spacing:6px;padding:9px 12px;border:1.5px solid #fdba74;border-radius:6px;background:#ffffff;box-sizing:border-box;">
+                                <small style="display:block;color:#64748b;font-size:11px;margin-top:4px;">
+                                    ڈیفالٹ پن: <code>7860</code> ہے۔ آپ اپنی مرضی کا 4 یا 6 ہندسوں کا خفیہ کوڈ مقرر کر سکتے ہیں۔
+                                </small>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:18px;text-align:right;">
+                            <button class="btn" type="submit" style="background:#ea580c;color:#ffffff;border:none;padding:10px 22px;font-weight:700;border-radius:6px;cursor:pointer;">
+                                💾 Save 2FA Security Settings <span class="ur">(سیکیورٹی پن محفوظ کریں)</span>
+                            </button>
+                        </div>
+                    </form>
+                </article>
             </div>
 
             <!-- Feature #4: Recent Login Activity & Security Audit Log -->
@@ -2269,6 +2346,13 @@ if (!in_array($activeTab, $validTabs, true)) {
                                     <label style="color:#991b1b;font-weight:700;">Live Admin Password <span class="ur">(ایڈمن لاگ ان پاس ورڈ)</span> *</label>
                                     <input type="password" name="admin_password" id="dangerAdminPassword" autocomplete="new-password" required placeholder="Enter live Admin password to authorize" style="border-color:#fca5a5;" value="">
                                 </div>
+
+                                <?php if ($curr2fa): ?>
+                                <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0;">
+                                    <label style="color:#9a3412;font-weight:700;">Security PIN <span class="ur">(سیکیورٹی پن)</span> *</label>
+                                    <input type="password" name="danger_security_pin" required placeholder="Enter 4-digit PIN" style="border-color:#fdba74;" value="">
+                                </div>
+                                <?php endif; ?>
 
                                 <div>
                                     <button class="btn danger" type="submit" style="padding:11px 24px;font-weight:700;font-size:14px;background:#dc2626;border-color:#b91c1c;box-shadow:0 3px 6px rgba(220,38,38,0.25);">

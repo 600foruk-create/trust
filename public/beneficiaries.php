@@ -65,11 +65,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $adjType = trim($_POST['adjustment_type'] ?? 'none');
         $adjAmount = (float)($_POST['adjustment_amount'] ?? 0);
         $adjReason = trim($_POST['adjustment_reason'] ?? '');
+        $attendanceDays = max(1, (int)($_POST['attendance_days'] ?? 30));
+        $absentDays = max(0, (int)($_POST['absent_days'] ?? 0));
+        $salaryDeduction = ($adjType === 'deduction') ? $adjAmount : 0.00;
+        $salaryAllowance = ($adjType === 'bonus') ? $adjAmount : 0.00;
         if ($adjAmount > 0 && in_array($adjType, ['bonus', 'deduction'], true)) {
             if ($adjType === 'bonus') {
                 $description .= " [بشمول عیدی / الاؤنس: +PKR " . number_format($adjAmount, 2) . (!empty($adjReason) ? " ({$adjReason})" : "") . "]";
             } else {
-                $description .= " [بشمول کٹوتی غیر حاضری: -PKR " . number_format($adjAmount, 2) . (!empty($adjReason) ? " ({$adjReason})" : "") . "]";
+                $description .= " [بشمول کٹوتی غیر حاضری ({$absentDays} دن): -PKR " . number_format($adjAmount, 2) . (!empty($adjReason) ? " ({$adjReason})" : "") . "]";
             }
         }
         $assetAccountId = (int)($_POST['asset_account_id'] ?? 0);
@@ -148,9 +152,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $userRegId = function_exists('get_user_region_id') ? get_user_region_id($userId) : 0;
                 $voucherRegionId = $userRegId > 0 ? $userRegId : null;
 
-                $stmtVoucher = $pdo->prepare('INSERT INTO vouchers (voucher_no, voucher_type, voucher_date, fund_id, region_id, beneficiary_id, payee_name, payment_method, reference_no, description, total_amount, status, created_by, posted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmtVoucher = $pdo->prepare('INSERT INTO vouchers (voucher_no, voucher_type, voucher_date, fund_id, region_id, beneficiary_id, attendance_days, absent_days, salary_deduction, salary_allowance, payee_name, payment_method, reference_no, description, total_amount, status, created_by, posted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 $stmtVoucher->execute([
                     $voucherNo, 'expense', $date, $fundId, $voucherRegionId, $benId,
+                    $attendanceDays, $absentDays, $salaryDeduction, $salaryAllowance,
                     $payeeName, $paymentMethod, $referenceNo, $description, $amount,
                     $voucherStatus, $userId, $postedAt
                 ]);
@@ -1723,6 +1728,24 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                         </div>
                     </div>
 
+                    <!-- Attendance & Leave Tracker (For Staff / Teachers) -->
+                    <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <span style="font-size:11.5px;font-weight:700;color:#166534;">📅 ماہانہ حاضری و غیر حاضری کٹوتی (Staff Attendance &amp; Leave):</span>
+                            <span style="font-size:11px;color:#15803d;">خودکار کٹوتی کیلکولیٹر</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div>
+                                <label style="display:block;font-size:11px;font-weight:700;color:#166534;margin-bottom:3px;">کل ایام (Total Working Days):</label>
+                                <input type="number" id="qsm_total_days" name="attendance_days" value="30" min="1" max="31" oninput="onAbsentDaysChange(document.getElementById('qsm_absent_days').value)" style="width:100%;font-size:12px;font-weight:700;padding:6px;border:1px solid #86efac;border-radius:5px;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:11px;font-weight:700;color:#991b1b;margin-bottom:3px;">غیر حاضری دن (Absent Days):</label>
+                                <input type="number" id="qsm_absent_days" name="absent_days" value="0" min="0" max="31" oninput="onAbsentDaysChange(this.value)" placeholder="0" style="width:100%;font-size:12px;font-weight:700;padding:6px;border:1px solid #fca5a5;border-radius:5px;box-sizing:border-box;color:#b91c1c;">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Allowance / Deduction Adjustment (Optional) -->
                     <div style="background:#f8fafc;border:1.5px dashed #94a3b8;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -2019,6 +2042,26 @@ function onStipendAccountChange() {
 var currentQuickStipendData = null;
 var currentBaseStipendAmount = 0;
 
+function onAbsentDaysChange(val) {
+    var absent = parseFloat(val) || 0;
+    var totalDays = parseFloat(document.getElementById('qsm_total_days') ? document.getElementById('qsm_total_days').value : 30) || 30;
+    var adjTypeEl = document.getElementById('qsm_adj_type');
+    var adjAmtEl = document.getElementById('qsm_adj_amount');
+    var adjReasonEl = document.getElementById('qsm_adj_reason');
+    if (absent > 0 && currentBaseStipendAmount > 0) {
+        var perDay = currentBaseStipendAmount / totalDays;
+        var ded = Math.round(perDay * absent);
+        if (adjTypeEl) adjTypeEl.value = 'deduction';
+        if (adjAmtEl) adjAmtEl.value = ded;
+        if (adjReasonEl) adjReasonEl.value = absent + ' دن غیر حاضری کٹوتی (' + totalDays + ' ایام میں سے)';
+    } else if (absent === 0 && adjTypeEl && adjTypeEl.value === 'deduction') {
+        adjTypeEl.value = 'none';
+        if (adjAmtEl) adjAmtEl.value = '';
+        if (adjReasonEl) adjReasonEl.value = '';
+    }
+    calculateStipendTotal();
+}
+
 function calculateStipendTotal() {
     var adjType = document.getElementById('qsm_adj_type') ? document.getElementById('qsm_adj_type').value : 'none';
     var adjAmt = parseFloat(document.getElementById('qsm_adj_amount') ? document.getElementById('qsm_adj_amount').value : 0) || 0;
@@ -2085,6 +2128,10 @@ function openQuickStipendModal(data) {
     if (adjAmtEl) adjAmtEl.value = '';
     var adjReasonEl = document.getElementById('qsm_adj_reason');
     if (adjReasonEl) adjReasonEl.value = '';
+    var absentEl = document.getElementById('qsm_absent_days');
+    if (absentEl) absentEl.value = '0';
+    var totalDaysEl = document.getElementById('qsm_total_days');
+    if (totalDaysEl) totalDaysEl.value = '30';
     calculateStipendTotal();
 
     document.getElementById('qsm_date').value = new Date().toISOString().split('T')[0];

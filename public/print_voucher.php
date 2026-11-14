@@ -593,6 +593,23 @@ try {
                     <th>Fund Account <span class="ur">(فنڈ)</span></th>
                     <td><b><?=e($voucher['fund_name'] ?? (is_madrasa_mode() ? 'Madrasa General Fund' : 'Trust General Fund'))?></b> (<?=e($voucher['fund_code'] ?? (is_madrasa_mode() ? 'MGF' : 'TGF'))?>)</td>
                 </tr>
+                <?php if (!empty($voucher['absent_days']) || !empty($voucher['salary_deduction']) || !empty($voucher['salary_allowance'])): ?>
+                <tr>
+                    <th>Attendance &amp; Deductions <span class="ur">(حاضری و کٹوتی گوشوارہ)</span></th>
+                    <td>
+                        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;">
+                            <span>📅 کل ایام: <b><?=e($voucher['attendance_days'] ?: 30)?></b></span>
+                            <span>❌ غیر حاضری: <b style="color:#b91c1c;"><?=e($voucher['absent_days'] ?: 0)?> دن</b></span>
+                            <?php if ((float)($voucher['salary_deduction'] ?? 0) > 0): ?>
+                                <span>➖ کٹوتی غیر حاضری: <b style="color:#b91c1c;">Rs. <?=number_format((float)$voucher['salary_deduction'], 2)?></b></span>
+                            <?php endif; ?>
+                            <?php if ((float)($voucher['salary_allowance'] ?? 0) > 0): ?>
+                                <span>➕ الاؤنس / عیدی: <b style="color:#15803d;">Rs. <?=number_format((float)$voucher['salary_allowance'], 2)?></b></span>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+                <?php endif; ?>
             <?php elseif ($isStudentStipend): ?>
                 <tr>
                     <th style="width:30%;">Student / Beneficiary <span class="ur">(طالب علم / مستحق)</span></th>
@@ -776,6 +793,12 @@ try {
                         <span>عہدہ و شعبہ (Post):</span>
                         <span><?=e($voucher['ben_dept'] ?: 'Teacher / Staff')?></span>
                     </div>
+                    <?php if (!empty($voucher['absent_days']) || !empty($voucher['salary_deduction'])): ?>
+                    <div class="thermal-row">
+                        <span>حاضری / کٹوتی:</span>
+                        <span><?=e($voucher['absent_days'])?> دن غیر حاضری (-<?=number_format((float)($voucher['salary_deduction'] ?? 0))?>)</span>
+                    </div>
+                    <?php endif; ?>
                 <?php else: ?>
                     <div class="thermal-row">
                         <span><?=$isIncome ? 'معاون (Donor):' : 'ادائیگی بنام (Payee):'?></span>

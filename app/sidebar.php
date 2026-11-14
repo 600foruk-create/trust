@@ -164,21 +164,27 @@ div.en-only, p.en-only { display: block !important; }
       <button type="button" class="header-notif-btn" id="notifBellBtn" onclick="toggleHeaderNotifDropdown(event)" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:20px;padding:6px 12px;display:flex;align-items:center;gap:6px;cursor:pointer;color:#334155;font-weight:600;font-size:12.5px;" title="Notifications & Alerts">
         <span>🔔</span>
         <?php if ($unreadNotifCount > 0): ?>
-          <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px;line-height:1.2;">
+          <span id="notifBellBadge" style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px;line-height:1.2;">
             <?=$unreadNotifCount?>
           </span>
         <?php endif; ?>
       </button>
 
       <!-- Dropdown Panel -->
-      <div id="headerNotifDropdown" style="display:none;position:absolute;right:0;top:100%;margin-top:8px;width:320px;background:#fff;border-radius:10px;box-shadow:0 10px 25px rgba(0,0,0,0.18);border:1px solid #e2e8f0;z-index:99999;overflow:hidden;">
-        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+      <div id="headerNotifDropdown" style="display:none;position:absolute;right:0;top:100%;margin-top:8px;width:330px;background:#fff;border-radius:10px;box-shadow:0 10px 25px rgba(0,0,0,0.18);border:1px solid #e2e8f0;z-index:99999;overflow:hidden;">
+        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <b style="font-size:13px;color:#0f172a;">🔔 Notifications <span class="ur">(اطلاعات)</span></b>
-          <?php if ($unreadNotifCount > 0): ?>
-            <a href="tasks.php?mark_notifs_read=1&token=<?=csrf_token()?>" style="font-size:11px;color:#2563eb;text-decoration:none;font-weight:600;">Mark all read</a>
-          <?php endif; ?>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button type="button" onclick="markAllNotificationsReadAjax(event)" style="background:transparent;border:none;cursor:pointer;font-size:11px;color:#2563eb;font-weight:600;padding:2px 4px;" title="Mark all read (پڑھ لیا)">
+              ✓ Mark read
+            </button>
+            <span style="color:#cbd5e1;font-size:11px;">|</span>
+            <button type="button" onclick="clearAllNotificationsAjax(event)" style="background:transparent;border:none;cursor:pointer;font-size:11px;color:#dc2626;font-weight:600;padding:2px 4px;" title="Clear all (تمام صاف کریں)">
+              🗑️ Clear all
+            </button>
+          </div>
         </div>
-        <div style="max-height:280px;overflow-y:auto;">
+        <div id="headerNotifList" style="max-height:280px;overflow-y:auto;">
           <?php if (empty($unreadNotifs)): ?>
             <div style="padding:16px;text-align:center;font-size:12px;color:#94a3b8;">
               No new notifications.
@@ -997,6 +1003,35 @@ function toggleHeaderNotifDropdown(e) {
   var drop = document.getElementById('headerNotifDropdown');
   if (!drop) return;
   drop.style.display = (drop.style.display === 'block') ? 'none' : 'block';
+}
+
+function markAllNotificationsReadAjax(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  var badge = document.getElementById('notifBellBadge');
+  if (badge) badge.style.display = 'none';
+  fetch('dashboard.php?mark_notifs_read=1&ajax=1')
+    .then(function() {
+      var list = document.getElementById('headerNotifList');
+      if (list) list.innerHTML = '<div style="padding:16px;text-align:center;font-size:12px;color:#15803d;font-weight:600;">✓ تمام نوٹیفیکیشنز پڑھ لیے گئے ہیں۔ (All marked read)</div>';
+    })
+    .catch(function() {
+      window.location.href = 'tasks.php?mark_notifs_read=1';
+    });
+}
+
+function clearAllNotificationsAjax(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  if (!confirm('کیا آپ تمام نوٹیفیکیشنز مستقل ڈیلیٹ کرنا چاہتے ہیں؟ (Clear all notifications?)')) return;
+  var badge = document.getElementById('notifBellBadge');
+  if (badge) badge.style.display = 'none';
+  fetch('dashboard.php?clear_all_notifications=1&ajax=1')
+    .then(function() {
+      var list = document.getElementById('headerNotifList');
+      if (list) list.innerHTML = '<div style="padding:16px;text-align:center;font-size:12px;color:#94a3b8;">No new notifications (تمام نوٹیفیکیشنز صاف ہو گئے).</div>';
+    })
+    .catch(function() {
+      window.location.href = 'tasks.php?clear_all_notifications=1';
+    });
 }
 
 document.addEventListener('click', function(e) {

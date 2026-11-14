@@ -2102,6 +2102,48 @@ function mark_all_notifications_read(int $userId): bool {
     }
 }
 
+function clear_all_user_notifications(int $userId): bool {
+    global $pdo;
+    if (!$pdo || $userId <= 0) return false;
+    try {
+        $stmt = $pdo->prepare("DELETE FROM notifications WHERE user_id = ?");
+        return $stmt->execute([$userId]);
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+// Global Notification Request Handlers (Mark Read or Clear All)
+if (!empty($_SESSION['user']['id'])) {
+    $sessionUid = (int)$_SESSION['user']['id'];
+    if (isset($_GET['mark_notifs_read'])) {
+        mark_all_notifications_read($sessionUid);
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true]);
+            exit;
+        }
+        $ref = $_SERVER['HTTP_REFERER'] ?? 'dashboard.php';
+        $cleanRef = preg_replace('/([?&])mark_notifs_read=[^&]*(&|$)/', '$1', $ref);
+        $cleanRef = rtrim($cleanRef, '?&');
+        header('Location: ' . ($cleanRef ?: 'dashboard.php'));
+        exit;
+    }
+    if (isset($_GET['clear_all_notifications'])) {
+        clear_all_user_notifications($sessionUid);
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true]);
+            exit;
+        }
+        $ref = $_SERVER['HTTP_REFERER'] ?? 'dashboard.php';
+        $cleanRef = preg_replace('/([?&])clear_all_notifications=[^&]*(&|$)/', '$1', $ref);
+        $cleanRef = rtrim($cleanRef, '?&');
+        header('Location: ' . ($cleanRef ?: 'dashboard.php'));
+        exit;
+    }
+}
+
 function is_urdu_enabled(): bool {
     return get_setting('ui_language', 'bilingual') !== 'english';
 }

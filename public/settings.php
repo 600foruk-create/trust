@@ -663,12 +663,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
     $doResetSignatures = isset($_POST['reset_print_signatures']);
     $doResetAppeal = isset($_POST['reset_donation_appeal']);
     $doResetDonors = isset($_POST['reset_donors_students']);
+    $doResetNotifs = isset($_POST['reset_notifications']);
 
     if (empty($adminPassword)) {
         $error = 'براہ کرم اپنا لائیو ایڈمن پاس ورڈ درج کریں۔ (Please enter your admin password).';
     } elseif (!$confirmReset) {
         $error = 'براہ کرم تصدیقی چیک باکس پر نشان لگائیں۔ (Please confirm by checking the verification box).';
-    } elseif (!$doResetTx && !$doResetIdentity && !$doResetFunds && !$doResetSignatures && !$doResetAppeal && !$doResetDonors) {
+    } elseif (!$doResetTx && !$doResetIdentity && !$doResetFunds && !$doResetSignatures && !$doResetAppeal && !$doResetDonors && !$doResetNotifs) {
         $error = 'براہ کرم کم از کم ایک آپشن منتخب کریں جسے ری سیٹ یا ڈیفالٹ کرنا ہو۔ (Please select at least one reset option).';
     } else {
         try {
@@ -707,6 +708,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                     $pdo->exec("DELETE FROM journal_lines");
                     $pdo->exec("DELETE FROM journal_entries");
                     $pdo->exec("DELETE FROM vouchers");
+                    $pdo->exec("DELETE FROM notifications");
                     $appliedActions[] = 'transactions_cleared';
                 }
 
@@ -779,6 +781,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                     $pdo->exec("DELETE FROM donors");
                     $pdo->exec("DELETE FROM beneficiaries");
                     $appliedActions[] = 'donors_students_cleared';
+                }
+
+                // 7. Clear Notifications & Alerts if selected
+                if ($doResetNotifs) {
+                    $pdo->exec("DELETE FROM notifications");
+                    $appliedActions[] = 'notifications_cleared';
+                }
+
+                // Keep backup freshness updated so reminder banner does not show right after a fresh system reset
+                if (function_exists('set_setting')) {
+                    set_setting('last_auto_backup_at', date('Y-m-d H:i:s'));
                 }
 
                 $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
@@ -2225,6 +2238,20 @@ if (!in_array($activeTab, $validTabs, true)) {
                                         </p>
                                     </div>
                                 </label>
+
+                                <!-- Item 7: Clear All Notifications & Alerts -->
+                                <label style="display:flex;align-items:flex-start;gap:12px;background:#fefce8;border:1px solid #fef08a;padding:12px 14px;border-radius:8px;cursor:pointer;">
+                                    <input type="checkbox" name="reset_notifications" value="1" id="cb_reset_notifs" style="margin-top:3px;width:18px;height:18px;accent-color:#eab308;">
+                                    <div style="flex:1;">
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <b style="color:#854d0e;font-size:13.5px;">تمام نوٹیفیکیشنز اور الرٹس صاف کریں (Clear All Notifications &amp; Alerts)</b>
+                                            <span class="badge secondary" style="font-size:11px;background:#fef9c3;color:#a16207;">Notifications</span>
+                                        </div>
+                                        <p style="margin:2px 0 0;font-size:12px;color:#713f12;">
+                                            ہیڈر کے نوٹیفیکیشن بیل آئیکن (🔔) میں موجود تمام سابقہ نوٹسز، ٹاسک میسجز اور الرٹس مکمل ڈیلیٹ کر دیے جائیں گے۔
+                                        </p>
+                                    </div>
+                                </label>
                             </div>
                         </div>
 
@@ -2321,7 +2348,7 @@ if (!in_array($activeTab, $validTabs, true)) {
         }
 
         function toggleAllDangerCheckboxes(check) {
-            const ids = ['cb_reset_tx', 'cb_reset_id', 'cb_reset_funds', 'cb_reset_signs', 'cb_reset_appeal', 'cb_reset_donors'];
+            const ids = ['cb_reset_tx', 'cb_reset_id', 'cb_reset_funds', 'cb_reset_signs', 'cb_reset_appeal', 'cb_reset_donors', 'cb_reset_notifs'];
             ids.forEach(function(id) {
                 const el = document.getElementById(id);
                 if (el) el.checked = check;
@@ -2329,7 +2356,7 @@ if (!in_array($activeTab, $validTabs, true)) {
         }
 
         function validateDangerSubmit() {
-            const ids = ['cb_reset_tx', 'cb_reset_id', 'cb_reset_funds', 'cb_reset_signs', 'cb_reset_appeal', 'cb_reset_donors'];
+            const ids = ['cb_reset_tx', 'cb_reset_id', 'cb_reset_funds', 'cb_reset_signs', 'cb_reset_appeal', 'cb_reset_donors', 'cb_reset_notifs'];
             let anyChecked = false;
             ids.forEach(function(id) {
                 const el = document.getElementById(id);

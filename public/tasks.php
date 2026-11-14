@@ -17,10 +17,17 @@ $canUpdateProgress = has_permission('tasks.update_progress') || $canManageTasks;
 
 $madrasaName = function_exists('get_setting') ? get_setting('madrasa_name', 'Trust Accounts') : 'Trust Accounts';
 
-// Handle Mark Notifications as Read
+// Handle Mark Notifications as Read or Clear All
 if (isset($_GET['mark_notifs_read'])) {
     if (function_exists('mark_all_notifications_read')) {
         mark_all_notifications_read($userId);
+    }
+    header('Location: tasks.php');
+    exit;
+}
+if (isset($_GET['clear_all_notifications'])) {
+    if (function_exists('clear_all_user_notifications')) {
+        clear_all_user_notifications($userId);
     }
     header('Location: tasks.php');
     exit;
@@ -968,9 +975,14 @@ if ($viewTaskId > 0) {
                         <?php endforeach; ?>
                     </div>
                 </div>
-                <a href="tasks.php?mark_notifs_read=1" class="btn secondary sm" style="font-size:11px;padding:3px 9px;white-space:nowrap;">
-                    ✓ Mark Read
-                </a>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <a href="tasks.php?mark_notifs_read=1" class="btn secondary sm" style="font-size:11px;padding:3px 9px;white-space:nowrap;">
+                        ✓ Mark Read
+                    </a>
+                    <a href="tasks.php?clear_all_notifications=1" class="btn danger sm" style="font-size:11px;padding:3px 9px;white-space:nowrap;" onclick="return confirm('کیا آپ تمام نوٹیفیکیشنز مستقل ڈیلیٹ کرنا چاہتے ہیں؟ (Clear all notifications?)');">
+                        🗑️ Clear
+                    </a>
+                </div>
             </div>
         <?php endif; ?>
 

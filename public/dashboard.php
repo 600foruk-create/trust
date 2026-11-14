@@ -424,7 +424,7 @@ if (!$canApprove) {
             }
         ?>
             <!-- Today's Scheduled Pledges Alert Banner -->
-            <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:22px;box-shadow:0 4px 6px -1px rgba(245,158,11,0.1);">
+            <div id="todayPledgesBanner" style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:22px;box-shadow:0 4px 6px -1px rgba(245,158,11,0.1);position:relative;">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-bottom:1px solid #fef3c7;padding-bottom:12px;margin-bottom:12px;">
                     <div style="display:flex;align-items:center;gap:10px;">
                         <span style="font-size:24px;">🔔</span>
@@ -435,9 +435,12 @@ if (!$canApprove) {
                             </div>
                         </div>
                     </div>
-                    <a href="donors.php?tab=pledges&month=<?=date('Y-m')?>&pledge_status=pending" class="btn sm" style="background:#d97706;color:#ffffff;border:none;font-weight:700;padding:6px 14px;border-radius:6px;text-decoration:none;">
-                        📋 ٹریکر پر جائیں (Open Tracker)
-                    </a>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <a href="donors.php?tab=pledges&month=<?=date('Y-m')?>&pledge_status=pending" class="btn sm" style="background:#d97706;color:#ffffff;border:none;font-weight:700;padding:6px 14px;border-radius:6px;text-decoration:none;">
+                            📋 ٹریکر پر جائیں (Open Tracker)
+                        </a>
+                        <button type="button" onclick="dismissDashboardAlert('todayPledgesBanner')" style="background:transparent;border:none;color:#92400e;font-size:20px;cursor:pointer;padding:2px 8px;font-weight:bold;line-height:1;" title="Dismiss (بند کریں)">✕</button>
+                    </div>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:10px;">
                     <?php foreach ($todayDuePledges as $tp): 
@@ -487,7 +490,7 @@ if (!$canApprove) {
                 if ($myCashInHand >= $cashierMaxLimit): 
             ?>
                 <!-- Cashier High Cash Alert Banner -->
-                <div style="background:#fef2f2;border:1.5px solid #ef4444;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:0 4px 6px -1px rgba(239,68,68,0.12);">
+                <div id="cashierHighCashBanner" style="background:#fef2f2;border:1.5px solid #ef4444;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:0 4px 6px -1px rgba(239,68,68,0.12);position:relative;">
                     <div style="display:flex;align-items:center;gap:12px;">
                         <span style="font-size:32px;">⚠️</span>
                         <div>
@@ -497,10 +500,11 @@ if (!$canApprove) {
                             </div>
                         </div>
                     </div>
-                    <div>
+                    <div style="display:flex;align-items:center;gap:8px;">
                         <a href="cash_bank.php?handover=1&preselect_from=<?=(int)($userAcc['id']??0)?>&amount=<?=$myCashInHand?>&cname=<?=urlencode($currentUser['full_name']??'')?>" class="btn sm" style="background:#dc2626;color:#ffffff;font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(220,38,38,0.25);">
                             📦 فوری نقد کیش جمع کروائیں &rarr;
                         </a>
+                        <button type="button" onclick="dismissDashboardAlert('cashierHighCashBanner')" style="background:transparent;border:none;color:#991b1b;font-size:20px;cursor:pointer;padding:2px 8px;font-weight:bold;line-height:1;" title="Dismiss (بند کریں)">✕</button>
                     </div>
                 </div>
             <?php endif; ?>
@@ -754,7 +758,7 @@ if (!$canApprove) {
 
             <!-- Database Backup Reminder Banner (Shows if no backup in 7+ days) -->
             <?php if ($canApprove && $daysSinceLastBackup >= 7): ?>
-                <div style="background:#fff7ed;border:1.5px solid #f97316;border-radius:14px;padding:16px 20px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;box-shadow:0 3px 6px rgba(249,115,22,0.1);">
+                <div id="backupReminderBanner" style="background:#fff7ed;border:1.5px solid #f97316;border-radius:14px;padding:16px 20px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;box-shadow:0 3px 6px rgba(249,115,22,0.1);position:relative;">
                     <div style="display:flex;align-items:center;gap:14px;">
                         <span style="font-size:30px;">🛡️</span>
                         <div>
@@ -768,6 +772,7 @@ if (!$canApprove) {
                         <a href="settings.php?action=export_db_backup&csrf=<?=e(csrf_token())?>" class="btn sm" style="background:#ea580c;color:#ffffff;text-decoration:none;font-weight:700;padding:8px 16px;border-radius:6px;box-shadow:0 2px 4px rgba(234,88,12,0.25);display:inline-flex;align-items:center;gap:6px;">
                             📥 تازہ ڈیٹا بیس بیک اپ ڈاؤن لوڈ کریں
                         </a>
+                        <button type="button" onclick="dismissDashboardAlert('backupReminderBanner')" style="background:transparent;border:none;color:#9a3412;font-size:20px;cursor:pointer;padding:2px 8px;font-weight:bold;line-height:1;" title="Dismiss (بند کریں)">✕</button>
                     </div>
                 </div>
             <?php endif; ?>
@@ -955,7 +960,7 @@ if (!$canApprove) {
             ?>
                 <section style="margin: 24px 0;">
                     <?php if (!empty($overLimitCashiers)): ?>
-                        <div style="background:#fef2f2;border:1.5px solid #f87171;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 2px 5px rgba(239,68,68,0.1);">
+                        <div id="adminOverLimitBanner" style="background:#fef2f2;border:1.5px solid #f87171;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 2px 5px rgba(239,68,68,0.1);position:relative;">
                             <div style="display:flex;align-items:center;gap:12px;">
                                 <span style="font-size:26px;">⚠️</span>
                                 <div>
@@ -970,9 +975,12 @@ if (!$canApprove) {
                                     </div>
                                 </div>
                             </div>
-                            <a href="cash_bank.php?tab=transfer" class="btn sm" style="background:#dc2626;color:#ffffff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;text-decoration:none;box-shadow:0 1px 3px rgba(220,38,38,0.3);">
-                                📦 نقد وصولی / ٹرانسفر کریں &rarr;
-                            </a>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <a href="cash_bank.php?tab=transfer" class="btn sm" style="background:#dc2626;color:#ffffff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;text-decoration:none;box-shadow:0 1px 3px rgba(220,38,38,0.3);">
+                                    📦 نقد وصولی / ٹرانسفر کریں &rarr;
+                                </a>
+                                <button type="button" onclick="dismissDashboardAlert('adminOverLimitBanner')" style="background:transparent;border:none;color:#991b1b;font-size:20px;cursor:pointer;padding:2px 8px;font-weight:bold;line-height:1;" title="Dismiss (بند کریں)">✕</button>
+                            </div>
                         </div>
                     <?php endif; ?>
                     <div class="panel" style="border:1.5px solid #fed7aa;background:#fffaf5;">
@@ -1274,5 +1282,24 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <?php endif; ?>
+<script>
+function dismissDashboardAlert(id) {
+    var el = document.getElementById(id);
+    if (el) {
+        el.style.display = 'none';
+        try {
+            sessionStorage.setItem('dismissed_' + id, '1');
+        } catch(e) {}
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    ['todayPledgesBanner', 'backupReminderBanner', 'cashierHighCashBanner', 'adminOverLimitBanner'].forEach(function(id) {
+        if (sessionStorage.getItem('dismissed_' + id) === '1') {
+            var el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        }
+    });
+});
+</script>
 </body>
 </html>

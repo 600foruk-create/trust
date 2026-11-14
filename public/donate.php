@@ -431,6 +431,7 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
     <title>آن لائن عطیات و ماہانہ کفالت رجسٹریشن | <?=e($orgName)?></title>
     <link rel="stylesheet" href="assets/style.css?v=<?=function_exists('asset_version') ? asset_version('assets/style.css') : '1.0'?>">
     <link rel="icon" type="image/png" href="assets/icon-192.png">
+    <script src="assets/html2canvas.min.js"></script>
     <style>
         :root {
             --brand-green: #059669;
@@ -921,6 +922,63 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
             </div>
         </div>
 
+        <!-- Digital Prayer Receipt Card (سند شکر و دعا) -->
+        <div style="margin-bottom:24px;">
+            <div id="prayerReceiptCard" style="background:linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);color:#ffffff;border-radius:16px;padding:24px 22px;border:3px solid #fbbf24;box-shadow:0 8px 24px rgba(6,78,59,0.25);position:relative;text-align:center;direction:rtl;">
+                <div style="font-size:16px;color:#fef08a;margin-bottom:4px;font-family:'Noto Nastaliq Urdu',serif;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+                <?php if ($orgLogo): ?>
+                    <img src="<?=e($orgLogo)?>" alt="Logo" style="max-height:55px;object-fit:contain;margin-bottom:6px;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));">
+                <?php endif; ?>
+                <div style="font-size:18px;font-weight:900;color:#ffffff;"><?=e($orgName)?></div>
+                <div style="font-size:11.5px;color:#a7f3d0;margin-bottom:12px;"><?=e($orgSubtitle)?></div>
+
+                <div style="background:rgba(255,255,255,0.14);border:1px dashed #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:14px;">
+                    <div style="font-size:15px;font-weight:800;color:#fef08a;margin-bottom:2px;">📜 سَنَدُ شُكْرٍ وَدُعَاءٍ (دعائیہ رسید و شکر گزاری)</div>
+                    <div style="font-size:11.5px;color:#e2e8f0;">آن لائن تصدیقی کوڈ: <strong>#DON-<?=str_pad((string)$submittedData['id'], 4, '0', STR_PAD_LEFT)?></strong> &bull; تاریخ: <?=date('d-M-Y')?></div>
+                </div>
+
+                <div style="background:#ffffff;color:#0f172a;border-radius:10px;padding:14px;margin-bottom:14px;text-align:right;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
+                        <div>
+                            <span style="color:#64748b;font-size:11.5px;display:block;">محترم معاون:</span>
+                            <strong style="color:#0f172a;font-size:14px;"><?=e($submittedData['name'])?></strong>
+                        </div>
+                        <div>
+                            <span style="color:#64748b;font-size:11.5px;display:block;">رقم / عطیہ:</span>
+                            <strong style="color:#059669;font-size:15px;">
+                                Rs. <?=number_format($submittedData['amount'])?>
+                                <?php if (!empty($submittedData['currency']) && $submittedData['currency'] !== 'PKR'): ?>
+                                    <small style="color:#b45309;font-size:11.5px;">(<?=e($submittedData['currency'])?> <?=number_format($submittedData['foreign_amount'], 2)?>)</small>
+                                <?php endif; ?>
+                            </strong>
+                        </div>
+                        <div>
+                            <span style="color:#64748b;font-size:11.5px;display:block;">فنڈ / مقصد:</span>
+                            <strong><?=e($submittedData['fund'])?></strong>
+                        </div>
+                        <div>
+                            <span style="color:#64748b;font-size:11.5px;display:block;">نوعیت:</span>
+                            <strong><?=e($submittedData['type'])?></strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="font-size:14.5px;color:#fef08a;font-weight:700;line-height:1.6;margin-bottom:6px;font-family:'Noto Nastaliq Urdu',serif;">
+                    «اللَّهُمَّ بَارِكْ لَهُمْ فِي أَمْوَالِهِمْ وَأَهْلِهِمْ وَتَقَبَّلْ صَدَقَاتِهِمْ»
+                </div>
+                <div style="font-size:12px;color:#d1fae5;line-height:1.6;">
+                    اللہ تعالیٰ آپ کے اس تعاون کو اپنی بارگاہ میں قبول فرمائے اور دنیا و آخرت میں عظیم اجر عطا فرمائے۔ آمین!
+                </div>
+            </div>
+
+            <!-- Download Button for Prayer Card -->
+            <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;">
+                <button type="button" onclick="downloadPrayerReceiptCard()" style="background:#0284c7;color:#ffffff;border:none;padding:10px 20px;border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(2,132,199,0.3);">
+                    <span>📥 دعائیہ رسید کارڈ محفوظ کریں (Save Image)</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Payment Slip Upload Box if not uploaded yet -->
         <?php if (!empty($submittedData['proof_receipt'])): ?>
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;">
@@ -1376,6 +1434,36 @@ function showToast(msg) {
         setTimeout(function() {
             toast.style.display = 'none';
         }, 2500);
+    }
+}
+
+async function downloadPrayerReceiptCard() {
+    const card = document.getElementById('prayerReceiptCard');
+    if (!card) return;
+    if (typeof html2canvas !== 'function') {
+        alert('تصویر بنانے کا ماڈیول لوڈ نہیں ہو سکا۔');
+        return;
+    }
+    showToast('دعائیہ کارڈ تیار ہو رہا ہے...');
+    try {
+        const canvas = await html2canvas(card, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#064e3b'
+        });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (blob) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'prayer-receipt-card-' + Date.now() + '.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('✓ دعائیہ کارڈ کامیابی سے محفوظ ہو گیا!');
+        }
+    } catch (e) {
+        alert('خرابی: ' + e.message);
     }
 }
 </script>

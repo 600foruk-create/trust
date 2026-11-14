@@ -56,17 +56,68 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             text-align: right;
         }
         .poster-canvas {
+            --theme-main: #047857;
+            --theme-dark: #065f46;
+            --theme-accent: #10b981;
+            --theme-light: #f0fdf4;
+            --theme-border: #a7f3d0;
             max-width: 800px;
             margin: 0 auto;
             background: #ffffff;
-            border: 8px solid #047857;
+            border: 8px solid var(--theme-main);
             border-radius: 18px;
             padding: 30px 36px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             position: relative;
+            transition: border-color 0.2s ease, max-width 0.25s ease;
         }
+        .poster-canvas.theme-blue {
+            --theme-main: #1d4ed8;
+            --theme-dark: #1e3a8a;
+            --theme-accent: #3b82f6;
+            --theme-light: #eff6ff;
+            --theme-border: #bfdbfe;
+        }
+        .poster-canvas.theme-maroon {
+            --theme-main: #881337;
+            --theme-dark: #4c0519;
+            --theme-accent: #be123c;
+            --theme-light: #fff1f2;
+            --theme-border: #fecdd3;
+        }
+        .poster-canvas.theme-slate {
+            --theme-main: #334155;
+            --theme-dark: #0f172a;
+            --theme-accent: #b45309;
+            --theme-light: #fefce8;
+            --theme-border: #fef08a;
+        }
+
+        /* Format Classes */
+        .poster-canvas.format-status {
+            max-width: 500px;
+            padding: 22px 20px;
+        }
+        .poster-canvas.format-status .qr-center-box {
+            flex-direction: column;
+            text-align: center;
+            gap: 14px;
+        }
+        .poster-canvas.format-status .qr-instructions ol {
+            padding-right: 0;
+            list-style-position: inside;
+        }
+        .poster-canvas.format-status .accounts-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        .poster-canvas.format-square {
+            max-width: 720px;
+            padding: 24px 26px;
+        }
+
         .inner-border {
-            border: 2px dashed #10b981;
+            border: 2px dashed var(--theme-accent);
             border-radius: 12px;
             padding: 26px 28px;
         }
@@ -88,7 +139,7 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         .org-title {
             font-size: 28px;
             font-weight: 900;
-            color: #065f46;
+            color: var(--theme-dark);
             margin: 0 0 6px;
             line-height: 1.25;
         }
@@ -99,7 +150,7 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             font-weight: 600;
         }
         .appeal-banner {
-            background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+            background: linear-gradient(135deg, var(--theme-dark) 0%, var(--theme-main) 100%);
             color: #ffffff;
             border-radius: 14px;
             padding: 16px 22px;
@@ -178,8 +229,8 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             align-items: center;
             justify-content: center;
             gap: 28px;
-            background: #f0fdf4;
-            border: 2px solid #a7f3d0;
+            background: var(--theme-light);
+            border: 2px solid var(--theme-border);
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 24px;
@@ -188,8 +239,8 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             background: #ffffff;
             padding: 12px;
             border-radius: 14px;
-            border: 2px solid #059669;
-            box-shadow: 0 6px 18px rgba(5, 150, 105, 0.15);
+            border: 2px solid var(--theme-main);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -204,7 +255,7 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         }
         .qr-instructions h3 {
             font-size: 20px;
-            color: #065f46;
+            color: var(--theme-dark);
             margin: 0 0 8px;
             font-weight: 800;
         }
@@ -218,13 +269,13 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         .qr-url-pill {
             display: inline-block;
             background: #ffffff;
-            border: 1px solid #10b981;
+            border: 1px solid var(--theme-accent);
             padding: 4px 12px;
             border-radius: 20px;
             font-family: monospace;
             font-size: 13px;
             direction: ltr;
-            color: #047857;
+            color: var(--theme-main);
             margin-top: 10px;
             font-weight: 700;
         }
@@ -261,13 +312,13 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         .acc-num {
             font-family: monospace;
             font-size: 15px;
-            color: #065f46;
+            color: var(--theme-dark);
             font-weight: 800;
             direction: ltr;
             display: inline-block;
         }
         .footer-banner {
-            border-top: 2px solid #e2e8f0;
+            border-top: 2px solid var(--theme-border);
             padding-top: 14px;
             text-align: center;
             font-size: 13px;
@@ -278,12 +329,43 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             max-width: 800px;
             margin: 0 auto 16px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            gap: 12px;
             background: #ffffff;
-            padding: 12px 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            padding: 14px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            border: 1px solid #e2e8f0;
+        }
+        .theme-pill, .format-pill {
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            color: #334155;
+            padding: 4px 11px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s ease;
+        }
+        .theme-pill:hover, .format-pill:hover {
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+        .theme-pill.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+        }
+        .format-pill.active {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
         }
         .print-btn {
             background: #059669;
@@ -359,26 +441,44 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
 <body>
 
 <div class="no-print-bar">
-    <div>
-        <strong style="color:#0f172a;font-size:15px;">🖨️ پرنٹ ایبل ڈونیشن کیو آر پوسٹر (Donation QR Poster)</strong>
-        <div style="font-size:12px;color:#64748b;">پوسٹر واٹس ایپ پر شیئر کریں، پرنٹ کریں یا تصویر محفوظ کریں۔</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <strong style="color:#0f172a;font-size:15px;">🖨️ پرنٹ ایبل ڈونیشن کیو آر پوسٹر (Donation QR Poster)</strong>
+            <div style="font-size:12px;color:#64748b;">رنگ و سائز منتخب کریں، واٹس ایپ پر شیئر کریں یا تصویر محفوظ کریں۔</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="wa-btn" id="btnShareWhatsApp" onclick="sharePosterWhatsApp()" title="پوسٹر کی تصویر اور ڈونیشن لنک واٹس ایپ پر شیئر کریں">
+                <span>💬 واٹس ایپ پر شیئر کریں (Share on WhatsApp)</span>
+            </button>
+            <button type="button" class="dl-btn" id="btnDownloadImage" onclick="downloadPosterImage()" title="پوسٹر کی تصویر محفوظ کریں">
+                <span>💾 تصویر محفوظ کریں (Save Image)</span>
+            </button>
+            <button type="button" class="print-btn" onclick="window.print()">
+                <span>🖨️ پرنٹ / PDF</span>
+            </button>
+            <a href="settings.php?tab=donations#appealSection" target="_blank" style="background:#fef3c7;border:1.5px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+                <span>✏️ اپیل تبدیل کریں</span>
+            </a>
+            <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:8px 14px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;">
+                ✕ واپس جائیں
+            </a>
+        </div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <button type="button" class="wa-btn" id="btnShareWhatsApp" onclick="sharePosterWhatsApp()" title="پوسٹر کی تصویر اور ڈونیشن لنک واٹس ایپ پر شیئر کریں">
-            <span>💬 واٹس ایپ پر شیئر کریں (Share on WhatsApp)</span>
-        </button>
-        <button type="button" class="dl-btn" id="btnDownloadImage" onclick="downloadPosterImage()" title="پوسٹر کی تصویر محفوظ کریں">
-            <span>💾 تصویر محفوظ کریں (Save Image)</span>
-        </button>
-        <button type="button" class="print-btn" onclick="window.print()">
-            <span>🖨️ ابھی پرنٹ کریں (Print / Save PDF)</span>
-        </button>
-        <a href="settings.php?tab=donations#appealSection" target="_blank" style="background:#fef3c7;border:1.5px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
-            <span>✏️ اپیل تبدیل کریں</span>
-        </a>
-        <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:8px 14px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;">
-            ✕ واپس جائیں
-        </a>
+    <!-- Quick Theme & Format Selector -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid #f1f5f9;padding-top:10px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span style="font-size:12px;font-weight:700;color:#64748b;">🎨 رنگ / تھیم:</span>
+            <button type="button" class="theme-pill active" onclick="setPosterTheme('', this)">🟢 اسلامی سبز</button>
+            <button type="button" class="theme-pill" onclick="setPosterTheme('blue', this)">🔵 رائل بلیو</button>
+            <button type="button" class="theme-pill" onclick="setPosterTheme('maroon', this)">🔴 میرون</button>
+            <button type="button" class="theme-pill" onclick="setPosterTheme('slate', this)">⚫ سلیٹ و گولڈ</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span style="font-size:12px;font-weight:700;color:#64748b;">📐 سائز / فارمیٹ:</span>
+            <button type="button" class="format-pill active" onclick="setPosterFormat('a4', this)">📄 A4 فل پرنٹ</button>
+            <button type="button" class="format-pill" onclick="setPosterFormat('status', this)">📱 واٹس ایپ اسٹیٹس (9:16)</button>
+            <button type="button" class="format-pill" onclick="setPosterFormat('square', this)">🖼️ سوشل میڈیا (1:1)</button>
+        </div>
     </div>
 </div>
 
@@ -507,6 +607,28 @@ const posterShareData = {
     phone: <?= json_encode($orgPhone, JSON_UNESCAPED_UNICODE) ?>,
     portalUrl: <?= json_encode($portalUrl, JSON_UNESCAPED_UNICODE) ?>
 };
+
+function setPosterTheme(themeName, btn) {
+    const poster = document.querySelector('.poster-canvas');
+    if (!poster) return;
+    poster.classList.remove('theme-blue', 'theme-maroon', 'theme-slate');
+    if (themeName) {
+        poster.classList.add('theme-' + themeName);
+    }
+    document.querySelectorAll('.theme-pill').forEach(el => el.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+}
+
+function setPosterFormat(formatName, btn) {
+    const poster = document.querySelector('.poster-canvas');
+    if (!poster) return;
+    poster.classList.remove('format-status', 'format-square');
+    if (formatName !== 'a4') {
+        poster.classList.add('format-' + formatName);
+    }
+    document.querySelectorAll('.format-pill').forEach(el => el.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+}
 
 function copyTextToClipboard(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {

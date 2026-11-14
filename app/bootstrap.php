@@ -14,6 +14,10 @@ if (!is_file($configFile)) {
 $config = require $configFile;
 date_default_timezone_set('Asia/Karachi');
 
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
 session_name($config['app']['session_name'] ?? 'madrasa_accounts_session');
 $secureCookie = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $secureCookie, 'httponly' => true, 'samesite' => 'Lax']);

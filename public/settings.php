@@ -1108,20 +1108,51 @@ if (!in_array($activeTab, $validTabs, true)) {
                         </div>
 
                         <!-- 3. Appeal Message & WhatsApp Office -->
-                        <div class="setting-section-title" style="margin-top:24px;">
-                            <span>3. Donation Appeal &amp; WhatsApp Office <span class="ur">(عوامی اپیل و واٹس ایپ تصدیق)</span></span>
+                        <div class="setting-section-title" id="appealSection" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                            <span>3. Donation Appeal &amp; Poster Header <span class="ur">(عوامی اپیل و کیو آر پوسٹر ہیڈر)</span></span>
+                            <div style="display:flex;gap:8px;">
+                                <a href="print_donation_qr.php" target="_blank" class="btn secondary sm" style="font-size:12px;padding:4px 12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                                    🖼️ Preview QR Poster <span class="ur">(پوسٹر دیکھیں)</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Project / Campaign Presets Bar -->
+                        <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+                                <b style="font-size:13.5px;color:#166534;display:inline-flex;align-items:center;gap:6px;">
+                                    <span>🎯</span> <span>مخصوص پروجیکٹ مہم یا ٹیمپلیٹ منتخب کریں (Campaign &amp; Project Presets):</span>
+                                </b>
+                                <button type="button" class="btn secondary sm" onclick="applyAppealTemplate('default');" style="font-size:12px;padding:4px 12px;background:#ffffff;border:1.5px solid #16a34a;color:#16a34a;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+                                    🔄 اصل ڈیفالٹ پر بحال کریں (Reset to Default)
+                                </button>
+                            </div>
+                            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                                <select id="appealPresetSelect" onchange="if(this.value) { applyAppealTemplate(this.value); this.value=''; }" style="width:100%;padding:9px 12px;font-size:13.5px;border-radius:7px;border:1.5px solid #86efac;background:#ffffff;font-weight:600;color:#0f172a;">
+                                    <option value="">-- مخصوص پروجیکٹ مہم منتخب کریں (Select Running Project Campaign) --</option>
+                                    <option value="default">🌿 اصل عمومی ڈیفالٹ اپیل (Mode Default Appeal)</option>
+                                    <option value="masjid_construction">🕌 جامعہ مسجد و مدرسہ تعمیراتی مہم (Mosque &amp; Madrasa Construction)</option>
+                                    <option value="road_bridge">🌉 علاقائی راستہ، پل اور کمیونٹی انفراسٹرکچر منصوبہ (Road / Bridge / Infrastructure)</option>
+                                    <option value="water_project">🚰 میٹھا پانی، ہینڈ پمپ اور فلٹریشن پلانٹ مہم (Clean Water Project)</option>
+                                    <option value="ramadan_ration">🍲 رمضان راشن و مستحقین امداد مہم (Ramadan Food &amp; Ration)</option>
+                                    <option value="orphan_students">🎓 یتیم و مستحق طلباء مکمل تعلیمی و رہائشی کفالت (Student &amp; Orphan Kafalat)</option>
+                                </select>
+                            </div>
+                            <small style="color:#15803d;font-size:12px;display:block;margin-top:8px;line-height:1.6;">
+                                💡 <b>فائدہ:</b> جب بھی کوئی مخصوص پروجیکٹ (مسجد، پل، راستہ وغیرہ) چل رہا ہو تو یہاں سے منتخب کر کے محفوظ فرمائیں۔ جب پروجیکٹ مکمل ہو جائے تو <b>"اصل ڈیفالٹ پر بحال کریں"</b> پر کلک کر کے فوری طور پر اصل حالت میں واپس لا سکتے ہیں۔ یہ عنوان خودکار طور پر <b>عوامی ڈونیشن پیج (donate.php)</b> اور <b>پرنٹ ایبل ڈونیشن کیو آر پوسٹر (print_donation_qr.php)</b> دونوں پر بدل جاتا ہے۔
+                            </small>
                         </div>
 
                         <div class="form-group" style="margin-bottom:16px;">
-                            <label>Appeal Headline <span class="ur">(عوامی اپیل کی سرخی)</span></label>
-                            <input name="donation_appeal_title" value="<?=e($donationAppealTitle)?>" placeholder="e.g. تعلیمی و فلاحی خدمات میں ہمارا ساتھ دیں">
-                            <small class="muted">Main bold title shown at the top banner of the donation page.</small>
+                            <label>Appeal Headline <span class="ur">(عوامی اپیل کی سرخی / پوسٹر ہیڈر)</span> *</label>
+                            <input name="donation_appeal_title" id="donationAppealTitleInput" value="<?=e($donationAppealTitle)?>" placeholder="e.g. تعلیمی و فلاحی خدمات میں ہمارا ساتھ دیں" style="font-size:14px;font-weight:600;">
+                            <small class="muted">Main bold title shown at the top banner of the donation page and QR poster.</small>
                         </div>
 
                         <div class="form-group" style="margin-bottom:16px;">
-                            <label>Appeal Description / Hadith <span class="ur">(تفصیلی پیغام یا ترغیب)</span></label>
-                            <textarea name="donation_appeal_text" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" placeholder="تفصیلی پیغام تحریر فرمائیں..."><?=e($donationAppealText)?></textarea>
-                            <small class="muted">Impact statement shown to donors before registration.</small>
+                            <label>Appeal Description / Project Details <span class="ur">(تفصیلی پیغام یا پروجیکٹ تفصیلات)</span> *</label>
+                            <textarea name="donation_appeal_text" id="donationAppealTextInput" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;line-height:1.6;" placeholder="تفصیلی پیغام یا پروجیکٹ کی تفصیلات تحریر فرمائیں..."><?=e($donationAppealText)?></textarea>
+                            <small class="muted">Impact statement shown to donors before registration and in the QR poster header.</small>
                         </div>
 
                         <div class="form-group" style="margin-bottom:22px;">
@@ -2272,6 +2303,52 @@ document.getElementById('orgLogoInput')?.addEventListener('change', function(e) 
         reader.readAsDataURL(file);
     }
 });
+
+const appealTemplates = {
+    default_madrasa: {
+        title: "دینی و تعلیمی خدمات میں ہمارا ساتھ دیں",
+        text: "آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، کتب و تعلیم پر دیانت داری سے خرچ کیے جاتے ہیں۔"
+    },
+    default_trust: {
+        title: "فلاحی و انسانی خدمات میں ہمارا ساتھ دیں",
+        text: "آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات راشن تقسیم، مفت علاج، واٹر پروجیکٹس اور بیواؤں و یتیموں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔"
+    },
+    masjid_construction: {
+        title: "جامعہ مسجد و مدرسہ تعمیراتی مہم میں حصہ لیں",
+        text: "مسجد اور دینی درسگاہ کی تعمیر عظیم صدقہ جاریہ ہے۔ اپنے مرحومین کے ایصال ثواب اور دینی خدمت کے لیے کلاس رومز، چھت اور تعمیراتی مٹیریل میں اپنا حصہ شامل فرمائیں۔"
+    },
+    road_bridge: {
+        title: "علاقائی راستہ، پل اور عوامی سہولت کے منصوبے میں تعاون فرمائیں",
+        text: "عوام الناس اور طلباء کی آسانی کے لیے راستے، پل اور رابطہ سڑک کی تعمیر میں صدقہ جاریہ کا حصہ ڈالیں۔ یہ دائمی اجر اور مخلوق خدا کی خدمت کا عظیم ذریعہ ہے۔"
+    },
+    water_project: {
+        title: "صاف پینے کے پانی اور ہینڈ پمپ / واٹر پروجیکٹ میں ساتھ دیں",
+        text: "پانی پلانا اور واٹر پروجیکٹ لگانا افضل ترین صدقات میں سے ہے۔ پسماندہ دیہات میں میٹھے پانی کے ہینڈ پمپ، کنویں اور واٹر فلٹریشن پلانٹ کی تنصیب میں اپنا تعاون فرمائیں۔"
+    },
+    ramadan_ration: {
+        title: "رمضان راشن پیکج اور غریب گھرانوں کی کفالت میں ہاتھ بٹائیں",
+        text: "مستحق، بیوہ، یتیم اور انتہائی غریب خاندانوں تک ماہانہ راشن اور راشن بکس پہنچانے کے لیے اپنے صدقات، عطیات اور زکوٰۃ پیش فرمائیں۔"
+    },
+    orphan_students: {
+        title: "یتیم و مستحق طلباء کی مکمل تعلیمی و رہائشی کفالت فرمائیں",
+        text: "قرآن و سنت کی تعلیم حاصل کرنے والے نادار و یتیم طلباء کی خوراک، کتب، علاج اور ماہانہ وظائف کی کفالت کا بیڑا اٹھا کر نبی کریم ﷺ کی رفاقت کے حقدار بنیں۔"
+    }
+};
+
+function applyAppealTemplate(key) {
+    const isMadrasa = <?= is_madrasa_mode() ? 'true' : 'false' ?>;
+    let tplKey = key;
+    if (key === 'default') {
+        tplKey = isMadrasa ? 'default_madrasa' : 'default_trust';
+    }
+    const tpl = appealTemplates[tplKey];
+    if (!tpl) return;
+
+    const titleInput = document.getElementById('donationAppealTitleInput');
+    const descInput = document.getElementById('donationAppealTextInput');
+    if (titleInput) titleInput.value = tpl.title;
+    if (descInput) descInput.value = tpl.text;
+}
 
 function copyPortalLink() {
     var url = '<?=e(get_app_base_url())?>/donate.php';

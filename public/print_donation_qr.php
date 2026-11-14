@@ -267,11 +267,14 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         <strong style="color:#0f172a;font-size:15px;">🖨️ پرنٹ ایبل ڈونیشن کیو آر پوسٹر (Donation QR Poster)</strong>
         <div style="font-size:12px;color:#64748b;">اس پوسٹر کو A4 کاغذ یا فلیکس پر پرنٹ کر کے مسجد، دفتر یا اشتہار پر لگائیں۔</div>
     </div>
-    <div style="display:flex;gap:10px;">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <a href="settings.php?tab=donations#appealSection" target="_blank" style="background:#fef3c7;border:1.5px solid #fde68a;color:#92400e;padding:8px 14px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+            <span>✏️</span> <span>اپیل یا عنوان تبدیل کریں (Change Appeal)</span>
+        </a>
         <button type="button" class="print-btn" onclick="window.print()">
             <span>🖨️ ابھی پرنٹ کریں (Print / Save PDF)</span>
         </button>
-        <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:9px 16px;border-radius:8px;font-size:13.5px;text-decoration:none;font-weight:700;">
+        <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:8px 16px;border-radius:8px;font-size:13.5px;text-decoration:none;font-weight:700;">
             ✕ واپس جائیں
         </a>
     </div>

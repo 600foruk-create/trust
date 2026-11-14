@@ -1061,7 +1061,7 @@ function get_app_base_url(): string {
     
     // 1. Sanitize configured URL: strip any trailing .php script like /dashboard.php, /index.php, etc.
     if (!empty($configured)) {
-        $configured = preg_replace('/\/[a-zA-Z0-9_\-]+\.php$/i', '', $configured);
+        $configured = preg_replace('/\/[^\/]+\.php(\/.*)?$/i', '', $configured);
         $configured = rtrim($configured, '/');
     }
 
@@ -1079,14 +1079,15 @@ function get_app_base_url(): string {
         } else {
             $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
             if ($scriptDir && $scriptDir !== '/' && $scriptDir !== '.') {
-                $scriptDir = preg_replace('/\/[a-zA-Z0-9_\-]+\.php$/i', '', $scriptDir);
+                $scriptDir = preg_replace('/\/[^\/]+\.php(\/.*)?$/i', '', $scriptDir);
                 if ($scriptDir && $scriptDir !== '/') {
                     $subDir = $scriptDir;
                 }
             }
         }
         
-        return $scheme . '://' . $currentHost . $subDir;
+        $subDir = preg_replace('/\/[^\/]+\.php(\/.*)?$/i', '', $subDir);
+        return $scheme . '://' . $currentHost . ($subDir && $subDir !== '/' ? $subDir : '');
     }
 
     return !empty($configured) ? $configured : 'http://localhost';

@@ -1,6 +1,12 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Fix mistaken /dashboard.php/filename.php URLs
+    RewriteRule ^dashboard\.php/print_voucher\.php(.*)$ print_voucher.php$1 [R=301,L,QSA]
+    RewriteRule ^dashboard\.php/donate\.php(.*)$ donate.php$1 [R=301,L,QSA]
+    RewriteRule ^public/dashboard\.php/print_voucher\.php(.*)$ public/print_voucher.php$1 [R=301,L,QSA]
+    RewriteRule ^public/dashboard\.php/donate\.php(.*)$ public/donate.php$1 [R=301,L,QSA]
+
     # Do not rewrite if already pointing to public
     RewriteRule ^public/ - [L]
 

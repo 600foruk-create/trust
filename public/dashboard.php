@@ -1,10 +1,34 @@
 <?php
 require __DIR__ . '/../app/bootstrap.php';
 
-// Seamlessly redirect if an old/mistaken link like /dashboard.php/print_voucher.php is accessed
-if (!empty($_SERVER['PATH_INFO']) && stripos($_SERVER['PATH_INFO'], 'print_voucher') !== false) {
+// Seamlessly redirect if an old/mistaken link like /dashboard.php/print_voucher.php or /dashboard.php/donate.php is accessed
+$dashReqUri = $_SERVER['REQUEST_URI'] ?? '';
+$dashPathInfo = $_SERVER['PATH_INFO'] ?? '';
+$dashPhpSelf = $_SERVER['PHP_SELF'] ?? '';
+
+if (
+    stripos($dashReqUri, 'print_voucher.php') !== false ||
+    stripos($dashPathInfo, 'print_voucher') !== false ||
+    stripos($dashPhpSelf, 'print_voucher.php') !== false
+) {
     $queryString = !empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '';
+    if (empty($queryString) && strpos($dashReqUri, '?') !== false) {
+        $queryString = '?' . substr($dashReqUri, strpos($dashReqUri, '?') + 1);
+    }
     header('Location: ' . get_app_base_url() . '/print_voucher.php' . $queryString, true, 301);
+    exit;
+}
+
+if (
+    stripos($dashReqUri, 'donate.php') !== false ||
+    stripos($dashPathInfo, 'donate') !== false ||
+    stripos($dashPhpSelf, 'donate.php') !== false
+) {
+    $queryString = !empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '';
+    if (empty($queryString) && strpos($dashReqUri, '?') !== false) {
+        $queryString = '?' . substr($dashReqUri, strpos($dashReqUri, '?') + 1);
+    }
+    header('Location: ' . get_app_base_url() . '/donate.php' . $queryString, true, 301);
     exit;
 }
 

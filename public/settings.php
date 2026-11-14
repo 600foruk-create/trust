@@ -512,6 +512,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute(['donation_whatsapp', trim($_POST['donation_whatsapp'] ?? '')]);
             $stmt->execute(['donation_project_location', trim($_POST['donation_project_location'] ?? '')]);
 
+            // Handle Enabled Funds for Online Donation Portal
+            $enabledFundIds = [];
+            if (isset($_POST['donation_enabled_funds']) && is_array($_POST['donation_enabled_funds'])) {
+                foreach ($_POST['donation_enabled_funds'] as $fid) {
+                    $fidInt = (int)$fid;
+                    if ($fidInt > 0) {
+                        $enabledFundIds[] = $fidInt;
+                    }
+                }
+            }
+            $stmt->execute(['donation_enabled_fund_ids', json_encode(array_values($enabledFundIds))]);
+
+            // Handle Default Selected Fund
+            $defaultFundId = (int)($_POST['donation_default_fund_id'] ?? 0);
+            $stmt->execute(['donation_default_fund_id', (string)$defaultFundId]);
+
             // Handle Project Image Upload / Removal
             if (isset($_POST['remove_project_image']) && $_POST['remove_project_image'] === '1') {
                 $oldImg = $settingsRows['donation_project_image'] ?? '';
@@ -858,6 +874,25 @@ $donationAppealText = $settingsRows['donation_appeal_text'] ?? 'آپ کا دیا
 $donationWhatsapp = $settingsRows['donation_whatsapp'] ?? $madrasaPhone;
 $donationProjectLocation = $settingsRows['donation_project_location'] ?? '';
 $donationProjectImage = $settingsRows['donation_project_image'] ?? '';
+
+// Fetch active funds for donation portal settings
+$allActiveFundsList = [];
+try {
+    $currentOrgMode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
+    $allActiveFundsList = $pdo->query("SELECT id, name, fund_code, description, is_restricted, scope FROM funds WHERE is_active = 1 ORDER BY is_restricted ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $allActiveFundsList = [];
+}
+
+$donationEnabledFundIdsRaw = $settingsRows['donation_enabled_fund_ids'] ?? '';
+$donationEnabledFundIds = !empty($donationEnabledFundIdsRaw) ? json_decode($donationEnabledFundIdsRaw, true) : null;
+if (!is_array($donationEnabledFundIds)) {
+    // Default to all active funds if not explicitly configured yet
+    $donationEnabledFundIds = array_map(function($f) { return (int)$f['id']; }, $allActiveFundsList);
+} else {
+    $donationEnabledFundIds = array_map('intval', $donationEnabledFundIds);
+}
+$donationDefaultFundId = (int)($settingsRows['donation_default_fund_id'] ?? 0);
 
 // Fetch active users for admin password reset dropdown
 $allUsersList = $pdo->query("SELECT u.id, u.full_name, u.username, r.name AS role_name FROM users u JOIN roles r ON r.id = u.role_id WHERE u.is_active = 1 ORDER BY u.full_name ASC")->fetchAll();
@@ -1240,6 +1275,82 @@ if (!in_array($activeTab, $validTabs, true)) {
                             </div>
                         </div>
 
+                        <!-- 4. Public Donation Causes & Fund Selection -->
+                        <div class="setting-section-title" id="fundSelectionSection" style="margin-top:28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                            <span>4. Public Donation Causes &amp; Fund Selection <span class="ur">(عوامی عطیات پورٹل پر فنڈز کا انتخاب)</span></span>
+                            <div style="display:flex;gap:8px;">
+                                <button type="button" class="btn sm secondary" onclick="selectAllDonationFunds(true)" style="font-size:12px;padding:4px 10px;border-radius:6px;">✓ تمام منتخب کریں (Select All)</button>
+                                <button type="button" class="btn sm secondary" onclick="selectAllDonationFunds(false)" style="font-size:12px;padding:4px 10px;border-radius:6px;">✕ تمام ختم کریں (Deselect All)</button>
+                            </div>
+                        </div>
+
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:22px;">
+                            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;background:#ecfdf5;border:1px solid #a7f3d0;padding:10px 14px;border-radius:8px;color:#065f46;font-size:12.5px;line-height:1.6;">
+                                <span style="font-size:18px;line-height:1;">💡</span>
+                                <div>
+                                    <b>ہدایت برائے فنڈ سلیکشن:</b> جن فنڈز پر آپ <b>ٹک (✓)</b> لگائیں گے، صرف وہی فنڈز عوامی ڈونیشن پورٹل (<code>donate.php</code>) کے سیکشن 1 (عطیہ کا مقصد) میں عوام کو نظر آئیں گے۔
+                                    جس فنڈ کو آپ ان چیک کریں گے وہ عوامی پیج سے وقتی طور پر چھپ جائے گا۔ ساتھ ہی کسی ایک فنڈ کو <b>"ڈیفالٹ فنڈ (Pre-selected)"</b> کے طور پر مقرر کر سکتے ہیں۔
+                                </div>
+                            </div>
+
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:12px;" id="donationFundsGrid">
+                                <?php foreach ($allActiveFundsList as $af): 
+                                    $afId = (int)$af['id'];
+                                    $isEnabled = in_array($afId, $donationEnabledFundIds, true);
+                                    $isDefault = ($donationDefaultFundId === $afId);
+                                    
+                                    // Visual icon helper
+                                    $fundIcon = '🏷️';
+                                    $fName = $af['name'];
+                                    if (stripos($fName, 'general') !== false || stripos($fName, 'عمومی') !== false) {
+                                        $fundIcon = '🌿';
+                                    } elseif (stripos($fName, 'zakat') !== false || stripos($fName, 'زکوٰۃ') !== false || stripos($fName, 'صدقات') !== false) {
+                                        $fundIcon = '🤝';
+                                    } elseif (stripos($fName, 'construction') !== false || stripos($fName, 'تعمیرات') !== false || stripos($fName, 'مسجد') !== false) {
+                                        $fundIcon = '🕌';
+                                    } elseif (stripos($fName, 'food') !== false || stripos($fName, 'ration') !== false || stripos($fName, 'راشن') !== false || stripos($fName, 'mess') !== false || stripos($fName, 'طعام') !== false) {
+                                        $fundIcon = '🍲';
+                                    } elseif (stripos($fName, 'water') !== false || stripos($fName, 'پانی') !== false) {
+                                        $fundIcon = '🚰';
+                                    } elseif (stripos($fName, 'student') !== false || stripos($fName, 'orphan') !== false || stripos($fName, 'کفالت') !== false || stripos($fName, 'طلبہ') !== false) {
+                                        $fundIcon = '🎓';
+                                    } elseif (stripos($fName, 'medical') !== false || stripos($fName, 'علاج') !== false) {
+                                        $fundIcon = '🩺';
+                                    }
+                                ?>
+                                <div style="background:#ffffff;border:1.5px solid <?=$isEnabled ? '#10b981' : '#cbd5e1'?>;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);transition:all 0.15s ease;" class="fund-select-card" id="fundCard_<?=$afId?>">
+                                    <div>
+                                        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0;">
+                                            <input type="checkbox" name="donation_enabled_funds[]" value="<?=$afId?>" class="donation-fund-checkbox" <?=$isEnabled ? 'checked' : ''?> onchange="updateFundCardStyle(<?=$afId?>, this.checked)" style="width:18px;height:18px;accent-color:#059669;margin-top:2px;">
+                                            <div style="flex:1;">
+                                                <strong style="font-size:13.5px;color:#0f172a;display:block;line-height:1.3;"><?=$fundIcon?> <?=e($af['name'])?></strong>
+                                                <div style="display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;">
+                                                    <span style="font-size:10.5px;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:4px;font-family:monospace;"><?=e($af['fund_code'])?></span>
+                                                    <?php if ($af['is_restricted']): ?>
+                                                        <span style="font-size:10.5px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:700;">مخصوص فنڈ</span>
+                                                    <?php else: ?>
+                                                        <span style="font-size:10.5px;background:#ecfdf5;color:#065f46;padding:1px 6px;border-radius:4px;font-weight:700;">عمومی فنڈ</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php if (!empty($af['description'])): ?>
+                                                    <small style="color:#64748b;font-size:11.5px;display:block;margin-top:5px;line-height:1.4;"><?=e($af['description'])?></small>
+                                                <?php endif; ?>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    
+                                    <div style="border-top:1px dashed #e2e8f0;padding-top:8px;margin-top:4px;">
+                                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11.5px;color:#475569;margin:0;">
+                                            <input type="radio" name="donation_default_fund_id" value="<?=$afId?>" <?=$isDefault ? 'checked' : ''?> style="accent-color:#059669;">
+                                            <span>⭐ ڈیفالٹ منتخب فنڈ (Pre-selected)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <!-- 5. Official WhatsApp Number -->
                         <div class="form-group" style="margin-bottom:22px;">
                             <label>Official WhatsApp Number for Receipt Confirmation <span class="ur">(رسیدیں وصول کرنے کا واٹس ایپ نمبر)</span></label>
                             <input name="donation_whatsapp" value="<?=e($donationWhatsapp)?>" placeholder="e.g. +92 331 7240256">
@@ -2457,6 +2568,20 @@ function copyPortalLink() {
         });
     } else {
         prompt('آن لائن پورٹل کا لنک کاپی کریں:', url);
+    }
+}
+
+function selectAllDonationFunds(selectAll) {
+    document.querySelectorAll('.donation-fund-checkbox').forEach(function(cb) {
+        cb.checked = selectAll;
+        updateFundCardStyle(cb.value, selectAll);
+    });
+}
+
+function updateFundCardStyle(fid, isChecked) {
+    var card = document.getElementById('fundCard_' + fid);
+    if (card) {
+        card.style.borderColor = isChecked ? '#10b981' : '#cbd5e1';
     }
 }
 </script>

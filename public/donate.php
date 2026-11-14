@@ -39,11 +39,27 @@ if ($bankAccount === '01020304050607') {
     } catch (Exception $e) {}
 }
 
-// Fetch active funds for selection matching current organization mode
+// Fetch active funds for selection matching current organization mode and admin settings
 $activeFunds = [];
 try {
     $orgMode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
-    $activeFunds = $pdo->query("SELECT id, name, fund_code, description, is_restricted, scope FROM funds WHERE is_active = 1 AND scope IN ('all', '{$orgMode}') ORDER BY is_restricted ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $allDbFunds = $pdo->query("SELECT id, name, fund_code, description, is_restricted, scope FROM funds WHERE is_active = 1 AND scope IN ('all', '{$orgMode}') ORDER BY is_restricted ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+    $enabledFundIdsRaw = function_exists('get_setting') ? get_setting('donation_enabled_fund_ids', '') : '';
+    $enabledFundIds = !empty($enabledFundIdsRaw) ? json_decode($enabledFundIdsRaw, true) : null;
+
+    if (is_array($enabledFundIds) && !empty($enabledFundIds)) {
+        $enabledMap = array_flip(array_map('intval', $enabledFundIds));
+        $activeFunds = array_values(array_filter($allDbFunds, function($f) use ($enabledMap) {
+            return isset($enabledMap[(int)$f['id']]);
+        }));
+    } else {
+        $activeFunds = $allDbFunds;
+    }
+    // Fallback: if all were filtered out somehow, keep allDbFunds so donation form never breaks
+    if (empty($activeFunds)) {
+        $activeFunds = $allDbFunds;
+    }
 } catch (Exception $e) {
     $activeFunds = [];
 }
@@ -163,13 +179,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             }
         }
         if ($validFundId === null) {
-            // Automatically resolve to the active General Fund
-            $mode = function_exists('get_org_mode') ? get_org_mode() : 'trust';
-            $genFund = $pdo->query("SELECT id, name FROM funds WHERE is_active=1 AND scope IN ('all', '{$mode}') ORDER BY is_restricted ASC, (name LIKE '%general%' OR name LIKE '%عمومی%') DESC, id ASC LIMIT 1")->fetch();
-            if ($genFund) {
-                $validFundId = (int)$genFund['id'];
-                $selectedFundName = $genFund['name'];
-            } elseif (!empty($activeFunds)) {
+            // Automatically resolve to configured default fund, or active General Fund, or first active fund
+            $defaultFundId = function_exists('get_setting') ? (int)get_setting('donation_default_fund_id', 0) : 0;
+            if ($defaultFundId > 0) {
+                foreach ($activeFunds as $af) {
+                    if ((int)$af['id'] === $defaultFundId) {
+                        $validFundId = $defaultFundId;
+                        $selectedFundName = $af['name'];
+                        break;
+                    }
+                }
+            }
+            if ($validFundId === null) {
+                foreach ($activeFunds as $af) {
+                    if (stripos($af['name'], 'general') !== false || stripos($af['name'], 'عمومی') !== false) {
+                        $validFundId = (int)$af['id'];
+                        $selectedFundName = $af['name'];
+                        break;
+                    }
+                }
+            }
+            if ($validFundId === null && !empty($activeFunds)) {
                 $validFundId = (int)$activeFunds[0]['id'];
                 $selectedFundName = $activeFunds[0]['name'];
             }
@@ -1140,38 +1170,66 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
             </div>
 
             <?php
-                $genFundId = 0;
-                foreach ($activeFunds as $af) {
-                    if (stripos($af['name'], 'general') !== false || stripos($af['name'], 'عمومی') !== false) {
-                        $genFundId = (int)$af['id'];
-                        break;
+                $configuredDefaultFundId = function_exists('get_setting') ? (int)get_setting('donation_default_fund_id', 0) : 0;
+                $selectedDefaultFundId = 0;
+                // If the configured default exists in the active/enabled funds list, use it
+                if ($configuredDefaultFundId > 0) {
+                    foreach ($activeFunds as $af) {
+                        if ((int)$af['id'] === $configuredDefaultFundId) {
+                            $selectedDefaultFundId = $configuredDefaultFundId;
+                            break;
+                        }
                     }
                 }
-                if ($genFundId <= 0 && !empty($activeFunds)) {
-                    $genFundId = (int)$activeFunds[0]['id'];
+                // Otherwise find General fund or pick the first active fund
+                if ($selectedDefaultFundId <= 0) {
+                    foreach ($activeFunds as $af) {
+                        if (stripos($af['name'], 'general') !== false || stripos($af['name'], 'عمومی') !== false) {
+                            $selectedDefaultFundId = (int)$af['id'];
+                            break;
+                        }
+                    }
+                }
+                if ($selectedDefaultFundId <= 0 && !empty($activeFunds)) {
+                    $selectedDefaultFundId = (int)$activeFunds[0]['id'];
                 }
             ?>
             <div class="fund-grid">
-                <label class="fund-option">
-                    <input type="radio" name="fund_id" value="<?=$genFundId?>" checked>
-                    <div class="fund-box">
-                        <span class="fund-title">🌿 <?=is_madrasa_mode() ? 'عمومی تعلیمی فنڈ (Madrasa General)' : 'عمومی فلاحی فنڈ (Trust General)'?></span>
-                        <span class="fund-desc"><?=is_madrasa_mode() ? 'جہاں بھی مدرسہ کو سب سے زیادہ ضرورت ہو' : 'جہاں بھی ٹرسٹ کو سب سے زیادہ ضرورت ہو'?></span>
-                    </div>
-                </label>
                 <?php foreach ($activeFunds as $af): 
-                    if ((int)$af['id'] === $genFundId) continue;
+                    $afId = (int)$af['id'];
+                    $isChecked = ($afId === $selectedDefaultFundId);
+                    $fName = $af['name'];
+                    
+                    // Determine appropriate icon for each fund
+                    $icon = '🏷️';
+                    if (stripos($fName, 'general') !== false || stripos($fName, 'عمومی') !== false) {
+                        $icon = '🌿';
+                    } elseif (stripos($fName, 'zakat') !== false || stripos($fName, 'زکوٰۃ') !== false || stripos($fName, 'صدقات') !== false) {
+                        $icon = '🤝';
+                    } elseif (stripos($fName, 'construction') !== false || stripos($fName, 'تعمیرات') !== false || stripos($fName, 'مسجد') !== false) {
+                        $icon = '🕌';
+                    } elseif (stripos($fName, 'food') !== false || stripos($fName, 'ration') !== false || stripos($fName, 'راشن') !== false || stripos($fName, 'mess') !== false || stripos($fName, 'طعام') !== false) {
+                        $icon = '🍲';
+                    } elseif (stripos($fName, 'water') !== false || stripos($fName, 'پانی') !== false) {
+                        $icon = '🚰';
+                    } elseif (stripos($fName, 'student') !== false || stripos($fName, 'orphan') !== false || stripos($fName, 'کفالت') !== false || stripos($fName, 'طلبہ') !== false) {
+                        $icon = '🎓';
+                    } elseif (stripos($fName, 'medical') !== false || stripos($fName, 'علاج') !== false) {
+                        $icon = '🩺';
+                    }
+
+                    $desc = !empty($af['description']) ? $af['description'] : ($af['is_restricted'] ? 'مستحقین کی براہ راست کفالت' : (is_madrasa_mode() ? 'جہاں بھی مدرسہ کو سب سے زیادہ ضرورت ہو' : 'جہاں بھی ٹرسٹ کو سب سے زیادہ ضرورت ہو'));
                 ?>
                 <label class="fund-option">
-                    <input type="radio" name="fund_id" value="<?=$af['id']?>">
+                    <input type="radio" name="fund_id" value="<?=$afId?>" <?=$isChecked ? 'checked' : ''?>>
                     <div class="fund-box">
                         <span class="fund-title">
-                            <?=e($af['name'])?>
+                            <?=$icon?> <?=e($fName)?>
                             <?php if ($af['is_restricted']): ?>
                                 <small style="color:#d97706;font-size:10px;">(مخصوص)</small>
                             <?php endif; ?>
                         </span>
-                        <span class="fund-desc"><?=e($af['description'] ?: 'مستحقین کی براہ راست کفالت')?></span>
+                        <span class="fund-desc"><?=e($desc)?></span>
                     </div>
                 </label>
                 <?php endforeach; ?>

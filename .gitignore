@@ -12,6 +12,9 @@ public/uploads/receipts/*
 public/uploads/tasks/*
 !public/uploads/tasks/.gitignore
 !public/uploads/tasks/.htaccess
+public/uploads/projects/*
+!public/uploads/projects/.gitignore
+!public/uploads/projects/.htaccess
 
 # Environment and OS files
 .DS_Store

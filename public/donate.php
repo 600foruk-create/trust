@@ -25,6 +25,9 @@ $easypaisaDetails = get_setting('donation_easypaisa', $orgPhone . ' (' . $orgNam
 $appealTitle = get_setting('donation_appeal_title', 'تعلیمی و فلاحی خدمات میں ہمارا ساتھ دیں');
 $appealText = get_setting('donation_appeal_text', 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، تعلیم اور غریب گھرانوں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔');
 $officialWhatsApp = get_setting('donation_whatsapp', $orgPhone);
+$projectLocation = get_setting('donation_project_location', '');
+$projectImage = get_setting('donation_project_image', '');
+$hasProjectImage = !empty($projectImage) && file_exists(__DIR__ . '/' . $projectImage);
 
 // Fallback to active bank account in accounts table if not set in settings
 if ($bankAccount === '01020304050607') {
@@ -1040,6 +1043,17 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
     <div class="appeal-hero">
         <h1><?=e($appealTitle)?></h1>
         <p><?=e($appealText)?></p>
+        <?php if (!empty($projectLocation)): ?>
+            <div style="margin: 12px 0 6px; display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.38); padding: 5px 14px; border-radius: 8px; font-size: 13.5px; color: #ffffff; font-weight: 700;">
+                <span>📍 پروجیکٹ لوکیشن / مقام:</span>
+                <span><?=e($projectLocation)?></span>
+            </div>
+        <?php endif; ?>
+        <?php if ($hasProjectImage): ?>
+            <div style="margin: 14px auto 10px; max-width: 520px; border-radius: 12px; overflow: hidden; border: 3px solid #ffffff; box-shadow: 0 8px 20px rgba(0,0,0,0.25);">
+                <img src="<?=e($projectImage)?>?v=<?=filemtime(__DIR__ . '/' . $projectImage)?>" alt="Project Site" style="width: 100%; height: auto; max-height: 250px; object-fit: cover; display: block;">
+            </div>
+        <?php endif; ?>
         <div class="impact-tags">
             <span class="impact-pill">🎓 یتامیٰ و طلباء کی مفت کفالت</span>
             <span class="impact-pill">🍲 خوراک و راشن تقسیم</span>

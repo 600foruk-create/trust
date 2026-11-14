@@ -510,6 +510,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute(['donation_appeal_title', trim($_POST['donation_appeal_title'] ?? '')]);
             $stmt->execute(['donation_appeal_text', trim($_POST['donation_appeal_text'] ?? '')]);
             $stmt->execute(['donation_whatsapp', trim($_POST['donation_whatsapp'] ?? '')]);
+            $stmt->execute(['donation_project_location', trim($_POST['donation_project_location'] ?? '')]);
+
+            // Handle Project Image Upload / Removal
+            if (isset($_POST['remove_project_image']) && $_POST['remove_project_image'] === '1') {
+                $oldImg = $settingsRows['donation_project_image'] ?? '';
+                if ($oldImg && is_file(__DIR__ . '/' . $oldImg)) {
+                    @unlink(__DIR__ . '/' . $oldImg);
+                }
+                $stmt->execute(['donation_project_image', '']);
+            } elseif (isset($_FILES['donation_project_image']) && $_FILES['donation_project_image']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['donation_project_image'];
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $allowed = ['png', 'jpg', 'jpeg', 'webp'];
+
+                if (!in_array($ext, $allowed, true)) {
+                    throw new RuntimeException('تصویر صرف PNG, JPG, JPEG یا WEBP فارمیٹ میں ہو سکتی ہے۔');
+                }
+                if ($file['size'] > 8 * 1024 * 1024) {
+                    throw new RuntimeException('تصویر کا سائز 8MB سے زیادہ نہیں ہونا چاہیے۔');
+                }
+
+                $uploadDir = __DIR__ . '/uploads/projects/';
+                if (!is_dir($uploadDir)) {
+                    @mkdir($uploadDir, 0755, true);
+                }
+
+                $oldImg = $settingsRows['donation_project_image'] ?? '';
+                if ($oldImg && is_file(__DIR__ . '/' . $oldImg)) {
+                    @unlink(__DIR__ . '/' . $oldImg);
+                }
+
+                $newFileName = 'proj_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                $destination = $uploadDir . $newFileName;
+
+                if (!move_uploaded_file($file['tmp_name'], $destination)) {
+                    throw new RuntimeException('پروجیکٹ کی تصویر محفوظ نہیں ہو سکی۔ فولڈر پرمیشن چیک کریں۔');
+                }
+
+                $stmt->execute(['donation_project_image', 'uploads/projects/' . $newFileName]);
+            }
         }
 
         header('Location: settings.php?tab=' . urlencode($returnTab) . '&success=saved');
@@ -816,6 +856,8 @@ $donationEasypaisa = $settingsRows['donation_easypaisa'] ?? $madrasaPhone;
 $donationAppealTitle = $settingsRows['donation_appeal_title'] ?? 'تعلیمی و فلاحی خدمات میں ہمارا ساتھ دیں';
 $donationAppealText = $settingsRows['donation_appeal_text'] ?? 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، تعلیم اور غریب گھرانوں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔';
 $donationWhatsapp = $settingsRows['donation_whatsapp'] ?? $madrasaPhone;
+$donationProjectLocation = $settingsRows['donation_project_location'] ?? '';
+$donationProjectImage = $settingsRows['donation_project_image'] ?? '';
 
 // Fetch active users for admin password reset dropdown
 $allUsersList = $pdo->query("SELECT u.id, u.full_name, u.username, r.name AS role_name FROM users u JOIN roles r ON r.id = u.role_id WHERE u.is_active = 1 ORDER BY u.full_name ASC")->fetchAll();
@@ -1024,7 +1066,7 @@ if (!in_array($activeTab, $validTabs, true)) {
 
         <?php elseif ($activeTab === 'donations'): ?>
         <!-- Tab: Online Donations & Official Bank Accounts -->
-        <form method="post" style="margin-top:14px;">
+        <form method="post" enctype="multipart/form-data" style="margin-top:14px;">
             <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
             <input type="hidden" name="action" value="save_settings">
             <input type="hidden" name="return_tab" value="donations">
@@ -1153,6 +1195,49 @@ if (!in_array($activeTab, $validTabs, true)) {
                             <label>Appeal Description / Project Details <span class="ur">(تفصیلی پیغام یا پروجیکٹ تفصیلات)</span> *</label>
                             <textarea name="donation_appeal_text" id="donationAppealTextInput" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;line-height:1.6;" placeholder="تفصیلی پیغام یا پروجیکٹ کی تفصیلات تحریر فرمائیں..."><?=e($donationAppealText)?></textarea>
                             <small class="muted">Impact statement shown to donors before registration and in the QR poster header.</small>
+                        </div>
+
+                        <!-- Project Location / Address -->
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label>Project Location / Site Address <span class="ur">(پروجیکٹ کا مقام / سائٹ لوکیشن)</span></label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="font-size:20px;">📍</span>
+                                <input name="donation_project_location" id="donationProjectLocationInput" value="<?=e($donationProjectLocation)?>" placeholder="e.g. محلہ غازی آباد، نزد پرانا پل، دیر بالا (یا پروجیکٹ کا مکمل پتہ)" style="flex:1;font-size:13.5px;">
+                            </div>
+                            <small class="muted">Displayed prominently on the QR poster and donation page so donors know the exact project location.</small>
+                        </div>
+
+                        <!-- Project Photo / Construction Site Image -->
+                        <div class="form-group" style="margin-bottom:22px;background:#f8fafc;border:1.5px dashed #cbd5e1;padding:16px 18px;border-radius:10px;">
+                            <label style="font-weight:700;color:#0f172a;display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                                <span style="font-size:18px;">📸</span> <span>Project Photo / Site Construction Image <span class="ur">(زیرِ تعمیر پروجیکٹ یا سائٹ کی تصویر)</span></span>
+                            </label>
+                            
+                            <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
+                                <div id="projectImagePreviewBox" style="width:140px;height:100px;border-radius:8px;border:1.5px solid #cbd5e1;background:#ffffff;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.05);flex-shrink:0;">
+                                    <?php if (!empty($donationProjectImage) && file_exists(__DIR__ . '/' . $donationProjectImage)): ?>
+                                        <img src="<?=e($donationProjectImage)?>?v=<?=time()?>" id="projectPreviewImg" alt="Project Photo" style="width:100%;height:100%;object-fit:cover;display:block;">
+                                    <?php else: ?>
+                                        <span id="projectPreviewPlaceholder" style="color:#94a3b8;font-size:11.5px;text-align:center;padding:4px;font-weight:600;">کوئی تصویر نہیں<br><small>(No Image)</small></span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div style="flex:1;min-width:240px;">
+                                    <input type="file" name="donation_project_image" id="projectImageFileInput" accept="image/png,image/jpeg,image/webp" style="font-size:13px;padding:6px;width:100%;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;">
+                                    <small style="color:#64748b;font-size:11.5px;display:block;margin-top:4px;">
+                                        زیرِ تعمیر مسجد، مدرسہ، پل یا سائٹ کی تصویر منتخب کریں (JPG, PNG, WEBP — زیادہ سے زیادہ 8MB)۔ یہ تصویر کیو آر پوسٹر اور آن لائن پورٹل پر نظر آئے گی۔
+                                    </small>
+
+                                    <?php if (!empty($donationProjectImage) && file_exists(__DIR__ . '/' . $donationProjectImage)): ?>
+                                        <div style="margin-top:10px;">
+                                            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#dc2626;cursor:pointer;font-weight:700;">
+                                                <input type="checkbox" name="remove_project_image" value="1" style="accent-color:#dc2626;width:16px;height:16px;">
+                                                <span>🗑️ موجودہ تصویر ڈیلیٹ کریں (Remove Current Photo)</span>
+                                            </label>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group" style="margin-bottom:22px;">
@@ -2298,6 +2383,20 @@ document.getElementById('orgLogoInput')?.addEventListener('change', function(e) 
             var container = document.getElementById('logoPreviewContainer');
             if (container) {
                 container.innerHTML = '<img id="logoPreviewImg" src="' + evt.target.result + '" alt="Preview" style="max-width:100%;max-height:100%;object-fit:contain;">';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+document.getElementById('projectImageFileInput')?.addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (file) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+            var box = document.getElementById('projectImagePreviewBox');
+            if (box) {
+                box.innerHTML = '<img src="' + evt.target.result + '" alt="Project Preview" style="width:100%;height:100%;object-fit:cover;display:block;">';
             }
         };
         reader.readAsDataURL(file);

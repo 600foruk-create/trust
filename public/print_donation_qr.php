@@ -22,6 +22,9 @@ $bankIban = get_setting('donation_bank_iban', 'PK00MEZN0001020304050607');
 $easypaisaDetails = get_setting('donation_easypaisa', $orgPhone . ' (' . $orgName . ')');
 $appealTitle = get_setting('donation_appeal_title', 'تعلیمی و فلاحی خدمات میں ہمارا ساتھ دیں');
 $appealText = get_setting('donation_appeal_text', 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، تعلیم اور غریب گھرانوں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔');
+$projectLocation = get_setting('donation_project_location', '');
+$projectImage = get_setting('donation_project_image', '');
+$hasProjectImage = !empty($projectImage) && file_exists(__DIR__ . '/' . $projectImage);
 
 // QR Code URL (High-res 400x400 API)
 $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=' . urlencode($portalUrl);
@@ -98,9 +101,22 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             background: linear-gradient(135deg, #065f46 0%, #047857 100%);
             color: #ffffff;
             border-radius: 14px;
-            padding: 16px 20px;
+            padding: 16px 22px;
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 22px;
+        }
+        .appeal-banner.has-photo {
+            text-align: right;
+            padding: 16px 20px;
+        }
+        .appeal-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .appeal-text-side {
+            flex: 1;
         }
         .appeal-banner h2 {
             margin: 0 0 8px;
@@ -112,6 +128,49 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             font-size: 14px;
             line-height: 1.7;
             opacity: 0.95;
+        }
+        .appeal-photo-side {
+            flex-shrink: 0;
+            width: 210px;
+        }
+        .appeal-photo-card {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+            background: #064e3b;
+        }
+        .appeal-photo-img {
+            width: 100%;
+            height: 130px;
+            object-fit: cover;
+            display: block;
+        }
+        .appeal-photo-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(15, 23, 42, 0.82);
+            color: #ffffff;
+            font-size: 10.5px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: 700;
+            backdrop-filter: blur(2px);
+        }
+        .appeal-location-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.38);
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #ffffff;
+            font-weight: 700;
         }
         .qr-center-box {
             display: flex;
@@ -294,9 +353,27 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         </div>
 
         <!-- Appeal Banner -->
-        <div class="appeal-banner">
-            <h2><?=e($appealTitle)?></h2>
-            <p><?=e($appealText)?></p>
+        <div class="appeal-banner <?= $hasProjectImage ? 'has-photo' : '' ?>">
+            <div class="<?= $hasProjectImage ? 'appeal-flex' : '' ?>">
+                <div class="<?= $hasProjectImage ? 'appeal-text-side' : '' ?>">
+                    <h2><?=e($appealTitle)?></h2>
+                    <p><?=e($appealText)?></p>
+                    <?php if (!empty($projectLocation)): ?>
+                        <div class="appeal-location-pill">
+                            <span>📍 پروجیکٹ کا مقام / لوکیشن:</span>
+                            <span><?=e($projectLocation)?></span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <?php if ($hasProjectImage): ?>
+                    <div class="appeal-photo-side">
+                        <div class="appeal-photo-card">
+                            <img src="<?=e($projectImage)?>?v=<?=filemtime(__DIR__ . '/' . $projectImage)?>" alt="Project Site Photo" class="appeal-photo-img">
+                            <span class="appeal-photo-badge">📸 سائٹ / پیش رفت</span>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
 
         <!-- QR Code Center Box -->

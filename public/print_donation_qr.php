@@ -35,6 +35,7 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Donation QR Poster - <?=e($orgName)?></title>
+    <script src="assets/html2canvas.min.js"></script>
     <style>
         @page {
             size: A4 portrait;
@@ -300,6 +301,42 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         .print-btn:hover {
             background: #047857;
         }
+        .wa-btn {
+            background: #25D366;
+            color: #ffffff;
+            border: 1px solid #20ba5a;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 6px rgba(37, 211, 102, 0.35);
+            transition: all 0.15s ease;
+        }
+        .wa-btn:hover {
+            background: #20ba5a;
+        }
+        .dl-btn {
+            background: #0284c7;
+            color: #ffffff;
+            border: 1px solid #0369a1;
+            padding: 9px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+            transition: all 0.15s ease;
+        }
+        .dl-btn:hover {
+            background: #0369a1;
+        }
         @media print {
             body {
                 background: #ffffff;
@@ -324,16 +361,22 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
 <div class="no-print-bar">
     <div>
         <strong style="color:#0f172a;font-size:15px;">🖨️ پرنٹ ایبل ڈونیشن کیو آر پوسٹر (Donation QR Poster)</strong>
-        <div style="font-size:12px;color:#64748b;">اس پوسٹر کو A4 کاغذ یا فلیکس پر پرنٹ کر کے مسجد، دفتر یا اشتہار پر لگائیں۔</div>
+        <div style="font-size:12px;color:#64748b;">اس پوسٹر کو پرنٹ کریں، واٹس ایپ پر شیئر کریں یا تصویر ڈاؤن لوڈ کر کے اسٹیٹس پر لگائیں۔</div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <a href="settings.php?tab=donations#appealSection" target="_blank" style="background:#fef3c7;border:1.5px solid #fde68a;color:#92400e;padding:8px 14px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
-            <span>✏️</span> <span>اپیل یا عنوان تبدیل کریں (Change Appeal)</span>
-        </a>
-        <button type="button" class="print-btn" onclick="window.print()">
-            <span>🖨️ ابھی پرنٹ کریں (Print / Save PDF)</span>
+        <button type="button" class="wa-btn" id="btnShareWhatsApp" onclick="sharePosterWhatsApp()">
+            <span>💬 واٹس ایپ پر شیئر کریں (Share on WhatsApp)</span>
         </button>
-        <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:8px 16px;border-radius:8px;font-size:13.5px;text-decoration:none;font-weight:700;">
+        <button type="button" class="dl-btn" id="btnDownloadImage" onclick="downloadPosterImage()">
+            <span>🖼️ پوسٹر تصویر محفوظ کریں (Save Image)</span>
+        </button>
+        <button type="button" class="print-btn" onclick="window.print()">
+            <span>🖨️ ابھی پرنٹ کریں (Print / PDF)</span>
+        </button>
+        <a href="settings.php?tab=donations#appealSection" target="_blank" style="background:#fef3c7;border:1.5px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+            <span>✏️ اپیل تبدیل کریں</span>
+        </a>
+        <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:8px 14px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;">
             ✕ واپس جائیں
         </a>
     </div>
@@ -449,6 +492,199 @@ if (window.location.search.indexOf('autoprint=1') !== -1) {
     window.onload = function() {
         setTimeout(function() { window.print(); }, 400);
     };
+}
+
+const posterShareData = {
+    orgName: <?= json_encode($orgName, JSON_UNESCAPED_UNICODE) ?>,
+    appealTitle: <?= json_encode($appealTitle, JSON_UNESCAPED_UNICODE) ?>,
+    appealText: <?= json_encode($appealText, JSON_UNESCAPED_UNICODE) ?>,
+    projectLocation: <?= json_encode($projectLocation, JSON_UNESCAPED_UNICODE) ?>,
+    bankName: <?= json_encode($bankName, JSON_UNESCAPED_UNICODE) ?>,
+    bankTitle: <?= json_encode($bankTitle, JSON_UNESCAPED_UNICODE) ?>,
+    bankAccount: <?= json_encode($bankAccount, JSON_UNESCAPED_UNICODE) ?>,
+    bankIban: <?= json_encode($bankIban, JSON_UNESCAPED_UNICODE) ?>,
+    easypaisa: <?= json_encode($easypaisaDetails, JSON_UNESCAPED_UNICODE) ?>,
+    phone: <?= json_encode($orgPhone, JSON_UNESCAPED_UNICODE) ?>,
+    portalUrl: <?= json_encode($portalUrl, JSON_UNESCAPED_UNICODE) ?>
+};
+
+function buildPosterWhatsAppText() {
+    let msg = 'السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n'
+            + '🕋 *' + posterShareData.orgName + '*\n'
+            + '📢 *' + posterShareData.appealTitle + '*\n'
+            + '━━━━━━━━━━━━━━━━━━━━\n'
+            + posterShareData.appealText + '\n\n';
+
+    if (posterShareData.projectLocation && posterShareData.projectLocation.trim() !== '') {
+        msg += '📍 *پروجیکٹ کا مقام / لوکیشن:*\n' + posterShareData.projectLocation + '\n\n';
+    }
+
+    msg += '💳 *بینک اکاؤنٹ تفصیلات (برائے صدقات و عطیات):*\n'
+         + '• بینک کا نام: ' + posterShareData.bankName + '\n'
+         + '• اکاؤنٹ ٹائٹل: ' + posterShareData.bankTitle + '\n'
+         + '• اکاؤنٹ نمبر: ' + posterShareData.bankAccount + '\n';
+
+    if (posterShareData.bankIban && posterShareData.bankIban.trim() !== '') {
+        msg += '• IBAN: ' + posterShareData.bankIban + '\n';
+    }
+
+    if (posterShareData.easypaisa && posterShareData.easypaisa.trim() !== '') {
+        msg += '📱 *ایزی پیسہ / جاز کیش:* ' + posterShareData.easypaisa + '\n';
+    }
+
+    msg += '━━━━━━━━━━━━━━━━━━━━\n'
+         + '📲 *آن لائن عطیہ درج کرنے اور فوری رسید کے لیے لنک پر کلک کریں:*\n'
+         + posterShareData.portalUrl + '\n\n'
+         + '✨ *«مَا نَقَصَتْ صَدَقَةٌ مِنْ مَالٍ»*\n'
+         + 'صدقہ دینے سے مال میں کبھی کمی نہیں آتی (صحیح مسلم)\n'
+         + 'رابطہ و واٹس ایپ: ' + posterShareData.phone;
+
+    return msg;
+}
+
+function openWhatsAppUrl(msg) {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const waUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
+    if (isMobile) {
+        window.location.href = waUrl;
+    } else {
+        window.open(waUrl, '_blank');
+    }
+}
+
+async function sharePosterWhatsApp() {
+    const btn = document.getElementById('btnShareWhatsApp');
+    const msg = buildPosterWhatsAppText();
+
+    showPosterToast('پوسٹر کی تصویر اور واٹس ایپ تیار ہو رہا ہے...', false);
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    }
+
+    const poster = document.querySelector('.poster-canvas');
+    if (!poster) {
+        openWhatsAppUrl(msg);
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        return;
+    }
+
+    try {
+        if (typeof html2canvas === 'function') {
+            const canvas = await html2canvas(poster, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+            });
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (blob) {
+                const file = new File([blob], 'donation-poster.png', { type: 'image/png' });
+
+                // Try native file sharing (Android Chrome, iOS Safari)
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    showPosterToast('واٹس ایپ منتخب کریں...', false);
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: posterShareData.appealTitle,
+                            text: msg
+                        });
+                        showPosterToast('✓ پوسٹر کامیابی سے شیئر ہو گیا', true);
+                        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+                        return;
+                    } catch (shareErr) {
+                        if (shareErr.name === 'AbortError') {
+                            hidePosterToast();
+                            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+                            return;
+                        }
+                    }
+                }
+
+                // Desktop fallback: download the crisp image file automatically
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'donation-poster-' + Date.now() + '.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+    } catch (err) {
+        console.warn('Canvas render error:', err);
+    }
+
+    showPosterToast('پوسٹر تصویر محفوظ ہو گئی۔ واٹس ایپ اوپن ہو رہا ہے...', true);
+    openWhatsAppUrl(msg);
+    if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    }
+}
+
+async function downloadPosterImage() {
+    const poster = document.querySelector('.poster-canvas');
+    const btn = document.getElementById('btnDownloadImage');
+    if (!poster) return;
+
+    showPosterToast('ہائی ریزولیوشن تصویر بن رہی ہے...', false);
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    }
+
+    try {
+        if (typeof html2canvas === 'function') {
+            const canvas = await html2canvas(poster, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+            });
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (blob) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'donation-poster-' + Date.now() + '.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showPosterToast('✓ پوسٹر تصویر کامیابی سے محفوظ ہو گئی!', true);
+            }
+        } else {
+            alert('تصویر بنانے والی لائبریری لوڈ نہیں ہو سکی۔');
+        }
+    } catch (err) {
+        alert('تصویر بنانے میں خرابی آئی: ' + err.message);
+    }
+
+    if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    }
+}
+
+function showPosterToast(text, isSuccess) {
+    let toast = document.getElementById('posterToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'posterToast';
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#ffffff;padding:12px 24px;border-radius:30px;font-size:14px;font-weight:700;z-index:99999;box-shadow:0 10px 30px rgba(0,0,0,0.35);direction:rtl;display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,0.2);';
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = (isSuccess ? '✅ ' : '⏳ ') + text;
+    toast.style.display = 'flex';
+    if (isSuccess) {
+        setTimeout(function() { toast.style.display = 'none'; }, 4000);
+    }
+}
+
+function hidePosterToast() {
+    const toast = document.getElementById('posterToast');
+    if (toast) toast.style.display = 'none';
 }
 </script>
 </body>

@@ -306,10 +306,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $error = 'براہ کرم مکمل نام درج کریں۔ (Please enter full name).';
         } else {
             try {
+                $returnTab = in_array($_POST['return_tab'] ?? '', ['directory', 'tracker'], true) ? $_POST['return_tab'] : 'directory';
                 if ($action === 'save_beneficiary') {
                     $stmt = $pdo->prepare('INSERT INTO beneficiaries (category, reg_no, full_name, father_name, department_class, gender, phone, address, guardian_cnic, assigned_fund_id, assigned_donor_id, monthly_stipend_amount, status, admission_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                     $stmt->execute([$category, $regNo ?: null, $fullName, $fatherName ?: null, $deptClass ?: null, $gender, $phone ?: null, $address ?: null, $guardianCnic ?: null, $fundId, $donorId, $stipendAmount, $status, $admissionDate, $notes ?: null]);
-                    header('Location: beneficiaries.php?success=created');
+                    header('Location: beneficiaries.php?tab=' . urlencode($returnTab) . '&success=created');
                     exit;
                 } elseif ($action === 'update_beneficiary') {
                     $benId = (int)($_POST['beneficiary_id'] ?? 0);
@@ -318,7 +319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     } else {
                         $stmt = $pdo->prepare('UPDATE beneficiaries SET category = ?, reg_no = ?, full_name = ?, father_name = ?, department_class = ?, gender = ?, phone = ?, address = ?, guardian_cnic = ?, assigned_fund_id = ?, assigned_donor_id = ?, monthly_stipend_amount = ?, status = ?, admission_date = ?, notes = ? WHERE id = ?');
                         $stmt->execute([$category, $regNo ?: null, $fullName, $fatherName ?: null, $deptClass ?: null, $gender, $phone ?: null, $address ?: null, $guardianCnic ?: null, $fundId, $donorId, $stipendAmount, $status, $admissionDate, $notes ?: null, $benId]);
-                        header('Location: beneficiaries.php?success=updated');
+                        header('Location: beneficiaries.php?tab=' . urlencode($returnTab) . '&success=updated');
                         exit;
                     }
                 }
@@ -825,7 +826,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
             <div class="btn-row">
                 <?php if (has_permission('beneficiaries.manage')): ?>
                     <?php if ($editBen): ?>
-                        <a href="beneficiaries.php" class="btn secondary sm">✕ Cancel Editing <span class="ur">(منسوخ کریں)</span></a>
+                        <a href="beneficiaries.php?tab=<?=e($currentTab)?>" class="btn secondary sm">✕ Cancel Editing <span class="ur">(منسوخ کریں)</span></a>
+                    <?php elseif ($showForm): ?>
+                        <button type="button" class="btn secondary sm" id="toggleBenBtn" onclick="toggleBenForm()">
+                            ✕ Close Form <span class="ur">(بند کریں)</span>
+                        </button>
                     <?php else: ?>
                         <button type="button" class="btn blue sm" id="toggleBenBtn" onclick="toggleBenForm()">
                             ＋ <?= $isMadrasa ? 'Register Student / Beneficiary' : 'Register New Beneficiary' ?>
@@ -884,32 +889,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
             </a>
         </div>
 
-        <?php if ($currentTab === 'directory'): ?>
-        <!-- Stats KPI Overview -->
-        <section class="stats-grid" style="margin:22px 0 24px;">
-            <article class="stat-card">
-                <div class="stat-top"><span>Active Enrolled / Registered</span><span class="stat-icon blue">🎓</span></div>
-                <strong><?=$totalActiveCount?></strong>
-                <small><?= $isMadrasa ? 'Active students & recipients' : 'Registered beneficiaries' ?></small>
-            </article>
-            <article class="stat-card">
-                <div class="stat-top"><span>Monthly Stipend / Budget</span><span class="stat-icon green">💰</span></div>
-                <strong><?=money($totalMonthlyBudget)?></strong>
-                <small>Monthly recurring sponsorship</small>
-            </article>
-            <article class="stat-card">
-                <div class="stat-top"><span>Orphans &amp; Deserving</span><span class="stat-icon purple">🤝</span></div>
-                <strong><?=$totalOrphansCount?></strong>
-                <small>Special kafalat beneficiaries</small>
-            </article>
-            <article class="stat-card">
-                <div class="stat-top"><span>Total Disbursed to Date</span><span class="stat-icon red">↘</span></div>
-                <strong style="color:#b91c1c;"><?=money($totalDisbursedOverall)?></strong>
-                <small>Recorded in vouchers</small>
-            </article>
-        </section>
-
-        <!-- Beneficiary Form (Add / Edit) -->
+        <!-- Beneficiary Form (Add / Edit) - Accessible across both Directory & Tracker tabs -->
         <?php if (has_permission('beneficiaries.manage')): ?>
         <article class="form-card" id="benFormCard" style="<?= $showForm ? 'margin:20px 0 24px;' : 'display:none; margin:20px 0 24px;' ?>">
             <div class="form-card-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -925,6 +905,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
             <form method="post">
                 <input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>">
                 <input type="hidden" name="action" value="<?= $editBen ? 'update_beneficiary' : 'save_beneficiary' ?>">
+                <input type="hidden" name="return_tab" value="<?=e($currentTab)?>">
                 <?php if ($editBen): ?>
                     <input type="hidden" name="beneficiary_id" value="<?=$editBen['id']?>">
                 <?php endif; ?>
@@ -1030,7 +1011,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                 <div class="btn-row" style="margin-top:14px;">
                     <button class="btn blue" type="submit"><?= $editBen ? '💾 Update Record <span class="ur">(محفوظ کریں)</span>' : '💾 Save Record <span class="ur">(محفوظ کریں)</span>' ?></button>
                     <?php if ($editBen): ?>
-                        <a href="beneficiaries.php" class="btn secondary">✕ Cancel Editing</a>
+                        <a href="beneficiaries.php?tab=<?=e($currentTab)?>" class="btn secondary">✕ Cancel Editing</a>
                     <?php else: ?>
                         <button class="btn secondary" type="button" onclick="toggleBenForm(false)">✕ Cancel</button>
                     <?php endif; ?>
@@ -1038,6 +1019,31 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
             </form>
         </article>
         <?php endif; ?>
+
+        <?php if ($currentTab === 'directory'): ?>
+        <!-- Stats KPI Overview -->
+        <section class="stats-grid" style="margin:22px 0 24px;">
+            <article class="stat-card">
+                <div class="stat-top"><span>Active Enrolled / Registered</span><span class="stat-icon blue">🎓</span></div>
+                <strong><?=$totalActiveCount?></strong>
+                <small><?= $isMadrasa ? 'Active students & recipients' : 'Registered beneficiaries' ?></small>
+            </article>
+            <article class="stat-card">
+                <div class="stat-top"><span>Monthly Stipend / Budget</span><span class="stat-icon green">💰</span></div>
+                <strong><?=money($totalMonthlyBudget)?></strong>
+                <small>Monthly recurring sponsorship</small>
+            </article>
+            <article class="stat-card">
+                <div class="stat-top"><span>Orphans &amp; Deserving</span><span class="stat-icon purple">🤝</span></div>
+                <strong><?=$totalOrphansCount?></strong>
+                <small>Special kafalat beneficiaries</small>
+            </article>
+            <article class="stat-card">
+                <div class="stat-top"><span>Total Disbursed to Date</span><span class="stat-icon red">↘</span></div>
+                <strong style="color:#b91c1c;"><?=money($totalDisbursedOverall)?></strong>
+                <small>Recorded in vouchers</small>
+            </article>
+        </section>
 
         <!-- Beneficiaries Directory Panel -->
         <article class="panel">
@@ -1392,7 +1398,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                         <div class="empty-icon">💼</div>
                         <b>No records match the current filter</b>
                         <p style="margin-top:6px;color:#64748b;">No active beneficiaries or staff with monthly stipend found for <?=date('F Y', strtotime($selectedMonth . '-01'))?>.</p>
-                        <div style="margin-top:14px;">
+                        <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                            <?php if (has_permission('beneficiaries.manage')): ?>
+                                <button type="button" class="btn blue sm" onclick="toggleBenForm(true)">
+                                    ＋ <?= $isMadrasa ? 'Register Student / Beneficiary' : 'Register New Beneficiary' ?>
+                                </button>
+                            <?php endif; ?>
                             <a href="beneficiaries.php?tab=tracker&month=<?=e($selectedMonth)?>" class="btn secondary sm">Clear Filters</a>
                         </div>
                     </div>
@@ -1558,7 +1569,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                                                 <?php endif; ?>
 
                                                 <?php if (has_permission('beneficiaries.manage')): ?>
-                                                    <a href="beneficiaries.php?edit_id=<?=$row['id']?>#benFormCard" class="btn secondary sm" style="padding:4px 7px;font-size:11px;" title="Edit Details">
+                                                    <a href="beneficiaries.php?tab=tracker&month=<?=e($selectedMonth)?>&edit_id=<?=$row['id']?>#benFormCard" class="btn secondary sm" style="padding:4px 7px;font-size:11px;" title="Edit Details">
                                                         ✏️
                                                     </a>
                                                 <?php endif; ?>
@@ -2191,12 +2202,18 @@ function toggleBenForm(forceOpen) {
     } else {
         card.style.display = 'none';
         if (btn) {
-            btn.innerHTML = '＋ Register Student / Beneficiary';
+            btn.innerHTML = '＋ <?= $isMadrasa ? 'Register Student / Beneficiary' : 'Register New Beneficiary' ?>';
             btn.classList.remove('secondary');
             btn.classList.add('blue');
         }
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash === '#benFormCard') {
+        toggleBenForm(true);
+    }
+});
 </script>
 </body>
 </html>

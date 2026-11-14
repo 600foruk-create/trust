@@ -437,6 +437,7 @@ try {
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;">
         <?php 
         $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
+        $baseUrl = preg_replace('/\/[a-zA-Z0-9_\-]+\.php$/i', '', $baseUrl);
         $slipPubToken = function_exists('get_voucher_public_token') ? get_voucher_public_token($voucherId) : '';
         $slipShareLink = !empty($baseUrl) ? "{$baseUrl}/print_voucher.php?id={$voucherId}&token={$slipPubToken}" : '';
 

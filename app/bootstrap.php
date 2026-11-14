@@ -1058,13 +1058,38 @@ function set_setting(string $key, string $value): bool {
 function get_app_base_url(): string {
     global $config;
     $configured = trim($config['app']['base_url'] ?? '');
+    
+    // 1. Sanitize configured URL: strip any trailing .php script like /dashboard.php, /index.php, etc.
     if (!empty($configured)) {
-        return rtrim($configured, '/');
+        $configured = preg_replace('/\/[a-zA-Z0-9_\-]+\.php$/i', '', $configured);
+        $configured = rtrim($configured, '/');
     }
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
-    return $scheme . '://' . $host . ($scriptDir && $scriptDir !== '/' ? $scriptDir : '');
+
+    // 2. Determine base URL using active HTTP_HOST (ensures links match the current domain/preview site)
+    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+    if (!empty($currentHost)) {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        
+        $subDir = '';
+        if (!empty($configured)) {
+            $parsedPath = parse_url($configured, PHP_URL_PATH);
+            if (!empty($parsedPath) && $parsedPath !== '/') {
+                $subDir = rtrim($parsedPath, '/');
+            }
+        } else {
+            $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+            if ($scriptDir && $scriptDir !== '/' && $scriptDir !== '.') {
+                $scriptDir = preg_replace('/\/[a-zA-Z0-9_\-]+\.php$/i', '', $scriptDir);
+                if ($scriptDir && $scriptDir !== '/') {
+                    $subDir = $scriptDir;
+                }
+            }
+        }
+        
+        return $scheme . '://' . $currentHost . $subDir;
+    }
+
+    return !empty($configured) ? $configured : 'http://localhost';
 }
 
 function get_voucher_public_token(int $voucherId): string {

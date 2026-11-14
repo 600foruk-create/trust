@@ -1,5 +1,13 @@
 <?php
 require __DIR__ . '/../app/bootstrap.php';
+
+// Seamlessly redirect if an old/mistaken link like /dashboard.php/print_voucher.php is accessed
+if (!empty($_SERVER['PATH_INFO']) && stripos($_SERVER['PATH_INFO'], 'print_voucher') !== false) {
+    $queryString = !empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '';
+    header('Location: ' . get_app_base_url() . '/print_voucher.php' . $queryString, true, 301);
+    exit;
+}
+
 require_login();
 
 $activePage = 'dashboard';

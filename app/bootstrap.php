@@ -50,6 +50,7 @@ try {
 }
 
 // Auto-seed madrasa accounts & Ensure roles & attachments schema (version-cached to avoid 30+ DDL queries on every page request)
+if (!function_exists('run_schema_and_seed_migrations')) {
 function run_schema_and_seed_migrations(PDO $pdo): void {
     try {
     $tableCheck = $pdo->query("SHOW TABLES LIKE 'accounts'")->fetch();
@@ -647,6 +648,7 @@ function run_schema_and_seed_migrations(PDO $pdo): void {
     } catch (Exception $e) {
         // Non-blocking
     }
+}
 }
 
 // Auto-seed and schema migrations: version-cached to prevent heavy DDL on every page request

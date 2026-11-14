@@ -3,15 +3,15 @@ ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
-// Start session directly and set Super Admin user
 require_once __DIR__ . '/../app/bootstrap.php';
 
 $user = $pdo->query("SELECT u.*, r.name AS role FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'Super Admin' LIMIT 1")->fetch();
 $_SESSION['user'] = $user;
 echo "Logged in as: " . htmlspecialchars($user['full_name']) . " (" . htmlspecialchars($user['role']) . ")<br>";
 
-// Let's do a curl locally to beneficiaries.php with session cookie to see its actual HTTP output!
 $sessionId = session_id();
+session_write_close(); // Unlock session file for loopback curl
+
 $cookies = "madrasa_accounts_session=" . $sessionId;
 
 $ch = curl_init();
@@ -20,6 +20,7 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_COOKIE, $cookies);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_TIMEOUT, 5);
 $res = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
@@ -38,6 +39,7 @@ curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch2, CURLOPT_COOKIE, $cookies);
 curl_setopt($ch2, CURLOPT_FOLLOWLOCATION, false);
 curl_setopt($ch2, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch2, CURLOPT_TIMEOUT, 5);
 $res2 = curl_exec($ch2);
 $httpCode2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
 curl_close($ch2);

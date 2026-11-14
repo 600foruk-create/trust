@@ -535,6 +535,10 @@ div.en-only, p.en-only { display: block !important; }
           <span>⭐ &nbsp; Marketing Brochure <span class="ur">(سافٹ ویئر بروشر)</span></span>
           <span style="font-size:9.5px;background:#eab308;color:#0f172a;padding:1px 6px;border-radius:4px;font-weight:800;">PRO</span>
         </a>
+        <a class="<?= $currentPage === 'certificate' ? 'active' : '' ?>" href="certificate.php" style="color:#6ee7b7;border-left:3px solid #10b981;background:rgba(16,185,129,0.12);display:flex;align-items:center;justify-content:space-between;" title="Honorary Certificate of Excellence & Leadership">
+          <span>🎖️ &nbsp; Certificate <span class="ur">(اعزازی سندِ شرف)</span></span>
+          <span style="font-size:9.5px;background:#10b981;color:#064e3b;padding:1px 6px;border-radius:4px;font-weight:800;">1000★</span>
+        </a>
       <?php endif; ?>
       <a href="javascript:void(0)" onclick="openAboutSoftwareModal()" style="display:flex;align-items:center;justify-content:space-between;">
         <span>ℹ &nbsp; About ERP <span class="ur">(سافٹ ویئر تعارف)</span></span>
@@ -1203,6 +1207,9 @@ $phpVer = PHP_VERSION;
         <?php if (!empty($isSuperAdmin)): ?>
           <a href="brochure.php" target="_blank" class="btn sm" style="background:#d97706;color:#ffffff;text-decoration:none;font-weight:700;padding:6px 12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;font-size:12px;box-shadow:0 1px 3px rgba(217,119,6,0.3);">
             ⭐ <span>Marketing Brochure (خصوصیات و PDF)</span>
+          </a>
+          <a href="certificate.php" target="_blank" class="btn sm" style="background:#059669;color:#ffffff;text-decoration:none;font-weight:700;padding:6px 12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;font-size:12px;box-shadow:0 1px 3px rgba(5,150,105,0.3);">
+            🎖️ <span>Honorary Certificate (اعزازی سند)</span>
           </a>
         <?php endif; ?>
       </div>

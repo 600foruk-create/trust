@@ -305,9 +305,9 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             background: #25D366;
             color: #ffffff;
             border: 1px solid #20ba5a;
-            padding: 9px 18px;
+            padding: 8px 14px;
             border-radius: 8px;
-            font-size: 13.5px;
+            font-size: 13px;
             font-weight: 700;
             cursor: pointer;
             display: inline-flex;
@@ -319,13 +319,49 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         .wa-btn:hover {
             background: #20ba5a;
         }
+        .wa-img-btn {
+            background: #0f766e;
+            color: #ffffff;
+            border: 1px solid #115e59;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 6px rgba(15, 118, 110, 0.3);
+            transition: all 0.15s ease;
+        }
+        .wa-img-btn:hover {
+            background: #115e59;
+        }
+        .copy-link-btn {
+            background: #4f46e5;
+            color: #ffffff;
+            border: 1px solid #4338ca;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+            transition: all 0.15s ease;
+        }
+        .copy-link-btn:hover {
+            background: #4338ca;
+        }
         .dl-btn {
             background: #0284c7;
             color: #ffffff;
             border: 1px solid #0369a1;
-            padding: 9px 15px;
+            padding: 8px 13px;
             border-radius: 8px;
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 700;
             cursor: pointer;
             display: inline-flex;
@@ -361,24 +397,49 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
 <div class="no-print-bar">
     <div>
         <strong style="color:#0f172a;font-size:15px;">🖨️ پرنٹ ایبل ڈونیشن کیو آر پوسٹر (Donation QR Poster)</strong>
-        <div style="font-size:12px;color:#64748b;">اس پوسٹر کو پرنٹ کریں، واٹس ایپ پر شیئر کریں یا تصویر ڈاؤن لوڈ کر کے اسٹیٹس پر لگائیں۔</div>
+        <div style="font-size:12px;color:#64748b;">واٹس ایپ پر لنک یا تصویر شیئر کریں، پرنٹ کریں یا تصویر محفوظ کریں۔</div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <button type="button" class="wa-btn" id="btnShareWhatsApp" onclick="sharePosterWhatsApp()">
-            <span>💬 واٹس ایپ پر شیئر کریں (Share on WhatsApp)</span>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button type="button" class="wa-btn" id="btnShareWhatsAppLink" onclick="shareWhatsAppLinkOnly()" title="واٹس ایپ پر مکمل اپیل اور کلک ایبل ڈونیشن لنک بھیجیں">
+            <span>💬 واٹس ایپ لنک و تفصیلات (Link & Text)</span>
         </button>
-        <button type="button" class="dl-btn" id="btnDownloadImage" onclick="downloadPosterImage()">
-            <span>🖼️ پوسٹر تصویر محفوظ کریں (Save Image)</span>
+        <button type="button" class="wa-img-btn" id="btnShareWhatsAppImg" onclick="sharePosterWhatsApp()" title="پوسٹر کی تصویر واٹس ایپ پر بھیجیں اور لنک کیپشن میں پیسٹ کریں">
+            <span>🖼️ تصویر مع لنک کاپی (Picture & Link)</span>
+        </button>
+        <button type="button" class="copy-link-btn" onclick="copyPortalLink()" title="آن لائن ڈونیشن پورٹل کا لنک کاپی کریں">
+            <span>🔗 صرف لنک کاپی کریں</span>
+        </button>
+        <button type="button" class="dl-btn" id="btnDownloadImage" onclick="downloadPosterImage()" title="پوسٹر کی تصویر ڈیوائس میں محفوظ کریں">
+            <span>💾 تصویر محفوظ کریں</span>
         </button>
         <button type="button" class="print-btn" onclick="window.print()">
-            <span>🖨️ ابھی پرنٹ کریں (Print / PDF)</span>
+            <span>🖨️ پرنٹ / PDF</span>
         </button>
-        <a href="settings.php?tab=donations#appealSection" target="_blank" style="background:#fef3c7;border:1.5px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+        <a href="settings.php?tab=donations#appealSection" target="_blank" style="background:#fef3c7;border:1.5px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:8px;font-size:12.5px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:5px;">
             <span>✏️ اپیل تبدیل کریں</span>
         </a>
-        <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:8px 14px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;">
-            ✕ واپس جائیں
+        <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:8px 14px;border-radius:8px;font-size:12.5px;text-decoration:none;font-weight:700;">
+            ✕ واپس
         </a>
+    </div>
+</div>
+
+<!-- Modal for Picture + Link guidance -->
+<div id="pasteGuideModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:999999;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#ffffff;border-radius:16px;max-width:460px;width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,0.35);text-align:center;direction:rtl;border:2px solid #22c55e;">
+        <div style="font-size:38px;margin-bottom:6px;">📋 ✨</div>
+        <h3 style="margin:0 0 8px;color:#0f172a;font-size:17px;font-weight:800;">ڈونیشن لنک کاپی ہو چکا ہے!</h3>
+        <p style="margin:0 0 12px;color:#475569;font-size:13.5px;line-height:1.6;">
+            واٹس ایپ تصویر کے ساتھ خودکار لنک اٹیچ نہیں کرتا۔ ہم نے ڈونیشن لنک خود بخود کاپی کر دیا ہے۔ 
+            واٹس ایپ میں تصویر سینڈ کرتے وقت نیچے <strong>کیپشن (Add a caption)</strong> میں صرف انگلی دبا کر <strong>"Paste"</strong> کر دیں تاکہ تصویر اور لنک دونوں ایک ساتھ چلے جائیں۔
+        </p>
+        <div style="background:#f0fdf4;border:1px dashed #86efac;padding:8px 12px;border-radius:8px;font-size:12px;color:#15803d;direction:ltr;text-align:center;word-break:break-all;margin-bottom:14px;font-weight:700;">
+            <?=e($portalUrl)?>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+            <button type="button" onclick="closePasteModal()" style="background:#22c55e;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13.5px;">✓ سمجھ گیا (OK)</button>
+            <button type="button" onclick="closePasteModal();shareWhatsAppLinkOnly();" style="background:#0284c7;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">📲 ڈائریکٹ لنک واٹس ایپ کریں</button>
+        </div>
     </div>
 </div>
 
@@ -508,6 +569,50 @@ const posterShareData = {
     portalUrl: <?= json_encode($portalUrl, JSON_UNESCAPED_UNICODE) ?>
 };
 
+function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).catch(function() {
+            return fallbackCopyText(text);
+        });
+    }
+    return fallbackCopyText(text);
+}
+
+function fallbackCopyText(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    let successful = false;
+    try {
+        successful = document.execCommand('copy');
+    } catch (err) {
+        successful = false;
+    }
+    document.body.removeChild(textArea);
+    return Promise.resolve(successful);
+}
+
+function copyPortalLink() {
+    copyTextToClipboard(posterShareData.portalUrl);
+    showPosterToast('✓ آن لائن ڈونیشن لنک کاپی ہو گیا! واٹس ایپ میں کہیں بھی پیسٹ کریں۔', true);
+}
+
+function buildPosterCaptionText() {
+    let cap = '📢 *' + posterShareData.appealTitle + '*\n'
+            + '🕋 *' + posterShareData.orgName + '*\n';
+    if (posterShareData.projectLocation && posterShareData.projectLocation.trim() !== '') {
+        cap += '📍 ' + posterShareData.projectLocation + '\n';
+    }
+    cap += '📲 *آن لائن عطیہ درج کرنے اور فوری رسید حاصل کرنے کا لنک:*\n'
+         + posterShareData.portalUrl;
+    return cap;
+}
+
 function buildPosterWhatsAppText() {
     let msg = 'السلام علیکم ورحمۃ اللہ وبرکاتہ\n\n'
             + '🕋 *' + posterShareData.orgName + '*\n'
@@ -552,11 +657,33 @@ function openWhatsAppUrl(msg) {
     }
 }
 
-async function sharePosterWhatsApp() {
-    const btn = document.getElementById('btnShareWhatsApp');
+function shareWhatsAppLinkOnly() {
     const msg = buildPosterWhatsAppText();
+    copyTextToClipboard(posterShareData.portalUrl);
+    showPosterToast('واٹس ایپ اوپن ہو رہا ہے مع ڈائریکٹ کلک ایبل لنک...', true);
+    openWhatsAppUrl(msg);
+}
 
-    showPosterToast('پوسٹر کی تصویر اور واٹس ایپ تیار ہو رہا ہے...', false);
+function showPasteModal() {
+    const modal = document.getElementById('pasteGuideModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closePasteModal() {
+    const modal = document.getElementById('pasteGuideModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function sharePosterWhatsApp() {
+    const btn = document.getElementById('btnShareWhatsAppImg');
+    const caption = buildPosterCaptionText();
+    const fullMsg = buildPosterWhatsAppText();
+
+    // Immediately copy caption & link to user's clipboard
+    copyTextToClipboard(caption);
+
+    showPasteModal();
+    showPosterToast('ڈونیشن لنک کاپی ہو گیا۔ تصویر تیار ہو رہی ہے...', false);
     if (btn) {
         btn.disabled = true;
         btn.style.opacity = '0.7';
@@ -564,7 +691,7 @@ async function sharePosterWhatsApp() {
 
     const poster = document.querySelector('.poster-canvas');
     if (!poster) {
-        openWhatsAppUrl(msg);
+        openWhatsAppUrl(fullMsg);
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
         return;
     }
@@ -584,14 +711,13 @@ async function sharePosterWhatsApp() {
 
                 // Try native file sharing (Android Chrome, iOS Safari)
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    showPosterToast('واٹس ایپ منتخب کریں...', false);
                     try {
                         await navigator.share({
                             files: [file],
                             title: posterShareData.appealTitle,
-                            text: msg
+                            text: caption
                         });
-                        showPosterToast('✓ پوسٹر کامیابی سے شیئر ہو گیا', true);
+                        showPosterToast('✓ تصویر شیئر ہو گئی۔ کیپشن میں لنک پیسٹ کر دیں!', true);
                         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
                         return;
                     } catch (shareErr) {
@@ -617,7 +743,7 @@ async function sharePosterWhatsApp() {
     }
 
     showPosterToast('پوسٹر تصویر محفوظ ہو گئی۔ واٹس ایپ اوپن ہو رہا ہے...', true);
-    openWhatsAppUrl(msg);
+    openWhatsAppUrl(fullMsg);
     if (btn) {
         btn.disabled = false;
         btn.style.opacity = '1';

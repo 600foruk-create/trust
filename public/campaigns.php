@@ -105,12 +105,21 @@ if ($donorFilter === 'pledgers') {
 }
 $sqlDonors .= " ORDER BY lifetime_donated DESC LIMIT 60";
 $donors = $pdo->query($sqlDonors)->fetchAll(PDO::FETCH_ASSOC);
-
-require_once __DIR__ . '/../app/sidebar.php';
 ?>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Seasonal Campaigns &amp; Appeals | <?=e($madrasaName)?></title>
+    <link rel="stylesheet" href="assets/style.css?v=<?=css_ver()?>">
+</head>
+<body>
+<div class="app-shell">
+    <?php require __DIR__ . '/../app/sidebar.php'; ?>
 
-<div class="main-content">
-    <div style="max-width:1200px;margin:0 auto;padding:16px 20px;">
+    <main class="main">
+        <div style="max-width:1200px;margin:0 auto;padding:16px 20px;">
 
         <!-- Header -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:20px;">
@@ -281,7 +290,8 @@ require_once __DIR__ . '/../app/sidebar.php';
         </div>
         <?php endif; ?>
 
-    </div>
+        </div>
+    </main>
 </div>
 
 <!-- Modal: Create / Edit Campaign -->
@@ -409,4 +419,6 @@ window.addEventListener('click', function(e) {
     if (e.target === m) closeCampaignModal();
 });
 </script>
+</body>
+</html>
 

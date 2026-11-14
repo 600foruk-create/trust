@@ -99,12 +99,21 @@ $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch users for filter dropdown
 $users = $pdo->query("SELECT id, full_name, username FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-require_once __DIR__ . '/../app/sidebar.php';
 ?>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Audit Trail &amp; Security Logs | <?=e($madrasaName)?></title>
+    <link rel="stylesheet" href="assets/style.css?v=<?=css_ver()?>">
+</head>
+<body>
+<div class="app-shell">
+    <?php require __DIR__ . '/../app/sidebar.php'; ?>
 
-<div class="main-content">
-    <div style="max-width:1200px;margin:0 auto;padding:16px 20px;">
+    <main class="main">
+        <div style="max-width:1200px;margin:0 auto;padding:16px 20px;">
 
         <!-- Header -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:20px;">
@@ -242,6 +251,9 @@ require_once __DIR__ . '/../app/sidebar.php';
             </div>
         </div>
 
-    </div>
+        </div>
+    </main>
 </div>
+</body>
+</html>
 

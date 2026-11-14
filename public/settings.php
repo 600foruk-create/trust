@@ -473,6 +473,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute(['financial_year_start', $finYearStart]);
             $stmt->execute(['ui_language', $uiLanguage]);
             $stmt->execute(['org_type', $orgType]);
+            $cashSettlementMode = in_array($_POST['cash_settlement_mode'] ?? '', ['two_step', 'auto_settle'], true) ? $_POST['cash_settlement_mode'] : 'two_step';
+            $stmt->execute(['cash_settlement_mode', $cashSettlementMode]);
         }
 
         // Save Print & Slip Settings (when submitted from Print Tab)
@@ -847,6 +849,7 @@ $timezone = $settingsRows['timezone'] ?? 'Asia/Karachi';
 $finYearStart = $settingsRows['financial_year_start'] ?? '07-01';
 $uiLanguage = $settingsRows['ui_language'] ?? 'bilingual';
 $orgType = $settingsRows['org_type'] ?? 'trust';
+$cashSettlementMode = $settingsRows['cash_settlement_mode'] ?? 'two_step';
 $orgSubtitle = $settingsRows['org_subtitle'] ?? '';
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 $shortBrand = mb_strtoupper(mb_substr($madrasaName, 0, 2));
@@ -1415,6 +1418,20 @@ if (!in_array($activeTab, $validTabs, true)) {
                             <small class="muted" style="display:block;margin-top:6px;font-size:11.5px;line-height:1.4;color:#15803d;">
                                 <span class="ur"><b>Trust Mode:</b> راشن، صاف پانی، یتیم کفالت، ایمرجنسی ریلیف فنڈز، اور ڈونیشن واؤچرز فعال ہوں گے۔<br><b>Madrasa Mode:</b> طلبہ کفالت، تعلیمی فیس، کتب و مکتبہ، مطبخ طعام، اور اساتذہ تنخواہیں فعال ہوں گی۔</span>
                                 <span class="en-only" style="display:none;">Switching modes dynamically adjusts categories, terminology, and funds while preserving all transaction records.</span>
+                            </small>
+                        </div>
+
+                        <!-- Cashier Settlement Workflow Mode -->
+                        <div class="form-group" style="margin-bottom:20px;padding:16px;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;">
+                            <label style="font-weight:700;display:block;margin-bottom:6px;color:#1e3a8a;">
+                                💼 Cashier Cash Settlement Workflow <span class="ur">(کیشیئرز کیش سیٹلمنٹ و نقد ترسیل کا طریقہ کار)</span>
+                            </label>
+                            <select name="cash_settlement_mode" style="width:100%;font-size:13.5px;padding:9px 12px;border:1.5px solid #3b82f6;border-radius:7px;background:#ffffff;font-weight:600;color:#0f172a;">
+                                <option value="two_step" <?=$cashSettlementMode === 'two_step' ? 'selected' : ''?>>📦 دو مرحلہ وار نظام (Two-Step Workflow: واؤچر منظوری پر کیش کیشیئر کے پاس رہے گا تا وقتیکہ باقاعدہ جمع نہ ہو - تجویز کردہ)</option>
+                                <option value="auto_settle" <?=$cashSettlementMode === 'auto_settle' ? 'selected' : ''?>>⚡ فوری خودکار تسویہ (Auto-Settle: واؤچر منظور ہوتے ہی کیش خود بخود مین اکاؤنٹ میں ٹرانسفر ہو جائے)</option>
+                            </select>
+                            <small class="muted" style="display:block;margin-top:6px;font-size:11.5px;line-height:1.5;color:#1e40af;">
+                                <b>دو مرحلہ وار نظام (Two-Step):</b> فیلڈ کیشیئرز کی چندہ وصولی اور اخراجات منظور ہونے پر بھی بقیہ نقد رقم کیشیئر کے کھاتے میں بولتی رہے گی تاکہ جب تک وہ بینک (ABL Gadoon) یا دفتر میں نقد جمع نہ کروا دے، حساب درست رہے اور کیشیئر پر واجب الادا رقم واضح ہو۔
                             </small>
                         </div>
 

@@ -1855,9 +1855,10 @@ function approve_voucher_with_settlement(PDO $pdo, int $voucherId, int $approver
             $pdo->prepare("UPDATE journal_entries SET status = 'posted' WHERE id = ?")->execute([$jeId]);
         }
 
-        // 2. Perform Automatic Settlement to Main Cash in Hand if voucher was recorded against a User Cash Account
+        // 2. Perform Automatic Settlement to Main Cash in Hand if configured (Mode: auto_settle)
+        $settlementMode = function_exists('get_setting') ? get_setting('cash_settlement_mode', 'two_step') : 'two_step';
         $mainCashAcc = get_main_cash_account($pdo);
-        if ($isUserAccount && $mainCashAcc && $assetAccountId !== (int)$mainCashAcc['id']) {
+        if ($settlementMode === 'auto_settle' && $isUserAccount && $mainCashAcc && $assetAccountId !== (int)$mainCashAcc['id']) {
             $mainCashId = (int)$mainCashAcc['id'];
             $amount = (float)$v['total_amount'];
             $fundId = !empty($v['fund_id']) ? (int)$v['fund_id'] : null;

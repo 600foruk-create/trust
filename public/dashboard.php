@@ -217,14 +217,25 @@ if (!$canApprove) {
     $cashiersSql = "SELECT u.id, u.full_name, u.username, r.name AS role_name,
                     COALESCE(SUM(CASE WHEN v.voucher_type = 'income' AND v.status = 'draft' THEN v.total_amount ELSE 0 END), 0) AS pending_income,
                     COALESCE(SUM(CASE WHEN v.voucher_type = 'expense' AND v.status = 'draft' THEN v.total_amount ELSE 0 END), 0) AS pending_expense,
-                    COUNT(CASE WHEN v.status = 'draft' THEN 1 ELSE NULL END) AS pending_count
+                    COUNT(CASE WHEN v.status = 'draft' THEN 1 ELSE NULL END) AS pending_count,
+                    COALESCE(ca.acc_id, 0) AS cash_account_id,
+                    COALESCE(ca.posted_balance, 0) AS posted_cash_balance
                     FROM users u
                     JOIN roles r ON r.id = u.role_id
                     LEFT JOIN vouchers v ON v.created_by = u.id
+                    LEFT JOIN (
+                        SELECT a.user_id, a.id AS acc_id,
+                               COALESCE(SUM(jl.debit - jl.credit), 0) AS posted_balance
+                        FROM accounts a
+                        LEFT JOIN journal_lines jl ON jl.account_id = a.id
+                        LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted'
+                        WHERE a.is_cash_or_bank = 1 AND a.user_id IS NOT NULL AND a.is_active = 1
+                        GROUP BY a.user_id, a.id
+                    ) ca ON ca.user_id = u.id
                     {$cashierWhere}
-                    GROUP BY u.id
-                    HAVING pending_income > 0 OR pending_expense > 0 OR pending_count > 0
-                    ORDER BY pending_count DESC, pending_income DESC";
+                    GROUP BY u.id, ca.acc_id, ca.posted_balance
+                    HAVING pending_income > 0 OR pending_expense > 0 OR pending_count > 0 OR posted_cash_balance > 0.01 OR posted_cash_balance < -0.01
+                    ORDER BY (posted_cash_balance + (pending_income - pending_expense)) DESC, pending_count DESC";
     $cashiersInHand = $pdo->query($cashiersSql)->fetchAll();
 
     // Recent Vouchers
@@ -495,15 +506,22 @@ if (!$canApprove) {
                         <span class="stat-icon purple">💼</span>
                     </div>
                     <strong style="color:<?=$textColor?>;"><?=money($netHand)?></strong>
-                    <small>
+                    <small style="display:block;">
                         <?php if ($netHand > 0): ?>
-                            Cash held to submit to checker <span class="ur">(چیکر کے پاس جمع کروانے کے لیے واجب الادا رقم)</span>
+                            Cash held in custody <span class="ur">(تحویل میں موجود نقد رقم)</span>
                         <?php elseif ($netHand < 0): ?>
                             Pending reimbursement from checker <span class="ur">(چیکر سے وصول طلب اخراجات)</span>
                         <?php else: ?>
                             Settled <span class="ur">(حساب بے باق - تمام کیش تسویہ شدہ ہے)</span>
                         <?php endif; ?>
                     </small>
+                    <?php if ($netHand > 0): ?>
+                        <div style="margin-top:8px;">
+                            <a href="cash_bank.php?handover=1&preselect_from=<?=(int)($userAcc['id']??0)?>&amount=<?=$netHand?>&cname=<?=urlencode($currentUser['full_name']??'')?>" class="btn sm" style="background:#059669;color:#ffffff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
+                                📦 بینک / دفتر میں کیش جمع کروائیں
+                            </a>
+                        </div>
+                    <?php endif; ?>
                 </article>
 
                 <!-- 4. Pending Vouchers Count -->
@@ -845,7 +863,7 @@ if (!$canApprove) {
                 </div>
             </section>
 
-            <!-- Cashiers & Users Cash in Hand Monitor (Pending Handover) -->
+            <!-- Cashiers & Users Cash in Hand Monitor (Pending Handover & In Custody) -->
             <?php if (!empty($cashiersInHand)): ?>
                 <section style="margin: 24px 0;">
                     <div class="panel" style="border:1.5px solid #fed7aa;background:#fffaf5;">
@@ -853,12 +871,15 @@ if (!$canApprove) {
                             <div>
                                 <h3 style="color:#9a3412;margin:0;">💼 Cash Held by Cashiers <span class="ur">(کیشیرز کی تحویل میں موجود رقوم)</span></h3>
                                 <p style="margin:2px 0 0;font-size:12px;color:#7c2d12;">
-                                    <span class="ur">یہ رقوم کیشیرز نے وصول کی ہیں لیکن ابھی چیکر کو جمع کروا کر منظور نہیں ہوئیں۔</span>
-                                    <span class="en-only" style="display:none;">These funds were collected by cashiers and are awaiting checker audit & approval.</span>
+                                    <span class="ur">کیشیرز کے پاس موجود نقد رقم (تصدیق شدہ اور غیر منظور شدہ)۔ جب کیشیر نقد رقم مرکزی اکاؤنٹ یا بینک میں جمع کروائے تو "نقد جمع کریں" سے ٹرانسفر درج کریں۔</span>
+                                    <span class="en-only" style="display:none;">Cash held by cashiers (both posted ledger balance and pending drafts). Deposit to bank/main treasury via Handover Cash.</span>
                                 </p>
                             </div>
-                            <div>
-                                <a href="approvals.php" class="btn secondary sm" style="border-color:#fdba74;color:#9a3412;">
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <a href="cash_bank.php" class="btn secondary sm" style="border-color:#fdba74;color:#9a3412;">
+                                    <span class="ur">کیش و بینک</span> &rarr;
+                                </a>
+                                <a href="approvals.php" class="btn blue sm">
                                     <span class="ur">منظوری پینل</span>
                                     <span class="en-only" style="display:none;">Approvals Panel</span> &rarr;
                                 </a>
@@ -870,15 +891,18 @@ if (!$canApprove) {
                                     <tr>
                                         <th>Cashier / User</th>
                                         <th>Role</th>
-                                        <th class="right">Pending Income <span class="ur">(وصول شدہ)</span></th>
-                                        <th class="right">Pending Expenses <span class="ur">(خرچ)</span></th>
-                                        <th class="right">Net Cash in Custody <span class="ur">(پاس موجود رقم)</span></th>
-                                        <th>Action</th>
+                                        <th class="right">Posted In-Hand <span class="ur">(منظور شدہ نقد)</span></th>
+                                        <th class="right">Pending Drafts <span class="ur">(زیر التواء)</span></th>
+                                        <th class="right">Total Custody <span class="ur">(کل نقد رقم)</span></th>
+                                        <th style="min-width:180px;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($cashiersInHand as $ch): 
-                                        $netCustody = (float)$ch['pending_income'] - (float)$ch['pending_expense'];
+                                        $postedBal = (float)($ch['posted_cash_balance'] ?? 0);
+                                        $netPending = (float)$ch['pending_income'] - (float)$ch['pending_expense'];
+                                        $totalCustody = $postedBal + $netPending;
+                                        $accId = (int)($ch['cash_account_id'] ?? 0);
                                     ?>
                                         <tr>
                                             <td>
@@ -886,16 +910,31 @@ if (!$canApprove) {
                                                 <div style="font-size:11px;color:#64748b;">@<?=e($ch['username'])?></div>
                                             </td>
                                             <td><span class="badge badge-purple"><?=e(function_exists('get_role_display_name') ? get_role_display_name($ch['role_name'], false) : $ch['role_name'])?></span></td>
-                                            <td class="right font-bold" style="color:#15803d;"><?=money($ch['pending_income'])?></td>
-                                            <td class="right font-bold" style="color:#b91c1c;"><?=money($ch['pending_expense'])?></td>
-                                            <td class="right font-bold" style="color:#1e3a8a;font-size:14px;">
-                                                <?=money($netCustody)?>
+                                            <td class="right font-bold" style="color:<?= $postedBal > 0 ? '#15803d' : ($postedBal < 0 ? '#b91c1c' : '#64748b') ?>;font-size:13.5px;">
+                                                <?=money($postedBal)?>
+                                            </td>
+                                            <td class="right font-bold" style="color:<?= $netPending > 0 ? '#0284c7' : '#64748b' ?>;">
+                                                <?=money($netPending)?>
+                                                <?php if ((int)$ch['pending_count'] > 0): ?>
+                                                    <span style="font-size:11px;font-weight:normal;color:#64748b;">(<?=$ch['pending_count']?>)</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="right font-bold" style="color:#1e3a8a;font-size:14.5px;">
+                                                <?=money($totalCustody)?>
                                             </td>
                                             <td>
-                                                <a href="approvals.php" class="btn blue sm" style="padding:3px 9px;font-size:11.5px;">
-                                                    <span class="ur">پڑتال و منظوری</span>
-                                                    <span class="en-only" style="display:none;">Audit & Approve</span> (<?=$ch['pending_count']?>)
-                                                </a>
+                                                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                                                    <?php if ($postedBal > 0.01 && $accId > 0): ?>
+                                                        <a href="cash_bank.php?handover=1&preselect_from=<?=$accId?>" class="btn sm" style="padding:3px 8px;font-size:11px;background:#16a34a;color:#fff;border-color:#16a34a;text-decoration:none;border-radius:4px;display:inline-flex;align-items:center;gap:3px;" title="کیشیر سے نقد وصول کر کے بینک یا مین کیش میں جمع کریں">
+                                                            📦 نقد جمع کریں
+                                                        </a>
+                                                    <?php endif; ?>
+                                                    <?php if ((int)$ch['pending_count'] > 0): ?>
+                                                        <a href="approvals.php" class="btn blue sm" style="padding:3px 8px;font-size:11px;text-decoration:none;">
+                                                            <span class="ur">پڑتال</span> (<?=$ch['pending_count']?>)
+                                                        </a>
+                                                    <?php endif; ?>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

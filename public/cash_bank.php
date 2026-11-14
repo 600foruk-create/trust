@@ -1258,6 +1258,11 @@ $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
                                     </td>
                                     <td class="right" style="white-space:nowrap;">
                                         <div class="btn-row" style="justify-content:flex-end;">
+                                            <?php if ($isUserAcc && $bal > 0): ?>
+                                                <button type="button" class="btn sm" style="background:#059669;color:#ffffff;border:none;padding:4px 9px;font-size:11.5px;font-weight:700;" onclick="openHandoverModal(<?=$a['id']?>, '<?=e(addslashes(format_ui_text($a['account_name'])))?>', <?=$bal?>)" title="کیشیئر سے نقد رقم مرکزی بینک یا دفتر میں جمع کرائیں">
+                                                    📦 Handover Cash
+                                                </button>
+                                            <?php endif; ?>
                                             <button type="button" class="btn sm" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:4px 9px;font-size:11.5px;font-weight:600;" onclick="openTransferModal(<?=$a['id']?>)" title="اس کھاتے سے رقم منتقل کریں">
                                                 ⇄ Transfer
                                             </button>
@@ -1418,14 +1423,62 @@ function toggleSelectAllRecon(master) {
     boxes.forEach(cb => cb.checked = master.checked);
 }
 
-function openTransferModal(preselectFromId) {
+function openTransferModal(preselectFromId, preselectToId, defaultAmt, defaultNarration) {
     var modal = document.getElementById('transferModal');
     if (!modal) return;
+    var titleEl = document.getElementById('transferModalTitle');
+    if (titleEl) {
+        titleEl.innerHTML = '<b style="font-size:16px;color:#fff;">⇄ Transfer Funds / Contra Voucher</b><span class="ur" style="display:block;font-size:12.5px;color:#bfdbfe;margin-top:2px;">(اندرونی کیش و بینک فنڈ منتقلی)</span>';
+    }
     if (preselectFromId) {
         var fromSel = document.getElementById('transferFromAcc');
         if (fromSel) {
             fromSel.value = preselectFromId;
             updateTransferFromBal();
+        }
+    }
+    if (preselectToId) {
+        var toSel = document.getElementById('transferToAcc');
+        if (toSel) toSel.value = preselectToId;
+    }
+    var amtInput = modal.querySelector('input[name="amount"]');
+    if (amtInput && defaultAmt) {
+        amtInput.value = defaultAmt;
+    }
+    var narrInput = modal.querySelector('textarea[name="narration"]');
+    if (narrInput && defaultNarration) {
+        narrInput.value = defaultNarration;
+    }
+    modal.style.display = 'flex';
+}
+
+function openHandoverModal(fromId, cashierName, balance) {
+    var modal = document.getElementById('transferModal');
+    if (!modal) return;
+    var titleEl = document.getElementById('transferModalTitle');
+    if (titleEl) {
+        titleEl.innerHTML = '<b style="font-size:16px;color:#fff;">📦 Handover Cash to Main Treasury / Bank</b><span class="ur" style="display:block;font-size:12.5px;color:#bfdbfe;margin-top:2px;">(کیشیئر سے نقد رقم مرکزی بینک یا دفتر میں جمع کرائیں)</span>';
+    }
+    var fromSel = document.getElementById('transferFromAcc');
+    if (fromSel) {
+        fromSel.value = fromId;
+        updateTransferFromBal();
+    }
+    var amtInput = modal.querySelector('input[name="amount"]');
+    if (amtInput && balance > 0) {
+        amtInput.value = balance;
+    }
+    var narrInput = modal.querySelector('textarea[name="narration"]');
+    if (narrInput) {
+        narrInput.value = "تحویلِ نقد / ڈپازٹ از " + (cashierName || "کیشیئر") + " بنام مرکزی خزانہ / بینک";
+    }
+    var toSel = document.getElementById('transferToAcc');
+    if (toSel && (!toSel.value || toSel.value == fromId)) {
+        for (var i = 0; i < toSel.options.length; i++) {
+            if (toSel.options[i].value && toSel.options[i].value != fromId) {
+                toSel.selectedIndex = i;
+                break;
+            }
         }
     }
     modal.style.display = 'flex';
@@ -1532,6 +1585,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('closingAccSelect')) {
         calcClosingTotals();
     }
+
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('handover') === '1' || params.get('preselect_from')) {
+        var fromId = params.get('preselect_from');
+        var amt = params.get('amount') || '';
+        var cname = params.get('cname') || '';
+        if (fromId) {
+            openHandoverModal(fromId, cname, parseFloat(amt) || 0);
+        } else {
+            openTransferModal();
+        }
+    }
 });
 </script>
 
@@ -1539,7 +1604,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div id="transferModal" class="img-modal" style="display:none;" onclick="if(event.target===this) closeTransferModal();">
     <div class="img-modal-content" style="max-width:560px;width:100%;max-height:92vh;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,0.35);">
         <div class="img-modal-header" style="background:#1e3a8a;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-            <div>
+            <div id="transferModalTitle">
                 <b style="font-size:16px;color:#fff;">⇄ Transfer Funds / Contra Voucher</b>
                 <span class="ur" style="display:block;font-size:12.5px;color:#bfdbfe;margin-top:2px;">(اندرونی کیش و بینک فنڈ منتقلی)</span>
             </div>

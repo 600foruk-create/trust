@@ -932,17 +932,22 @@ function require_permission(string $code): void {
 }
 }
 
+if (!function_exists('e')) {
 function e(?string $value): string {
     return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
+}
 
+if (!function_exists('csrf_token')) {
 function csrf_token(): string {
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
     return $_SESSION['csrf_token'];
 }
+}
 
+if (!function_exists('verify_csrf')) {
 function verify_csrf(): void {
     $sent = $_POST['csrf_token'] ?? '';
     if (!is_string($sent) || !hash_equals($_SESSION['csrf_token'] ?? '', $sent)) {
@@ -950,11 +955,15 @@ function verify_csrf(): void {
         exit('Invalid or expired form token. Please go back and try again.');
     }
 }
+}
 
+if (!function_exists('current_user')) {
 function current_user(): ?array {
     return $_SESSION['user'] ?? null;
 }
+}
 
+if (!function_exists('require_login')) {
 function require_login(): void {
     if (!current_user()) {
         header('Location: login.php');
@@ -972,7 +981,9 @@ function require_login(): void {
         }
     }
 }
+}
 
+if (!function_exists('can_approve')) {
 function can_approve(): bool {
     $user = current_user();
     if (!$user) return false;
@@ -980,7 +991,9 @@ function can_approve(): bool {
     if (in_array($role, ['Super Admin', 'Administrator'], true)) return true;
     return has_permission('voucher.approve', $user) || has_permission('voucher.direct_post', $user);
 }
+}
 
+if (!function_exists('can_record')) {
 function can_record(): bool {
     $user = current_user();
     if (!$user) return false;
@@ -988,7 +1001,9 @@ function can_record(): bool {
     if (in_array($role, ['Super Admin', 'Administrator'], true)) return true;
     return has_permission('income.create', $user) || has_permission('expense.create', $user);
 }
+}
 
+if (!function_exists('require_role')) {
 function require_role(array $allowed): void {
     require_login();
     $role = $_SESSION['user']['role'] ?? '';
@@ -1007,7 +1022,9 @@ function require_role(array $allowed): void {
         exit('You do not have permission to access this page.');
     }
 }
+}
 
+if (!function_exists('has_role')) {
 function has_role(string|array $role, ?array $user = null): bool {
     if ($user === null) {
         $user = current_user();
@@ -1027,14 +1044,19 @@ function has_role(string|array $role, ?array $user = null): bool {
     
     return $cleanCheck === $cleanUser;
 }
+}
 
+if (!function_exists('money')) {
 function money(float|int|string $amount): string {
     return 'Rs. ' . number_format((float)$amount, 2);
 }
+}
 
+if (!function_exists('css_ver')) {
 function css_ver(): string {
     $cssPath = __DIR__ . '/../public/assets/style.css';
     return is_file($cssPath) ? (string)filemtime($cssPath) : '1.0';
+}
 }
 
 function get_setting(string $key, string $default = ''): string {

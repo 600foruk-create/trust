@@ -17,12 +17,15 @@ if ($voucherId <= 0) {
     exit('Invalid voucher ID.');
 }
 
-// Fetch voucher with fund, donor and user details
-$stmt = $pdo->prepare("SELECT v.*, f.name AS fund_name, f.fund_code, d.donor_name, d.phone AS donor_phone, d.address AS donor_address, u.full_name AS created_by_name
+// Fetch voucher with fund, donor, user and beneficiary/staff details
+$stmt = $pdo->prepare("SELECT v.*, f.name AS fund_name, f.fund_code, d.donor_name, d.phone AS donor_phone, d.address AS donor_address, u.full_name AS created_by_name,
+                              b.full_name AS ben_name, b.category AS ben_category, b.reg_no AS ben_reg_no,
+                              b.department_class AS ben_dept, b.monthly_stipend_amount AS ben_stipend, b.phone AS ben_phone
                        FROM vouchers v
                        LEFT JOIN funds f ON f.id = v.fund_id
                        LEFT JOIN donors d ON d.id = v.donor_id
                        LEFT JOIN users u ON u.id = v.created_by
+                       LEFT JOIN beneficiaries b ON b.id = v.beneficiary_id
                        WHERE v.id = ?");
 $stmt->execute([$voucherId]);
 $voucher = $stmt->fetch();
@@ -81,12 +84,47 @@ $amountInWords = function_exists('number_to_words') ? number_to_words((float)$vo
 
 $isIncome = ($voucher['voucher_type'] === 'income');
 $isTransfer = ($voucher['voucher_type'] === 'transfer');
+$isStaffSalary = (!empty($voucher['beneficiary_id']) && ($voucher['ben_category'] ?? '') === 'staff');
+$isStudentStipend = (!empty($voucher['beneficiary_id']) && ($voucher['ben_category'] ?? '') !== 'staff');
 $isUrdu = function_exists('is_urdu_enabled') ? is_urdu_enabled() : true;
 $isMadrasa = function_exists('is_madrasa_mode') ? is_madrasa_mode() : false;
+
+$fromAccountName = '';
+$toAccountName = '';
 if ($isTransfer) {
-    $title = 'CONTRA / TRANSFER VOUCHER <span class="ur">(کیش ٹرانسفر واؤچر)</span>';
-    $partyLabel = 'Transferred To <span class="ur">(وصول کنندہ کھاتہ)</span>';
-    $partyName = $voucher['payee_name'] ?: 'Transferred Account';
+    try {
+        $jlStmt = $pdo->prepare("
+            SELECT jl.debit, jl.credit, a.account_name, a.account_code
+            FROM journal_lines jl
+            JOIN accounts a ON a.id = jl.account_id
+            JOIN journal_entries je ON je.id = jl.journal_entry_id
+            WHERE je.voucher_id = ?
+        ");
+        $jlStmt->execute([$voucherId]);
+        $lines = $jlStmt->fetchAll();
+        foreach ($lines as $ln) {
+            if ((float)$ln['credit'] > 0 && empty($fromAccountName)) {
+                $fromAccountName = $ln['account_name'];
+            }
+            if ((float)$ln['debit'] > 0 && empty($toAccountName)) {
+                $toAccountName = $ln['account_name'];
+            }
+        }
+    } catch (Throwable $e) {}
+}
+
+if ($isTransfer) {
+    $title = 'CASH HANDOVER &amp; BANK DEPOSIT SLIP <span class="ur">(تحویلِ نقد و بینک ڈپازٹ سلپ)</span>';
+    $partyLabel = 'Transferred To <span class="ur">(وصول کنندہ کھاتہ / بینک)</span>';
+    $partyName = $toAccountName ?: ($voucher['payee_name'] ?: 'Central Bank / Treasury');
+} elseif ($isStaffSalary) {
+    $title = 'MONTHLY SALARY SLIP <span class="ur">(ماہانہ تنخواہ پرچی / پے سلپ)</span>';
+    $partyLabel = 'Staff / Teacher <span class="ur">(استاذ / ملازم)</span>';
+    $partyName = $voucher['ben_name'] ?: ($voucher['payee_name'] ?: 'Staff Member');
+} elseif ($isStudentStipend) {
+    $title = 'STUDENT STIPEND SLIP <span class="ur">(وظیفہ و امداد پرچی)</span>';
+    $partyLabel = 'Beneficiary / Student <span class="ur">(طالب علم / مستحق)</span>';
+    $partyName = $voucher['ben_name'] ?: ($voucher['payee_name'] ?: 'Beneficiary');
 } elseif ($isMadrasa) {
     $title = $isIncome ? 'RECEIPT VOUCHER <span class="ur">(رسید چندہ و فیس)</span>' : 'PAYMENT VOUCHER <span class="ur">(واؤچر خرچ مدرسہ)</span>';
     $partyLabel = $isIncome ? 'Received From <span class="ur">(معاون / طالب علم)</span>' : 'Paid To <span class="ur">(وصول کنندہ / مد)</span>';
@@ -524,19 +562,70 @@ try {
         </div>
 
         <table class="a4-table">
-            <tr>
-                <th style="width:30%;"><?=$partyLabel?></th>
-                <td style="font-size:15px;font-weight:700;">
-                    <?=e($partyName)?>
-                    <?php if (!empty($voucher['donor_phone'])): ?>
-                        <span style="font-size:12px;color:#64748b;font-weight:normal;">(Phone: <?=e($voucher['donor_phone'])?>)</span>
-                    <?php endif; ?>
-                </td>
-            </tr>
-            <tr>
-                <th>Fund Account <span class="ur">(فنڈ)</span></th>
-                <td><b><?=e($voucher['fund_name'] ?? (is_madrasa_mode() ? 'Madrasa General Fund' : 'Trust General Fund'))?></b> (<?=e($voucher['fund_code'] ?? (is_madrasa_mode() ? 'MGF' : 'TGF'))?>)</td>
-            </tr>
+            <?php if ($isTransfer): ?>
+                <tr>
+                    <th style="width:30%;">Transferred From <span class="ur">(ارسال کنندہ / کیشیئر کھاتہ)</span></th>
+                    <td style="font-size:15px;font-weight:700;color:#9a3412;">
+                        <?=e($fromAccountName ?: ($voucher['created_by_name'] ?? 'کیشیئر نقدی کھاتہ'))?>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Deposited To <span class="ur">(وصول کنندہ کھاتہ / بینک)</span></th>
+                    <td style="font-size:15px;font-weight:700;color:#1e40af;">
+                        <?=e($toAccountName ?: ($voucher['payee_name'] ?: 'مرکزی بینک یا کیش کھاتہ'))?>
+                    </td>
+                </tr>
+            <?php elseif ($isStaffSalary): ?>
+                <tr>
+                    <th style="width:30%;">Employee / Teacher <span class="ur">(ملازم / استاذ)</span></th>
+                    <td style="font-size:15px;font-weight:700;">
+                        <?=e($voucher['ben_name'])?>
+                        <?php if (!empty($voucher['ben_phone'])): ?>
+                            <span style="font-size:12px;color:#64748b;font-weight:normal;">(Phone: <?=e($voucher['ben_phone'])?>)</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Designation &amp; Dept <span class="ur">(عہدہ و شعبہ)</span></th>
+                    <td><b><?=e($voucher['ben_dept'] ?: 'Teacher / Staff')?></b> &bull; Reg / Emp ID: <?=e($voucher['ben_reg_no'] ?: '—')?></td>
+                </tr>
+                <tr>
+                    <th>Fund Account <span class="ur">(فنڈ)</span></th>
+                    <td><b><?=e($voucher['fund_name'] ?? (is_madrasa_mode() ? 'Madrasa General Fund' : 'Trust General Fund'))?></b> (<?=e($voucher['fund_code'] ?? (is_madrasa_mode() ? 'MGF' : 'TGF'))?>)</td>
+                </tr>
+            <?php elseif ($isStudentStipend): ?>
+                <tr>
+                    <th style="width:30%;">Student / Beneficiary <span class="ur">(طالب علم / مستحق)</span></th>
+                    <td style="font-size:15px;font-weight:700;">
+                        <?=e($voucher['ben_name'])?>
+                        <?php if (!empty($voucher['ben_phone'])): ?>
+                            <span style="font-size:12px;color:#64748b;font-weight:normal;">(Phone: <?=e($voucher['ben_phone'])?>)</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Class / Roll # <span class="ur">(درجہ و رول نمبر)</span></th>
+                    <td><b><?=e($voucher['ben_dept'] ?: 'Student')?></b> &bull; Reg: <?=e($voucher['ben_reg_no'] ?: '—')?></td>
+                </tr>
+                <tr>
+                    <th>Fund Account <span class="ur">(فنڈ)</span></th>
+                    <td><b><?=e($voucher['fund_name'] ?? 'Zakat &amp; Welfare Fund')?></b> (<?=e($voucher['fund_code'] ?? 'ZAK')?>)</td>
+                </tr>
+            <?php else: ?>
+                <tr>
+                    <th style="width:30%;"><?=$partyLabel?></th>
+                    <td style="font-size:15px;font-weight:700;">
+                        <?=e($partyName)?>
+                        <?php if (!empty($voucher['donor_phone'])): ?>
+                            <span style="font-size:12px;color:#64748b;font-weight:normal;">(Phone: <?=e($voucher['donor_phone'])?>)</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Fund Account <span class="ur">(فنڈ)</span></th>
+                    <td><b><?=e($voucher['fund_name'] ?? (is_madrasa_mode() ? 'Madrasa General Fund' : 'Trust General Fund'))?></b> (<?=e($voucher['fund_code'] ?? (is_madrasa_mode() ? 'MGF' : 'TGF'))?>)</td>
+                </tr>
+            <?php endif; ?>
             <tr>
                 <th>Payment Mode <span class="ur">(طریقہ ادائیگی)</span></th>
                 <td><?=e(ucfirst($voucher['payment_method'] ?? 'Cash'))?> <?= $voucher['reference_no'] ? '— Ref / Cheque #: '.e($voucher['reference_no']) : '' ?></td>
@@ -586,18 +675,46 @@ try {
 
         <!-- Signatures -->
         <div class="signatures">
-            <div class="sig-block">
-                <?=e($printSignTitle1)?><br>
-                <small style="color:#94a3b8;"><?=e($voucher['created_by_name'] ?? 'Accounts')?></small>
-            </div>
-            <div class="sig-block">
-                <?=e($printSignTitle2)?><br>
-                <small style="color:#94a3b8;">Accounts Dept</small>
-            </div>
-            <div class="sig-block">
-                <?=e($printSignTitle3)?><br>
-                <small style="color:#94a3b8;">Official Seal &amp; Signature</small>
-            </div>
+            <?php if ($isTransfer): ?>
+                <div class="sig-block">
+                    رقم جمع کروانے والے کے دستخط<br>
+                    <small style="color:#0f172a;font-weight:700;"><?=e($fromAccountName ?: ($voucher['created_by_name'] ?? 'کیشیئر'))?></small>
+                </div>
+                <div class="sig-block">
+                    رقم وصول کنندہ کے دستخط (بینک / کیش)<br>
+                    <small style="color:#0f172a;font-weight:700;"><?=e($toAccountName ?: 'بینک کیشیر / مجاز وصول کنندہ')?></small>
+                </div>
+                <div class="sig-block">
+                    تصدیق و مہر ناظمِ مالیات / صدر<br>
+                    <small style="color:#94a3b8;">Official Seal &amp; Authorization</small>
+                </div>
+            <?php elseif ($isStaffSalary): ?>
+                <div class="sig-block">
+                    ملازم کے دستخط برائے وصولی (Employee)<br>
+                    <small style="color:#0f172a;font-weight:700;"><?=e($voucher['ben_name'])?></small>
+                </div>
+                <div class="sig-block">
+                    <?=e($printSignTitle2)?><br>
+                    <small style="color:#94a3b8;">Accounts Dept</small>
+                </div>
+                <div class="sig-block">
+                    <?=e($printSignTitle3)?><br>
+                    <small style="color:#94a3b8;">Official Seal &amp; Signature</small>
+                </div>
+            <?php else: ?>
+                <div class="sig-block">
+                    <?=e($printSignTitle1)?><br>
+                    <small style="color:#94a3b8;"><?=e($voucher['created_by_name'] ?? 'Accounts')?></small>
+                </div>
+                <div class="sig-block">
+                    <?=e($printSignTitle2)?><br>
+                    <small style="color:#94a3b8;">Accounts Dept</small>
+                </div>
+                <div class="sig-block">
+                    <?=e($printSignTitle3)?><br>
+                    <small style="color:#94a3b8;">Official Seal &amp; Signature</small>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -641,10 +758,30 @@ try {
                     <span>مد / فنڈ (Fund):</span>
                     <span class="thermal-bold"><?=e($voucher['fund_name'] ?? 'General')?></span>
                 </div>
-                <div class="thermal-row">
-                    <span><?=$isIncome ? 'معاون (Donor):' : 'ادائیگی بنام (Payee):'?></span>
-                    <span class="thermal-bold"><?=e($partyName)?></span>
-                </div>
+                <?php if ($isTransfer): ?>
+                    <div class="thermal-row">
+                        <span>ارسال کنندہ (From):</span>
+                        <span class="thermal-bold"><?=e($fromAccountName ?: ($voucher['created_by_name'] ?? 'کیشیئر'))?></span>
+                    </div>
+                    <div class="thermal-row">
+                        <span>وصول کنندہ (To):</span>
+                        <span class="thermal-bold"><?=e($toAccountName ?: ($voucher['payee_name'] ?: 'مرکزی بینک یا کیش کھاتہ'))?></span>
+                    </div>
+                <?php elseif ($isStaffSalary): ?>
+                    <div class="thermal-row">
+                        <span>ملازم (Staff):</span>
+                        <span class="thermal-bold"><?=e($voucher['ben_name'])?></span>
+                    </div>
+                    <div class="thermal-row">
+                        <span>عہدہ و شعبہ (Post):</span>
+                        <span><?=e($voucher['ben_dept'] ?: 'Teacher / Staff')?></span>
+                    </div>
+                <?php else: ?>
+                    <div class="thermal-row">
+                        <span><?=$isIncome ? 'معاون (Donor):' : 'ادائیگی بنام (Payee):'?></span>
+                        <span class="thermal-bold"><?=e($partyName)?></span>
+                    </div>
+                <?php endif; ?>
                 <?php if (!empty($voucher['donor_phone'])): ?>
                 <div class="thermal-row">
                     <span>موبائل (Phone):</span>
@@ -703,10 +840,22 @@ try {
                             <?=e($printFooterNote)?>
                         </div>
                     <?php endif; ?>
-                    <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:10px;border-top:1px dotted #000;padding-top:6px;">
-                        <span><?=e($printSignTitle1)?>: <?=e($voucher['created_by_name'] ?? 'Admin')?></span>
-                        <span>دستخط: ................</span>
-                    </div>
+                    <?php if ($isTransfer): ?>
+                        <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-top:10px;border-top:1px dotted #000;padding-top:6px;">
+                            <span>جمع کنندہ: ................</span>
+                            <span>وصول کنندہ: ................</span>
+                        </div>
+                    <?php elseif ($isStaffSalary): ?>
+                        <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-top:10px;border-top:1px dotted #000;padding-top:6px;">
+                            <span>دستخط ملازم: ................</span>
+                            <span>مالیات: ................</span>
+                        </div>
+                    <?php else: ?>
+                        <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:10px;border-top:1px dotted #000;padding-top:6px;">
+                            <span><?=e($printSignTitle1)?>: <?=e($voucher['created_by_name'] ?? 'Admin')?></span>
+                            <span>دستخط: ................</span>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 

@@ -206,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 $pdo->commit();
-                header('Location: cash_bank.php?tab=overview&success=transferred&vno=' . urlencode($voucherNo));
+                header('Location: cash_bank.php?tab=overview&success=transferred&vno=' . urlencode($voucherNo) . '&vid=' . (int)$voucherId);
                 exit;
             } catch (Exception $e) {
                 if ($pdo->inTransaction()) {
@@ -433,13 +433,15 @@ $combinedTotal = $totalCash + $totalBank;
 $allFunds = $pdo->query("SELECT id, name, fund_code FROM funds WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
 
 // Recent ledger transactions for Overview tab
-$ledgerSql = "SELECT jl.*, je.entry_date, je.narration, v.voucher_no, v.voucher_type, a.account_name, f.name AS fund_name
+$ledgerSql = "SELECT jl.*, je.entry_date, je.narration, je.voucher_id, v.voucher_no, v.voucher_type, a.account_name, f.name AS fund_name,
+                     att.stored_name, att.original_name
               FROM journal_lines jl
               JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted'
               JOIN accounts a ON a.id = jl.account_id AND a.is_cash_or_bank = 1
               LEFT JOIN vouchers v ON v.id = je.voucher_id
               LEFT JOIN funds f ON f.id = jl.fund_id
-              ORDER BY je.entry_date DESC, jl.id DESC LIMIT 30";
+              LEFT JOIN attachments att ON att.voucher_id = v.id
+              ORDER BY je.entry_date DESC, jl.id DESC LIMIT 40";
 $transactions = $pdo->query($ledgerSql)->fetchAll();
 
 // Bank Reconciliation Data Preparation
@@ -619,10 +621,17 @@ $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
                 <?php
                     if ($_GET['success'] === 'transferred') {
                         $vno = htmlspecialchars($_GET['vno'] ?? '');
-                        echo '✓ رقم کامیابی سے منتقل ہو گئی ہے! (Funds transferred successfully!) واؤچر نمبر: <b>' . $vno . '</b>';
-                        if ($vno) {
-                            echo ' &nbsp; <a href="print_voucher.php?voucher_no=' . urlencode($vno) . '" target="_blank" class="btn secondary sm" style="padding:2px 8px;font-size:11px;background:#fff;text-decoration:none;">🖨️ پرنٹ ٹرانسفر واؤچر</a>';
+                        $vid = (int)($_GET['vid'] ?? 0);
+                        echo '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">';
+                        echo '<div>✓ رقم کامیابی سے منتقل ہو گئی ہے! (Funds transferred successfully!) واؤچر نمبر: <b>' . $vno . '</b></div>';
+                        echo '<div style="display:flex;gap:6px;align-items:center;">';
+                        if ($vid > 0) {
+                            echo '<a href="print_voucher.php?id=' . $vid . '&format=thermal&autoprint=1" target="_blank" class="btn sm" style="background:#059669;color:#fff;text-decoration:none;font-weight:700;padding:4px 10px;border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,0.1);">🧾 تھرمل ہینڈ اوور سلپ پرنٹ کریں</a>';
+                            echo '<a href="print_voucher.php?id=' . $vid . '&format=a4" target="_blank" class="btn sm" style="background:#1e40af;color:#fff;text-decoration:none;font-weight:700;padding:4px 10px;border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,0.1);">📄 A4 مکمل رسید</a>';
+                        } elseif ($vno) {
+                            echo '<a href="print_voucher.php?voucher_no=' . urlencode($vno) . '" target="_blank" class="btn secondary sm" style="padding:2px 8px;font-size:11px;background:#fff;text-decoration:none;">🖨️ پرنٹ ٹرانسفر واؤچر</a>';
                         }
+                        echo '</div></div>';
                     } elseif ($_GET['success'] === 'closed') {
                         echo '✓ یومیہ کیش کلوزنگ اور نوٹوں کی فزیکل گنتی کامیابی سے لاک اور محفوظ ہو گئی ہے! (Daily cash closing locked successfully!)';
                     } elseif ($_GET['success'] === 'created') {
@@ -1368,6 +1377,7 @@ $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
                                     <th>Particulars / Narration</th>
                                     <th class="right">Debit (In)</th>
                                     <th class="right">Credit (Out)</th>
+                                    <th class="right no-print">Slip &amp; Proof</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1380,6 +1390,16 @@ $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
                                         <td><?=e($t['description'] ?: $t['narration'])?></td>
                                         <td class="right font-bold" style="color:#15803d;"><?=(float)$t['debit'] > 0 ? money($t['debit']) : '—'?></td>
                                         <td class="right font-bold" style="color:#b91c1c;"><?=(float)$t['credit'] > 0 ? money($t['credit']) : '—'?></td>
+                                        <td class="right no-print" style="white-space:nowrap;">
+                                            <div style="display:inline-flex;gap:4px;align-items:center;">
+                                                <?php if (!empty($t['voucher_id'])): ?>
+                                                    <a href="print_voucher.php?id=<?=(int)$t['voucher_id']?>" target="_blank" class="btn secondary sm" style="padding:2px 7px;font-size:11px;" title="پرنٹ رسید">🖨️ پرنٹ</a>
+                                                <?php endif; ?>
+                                                <?php if (!empty($t['stored_name'])): ?>
+                                                    <a href="uploads/receipts/<?=e($t['stored_name'])?>" target="_blank" class="btn sm" style="padding:2px 6px;font-size:11px;background:#fef3c7;color:#b45309;border:1px solid #fde68a;" title="بینک ڈپازٹ سلپ تصویر دیکھیں">📷 ثبوت</a>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

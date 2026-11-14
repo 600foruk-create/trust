@@ -475,6 +475,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute(['org_type', $orgType]);
             $cashSettlementMode = in_array($_POST['cash_settlement_mode'] ?? '', ['two_step', 'auto_settle'], true) ? $_POST['cash_settlement_mode'] : 'two_step';
             $stmt->execute(['cash_settlement_mode', $cashSettlementMode]);
+            $cashierMaxLimit = (float)($_POST['cashier_max_cash_limit'] ?? 50000);
+            if ($cashierMaxLimit <= 0) $cashierMaxLimit = 50000;
+            $stmt->execute(['cashier_max_cash_limit', (string)$cashierMaxLimit]);
         }
 
         // Save Print & Slip Settings (when submitted from Print Tab)
@@ -850,6 +853,7 @@ $finYearStart = $settingsRows['financial_year_start'] ?? '07-01';
 $uiLanguage = $settingsRows['ui_language'] ?? 'bilingual';
 $orgType = $settingsRows['org_type'] ?? 'trust';
 $cashSettlementMode = $settingsRows['cash_settlement_mode'] ?? 'two_step';
+$cashierMaxLimit = $settingsRows['cashier_max_cash_limit'] ?? '50000';
 $orgSubtitle = $settingsRows['org_subtitle'] ?? '';
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 $shortBrand = mb_strtoupper(mb_substr($madrasaName, 0, 2));
@@ -1433,6 +1437,17 @@ if (!in_array($activeTab, $validTabs, true)) {
                             <small class="muted" style="display:block;margin-top:6px;font-size:11.5px;line-height:1.5;color:#1e40af;">
                                 <b>دو مرحلہ وار نظام (Two-Step):</b> فیلڈ کیشیئرز کی چندہ وصولی اور اخراجات منظور ہونے پر بھی بقیہ نقد رقم کیشیئر کے کھاتے میں بولتی رہے گی تاکہ جب تک وہ بینک (ABL Gadoon) یا دفتر میں نقد جمع نہ کروا دے، حساب درست رہے اور کیشیئر پر واجب الادا رقم واضح ہو۔
                             </small>
+
+                            <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #93c5fd;">
+                                <label style="font-weight:700;font-size:12.5px;color:#1e3a8a;display:block;margin-bottom:4px;">
+                                    ⚠️ کیشیئر کے پاس محفوظ نقد کیش رکھنے کی زیادہ سے زیادہ حد (Cashier Max Cash Limit - PKR):
+                                </label>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span style="font-weight:700;color:#1e3a8a;">PKR</span>
+                                    <input type="number" step="1000" min="5000" name="cashier_max_cash_limit" value="<?=e($cashierMaxLimit)?>" style="max-width:180px;font-weight:700;font-size:14px;padding:7px 10px;border:1.5px solid #3b82f6;border-radius:6px;background:#ffffff;">
+                                    <span style="font-size:11.5px;color:#1e40af;">(اس رقم سے زائد نقد کیش ہونے پر ڈیش بورڈ پر فوری سیکیورٹی الرٹ نظر آئے گا)</span>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group" style="margin-bottom:20px;padding:14px;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;">

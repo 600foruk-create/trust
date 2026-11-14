@@ -1121,22 +1121,34 @@ function get_app_base_url(): string {
     return !empty($configured) ? $configured : 'http://localhost';
 }
 
-function get_voucher_public_token(int $voucherId): string {
-    global $config;
-    $secret = $config['app']['session_name'] ?? 'madrasa_trust_public_key_2026';
-    return substr(hash_hmac('sha256', "voucher_public_verify_{$voucherId}", $secret), 0, 16);
+if (!function_exists('get_voucher_public_token')) {
+    function get_voucher_public_token(int $voucherId): string {
+        global $config;
+        $secret = $config['app']['session_name'] ?? 'madrasa_trust_public_key_2026';
+        return substr(hash_hmac('sha256', "voucher_public_verify_{$voucherId}", $secret), 0, 16);
+    }
 }
 
-function get_backup_dir(): string {
-    $dir = dirname(__DIR__) . '/storage/backups';
-    if (!is_dir($dir)) {
-        @mkdir($dir, 0755, true);
+if (!function_exists('get_donor_statement_public_token')) {
+    function get_donor_statement_public_token(int $donorId): string {
+        global $config;
+        $secret = $config['app']['session_name'] ?? 'madrasa_trust_public_key_2026';
+        return substr(hash_hmac('sha256', "donor_statement_public_verify_{$donorId}", $secret), 0, 16);
     }
-    $storageHt = dirname(__DIR__) . '/storage/.htaccess';
-    if (!file_exists($storageHt)) {
-        @file_put_contents($storageHt, "Deny from all\n");
+}
+
+if (!function_exists('get_backup_dir')) {
+    function get_backup_dir(): string {
+        $dir = dirname(__DIR__) . '/storage/backups';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $storageHt = dirname(__DIR__) . '/storage/.htaccess';
+        if (!file_exists($storageHt)) {
+            @file_put_contents($storageHt, "Deny from all\n");
+        }
+        return $dir;
     }
-    return $dir;
 }
 
 function get_or_create_cron_token(): string {

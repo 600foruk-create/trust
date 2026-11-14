@@ -4,12 +4,26 @@
  * Professional statement for donors detailing all contributions, receipts, and totals for tax/audit & transparency.
  */
 require __DIR__ . '/../app/bootstrap.php';
-require_login();
-require_permission('donors.view');
 
 $donorId = (int)($_GET['id'] ?? 0);
 if ($donorId <= 0) {
     die('Invalid donor ID');
+}
+
+// Check for public verification token (allows donors to securely view annual statement from WhatsApp without ERP login)
+$publicToken = trim($_GET['token'] ?? '');
+$isPublicVerified = false;
+if (!empty($publicToken) && function_exists('get_donor_statement_public_token')) {
+    $expectedToken = get_donor_statement_public_token($donorId);
+    if (!empty($expectedToken) && hash_equals($expectedToken, $publicToken)) {
+        $isPublicVerified = true;
+    }
+}
+
+// Internal Access Control
+if (!$isPublicVerified) {
+    require_login();
+    require_permission('donors.view');
 }
 
 $stmt = $pdo->prepare('SELECT d.*, b.full_name AS sponsored_student_name, b.category AS sponsored_student_cat, b.department_class AS sponsored_student_class 
@@ -84,8 +98,9 @@ if (!empty($cleanPhone) && strpos($cleanPhone, '0') === 0) {
     $cleanPhone = '92' . substr($cleanPhone, 1);
 }
 
-// WhatsApp Share URL for this Statement
-$currentUrl = (function_exists('get_app_base_url') ? get_app_base_url() : '') . "/print_donor_statement.php?id={$donorId}&year=" . urlencode($selectedYear);
+// WhatsApp Share URL for this Statement (includes secure public token)
+$statementToken = function_exists('get_donor_statement_public_token') ? get_donor_statement_public_token($donorId) : '';
+$currentUrl = (function_exists('get_app_base_url') ? get_app_base_url() : '') . "/print_donor_statement.php?id={$donorId}&year=" . urlencode($selectedYear) . (!empty($statementToken) ? "&token={$statementToken}" : '');
 $yearLabelUrdu = ($selectedYear === 'all') ? 'مکمل تاریخ / تاحیات' : "سال {$selectedYear}";
 $waMsg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
        . "محترم *" . $donor['donor_name'] . "* صاحب!\n\n"

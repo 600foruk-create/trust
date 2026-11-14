@@ -1266,7 +1266,8 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         <a href="print_donor_certificate.php?id=<?=$d['id']?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#fffbeb;color:#92400e;border-color:#fde68a;" title="سندِ اعتراف و تشکر پرنٹ کریں">
                                             📜 سند
                                         </a>
-                                        <a href="print_donor_statement.php?id=<?=$d['id']?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#f0fdf4;color:#166534;border-color:#bbf7d0;" title="سالانہ کھاتہ و عطیات اسٹیٹمنٹ پرنٹ کریں">
+                                        <?php $dStmtToken = function_exists('get_donor_statement_public_token') ? get_donor_statement_public_token((int)$d['id']) : ''; ?>
+                                        <a href="print_donor_statement.php?id=<?=$d['id']?><?=!empty($dStmtToken)?'&token='.$dStmtToken:''?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#f0fdf4;color:#166534;border-color:#bbf7d0;" title="سالانہ کھاتہ و عطیات اسٹیٹمنٹ پرنٹ کریں">
                                             📊 کھاتہ
                                         </a>
                                         <?php 
@@ -1276,6 +1277,7 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                             $baseUrl = function_exists('get_app_base_url') ? get_app_base_url() : '';
                                             $slipToken = ($latestVId > 0 && function_exists('get_voucher_public_token')) ? get_voucher_public_token($latestVId) : '';
                                             $slipLink = ($latestVId > 0 && !empty($baseUrl)) ? "{$baseUrl}/print_voucher.php?id={$latestVId}" . (!empty($slipToken) ? "&token={$slipToken}" : '') : '';
+                                            $dStmtLink = !empty($baseUrl) ? "{$baseUrl}/print_donor_statement.php?id={$d['id']}&year=all" . (!empty($dStmtToken) ? "&token={$dStmtToken}" : '') : '';
                                             
                                             if ($isLapsed):
                                                 $msg = "السلام علیکم و رحمۃ اللہ و برکاتہ\n"
@@ -1300,6 +1302,10 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                 if (!empty($slipLink)) {
                                                     $msg .= "\n📄 *حالیہ کمپیوٹرائزڈ موصولی رسید (Slip) دیکھنے یا پرنٹ کرنے کے لیے لنک کھولیں:* \n"
                                                           . $slipLink . "\n";
+                                                }
+                                                if (!empty($dStmtLink)) {
+                                                    $msg .= "📊 *مکمل سالانہ کھاتہ و عطیات اسٹیٹمنٹ دیکھنے کے لیے لنک:* \n"
+                                                          . $dStmtLink . "\n";
                                                 }
                                                 $msg .= "\nاللہ تعالیٰ آپ کے اس صدقہ و خیرات کو قبول فرمائے اور آپ کے رزق، جان اور مال میں برکتیں عطا فرمائے۔ آمین۔\n\n"
                                                      . "جزاکم اللہ خیراً و احسن الجزاء\n"
@@ -1781,7 +1787,8 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                         onclick='openQuickReceiveModal(<?=json_encode($quickReceiveData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)?>)'>
                                                     💰 Receive
                                                 </button>
-                                                <a href="print_donor_statement.php?id=<?=$pl['id']?>&year=<?=substr($selectedMonth, 0, 4)?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#f0fdf4;color:#166534;border-color:#bbf7d0;" title="سالانہ کھاتہ و عطیات اسٹیٹمنٹ">
+                                                <?php $plToken = function_exists('get_donor_statement_public_token') ? get_donor_statement_public_token((int)$pl['id']) : ''; ?>
+                                                <a href="print_donor_statement.php?id=<?=$pl['id']?>&year=<?=substr($selectedMonth, 0, 4)?><?=!empty($plToken)?'&token='.$plToken:''?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#f0fdf4;color:#166534;border-color:#bbf7d0;" title="سالانہ کھاتہ و عطیات اسٹیٹمنٹ">
                                                     📊 کھاتہ
                                                 </a>
                                                 <?php if (!empty($cleanPhone)): 
@@ -1798,7 +1805,8 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                         'year' => substr($selectedMonth, 0, 4),
                                                         'fund' => (string)($displayFundName ?: 'عام فنڈ'),
                                                         'student' => (string)($pl['sponsored_student_name'] ?? ''),
-                                                        'is_paid' => $isPaid
+                                                        'is_paid' => $isPaid,
+                                                        'token' => $plToken
                                                     ];
                                                 ?>
                                                     <button type="button" class="btn sm" style="background:#25D366;color:#fff;border-color:#25D366;padding:4px 9px;font-size:11.5px;font-weight:600;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Smart WhatsApp Reminders & Templates" onclick='openWhatsAppModal(<?=json_encode($waModalData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)?>)'>
@@ -2450,7 +2458,7 @@ function selectWaTemplate(tmpl) {
     var org = "<?=addslashes($madrasaName)?>";
     var phone = "<?=addslashes($madrasaPhone)?>";
     var portalUrl = "<?=e(get_app_base_url())?>/donate.php";
-    var statementUrl = "<?=e(get_app_base_url())?>/print_donor_statement.php?id=" + d.donor_id + "&year=" + (d.year || "<?=date('Y')?>");
+    var statementUrl = "<?=e(get_app_base_url())?>/print_donor_statement.php?id=" + d.donor_id + "&year=" + (d.year || "<?=date('Y')?>") + (d.token ? ("&token=" + encodeURIComponent(d.token)) : "");
 
     var txt = "";
     if (tmpl === 'reminder') {

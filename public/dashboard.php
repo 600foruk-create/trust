@@ -51,6 +51,33 @@ $madrasaAddress = get_setting('madrasa_address', '');
 $madrasaPhone = get_setting('madrasa_phone', '');
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
 
+$cashierMaxLimit = (float)(function_exists('get_setting') ? get_setting('cashier_max_cash_limit', '50000') : 50000);
+if ($cashierMaxLimit <= 0) $cashierMaxLimit = 50000;
+
+// Database backup status & alert check
+$daysSinceLastBackup = 0;
+$lastBackupFormatted = '';
+try {
+    $savedBackups = function_exists('get_saved_backups_list') ? get_saved_backups_list() : [];
+    if (!empty($savedBackups)) {
+        $latestBackupTime = $savedBackups[0]['timestamp'] ?? 0;
+        if ($latestBackupTime > 0) {
+            $daysSinceLastBackup = (int)floor((time() - $latestBackupTime) / 86400);
+            $lastBackupFormatted = date('d M Y', $latestBackupTime);
+        }
+    } else {
+        $lastAuto = function_exists('get_setting') ? get_setting('last_auto_backup_at', '') : '';
+        if (!empty($lastAuto)) {
+            $daysSinceLastBackup = (int)floor((time() - strtotime($lastAuto)) / 86400);
+            $lastBackupFormatted = date('d M Y', strtotime($lastAuto));
+        } else {
+            $daysSinceLastBackup = 999;
+        }
+    }
+} catch (Throwable $e) {
+    $daysSinceLastBackup = 0;
+}
+
 // Today's Scheduled Monthly Pledges
 $todayDay = (int)date('j');
 $currentMonthStr = date('Y-m');
@@ -454,8 +481,31 @@ if (!$canApprove) {
             <!-- USER / CASHIER PERSONAL DASHBOARD (ONLY PERSONAL FINANCIALS)   -->
             <!-- ============================================================== -->
             
+            <?php 
+                $myCashInHand = (float)($userMetrics['current_cash_in_hand'] ?? 0);
+                $userAcc = $userMetrics['cash_account'];
+                if ($myCashInHand >= $cashierMaxLimit): 
+            ?>
+                <!-- Cashier High Cash Alert Banner -->
+                <div style="background:#fef2f2;border:1.5px solid #ef4444;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:0 4px 6px -1px rgba(239,68,68,0.12);">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:32px;">⚠️</span>
+                        <div>
+                            <strong style="color:#991b1b;font-size:15px;display:block;">⚠️ کیش ہولڈنگ الرٹ (High Cash Limit Alert): آپ کے پاس نقد رقم محفوظ حد سے تجاوز کر چکی ہے!</strong>
+                            <div style="font-size:12.5px;color:#7f1d1d;margin-top:3px;line-height:1.5;">
+                                آپ کی تحویل میں فی الوقت <b><?=money($myCashInHand)?></b> نقد رقم جمع ہو چکی ہے، جبکہ ادارے کی محفوظ حد <b><?=money($cashierMaxLimit)?></b> مقرر ہے۔ کسی بھی ناخوشگوار نقصان یا سیکیورٹی خدشے سے بچنے کے لیے رقم فوری بینک (ABL Gadoon) یا مرکزی کیش میں جمع کروائیں۔
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <a href="cash_bank.php?handover=1&preselect_from=<?=(int)($userAcc['id']??0)?>&amount=<?=$myCashInHand?>&cname=<?=urlencode($currentUser['full_name']??'')?>" class="btn sm" style="background:#dc2626;color:#ffffff;font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(220,38,38,0.25);">
+                            📦 فوری نقد کیش جمع کروائیں &rarr;
+                        </a>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- User Dedicated Cash Account Header Pill -->
-            <?php $userAcc = $userMetrics['cash_account']; ?>
             <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:14px 20px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                 <div style="display:flex;align-items:center;gap:12px;">
                     <span style="font-size:24px;">💼</span>
@@ -702,6 +752,26 @@ if (!$canApprove) {
             <!-- APPROVER / CHECKER / ADMIN MAIN INSTITUTIONAL DASHBOARD        -->
             <!-- ============================================================== -->
 
+            <!-- Database Backup Reminder Banner (Shows if no backup in 7+ days) -->
+            <?php if ($canApprove && $daysSinceLastBackup >= 7): ?>
+                <div style="background:#fff7ed;border:1.5px solid #f97316;border-radius:14px;padding:16px 20px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;box-shadow:0 3px 6px rgba(249,115,22,0.1);">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <span style="font-size:30px;">🛡️</span>
+                        <div>
+                            <b style="color:#9a3412;font-size:15px;">ڈیٹا بیس سیکیورٹی و بیک اپ الرٹ (Database Backup Reminder)</b>
+                            <p style="margin:2px 0 0;font-size:13px;color:#7c2d12;line-height:1.4;">
+                                سسٹم میں آخری ڈیٹا بیک اپ <b><?= $daysSinceLastBackup >= 999 ? 'ابھی تک نہیں لیا گیا' : $daysSinceLastBackup . ' دن قبل (' . $lastBackupFormatted . ') لیا گیا تھا' ?></b>۔ ڈیٹا کو سرور کے کسی بھی ناگہانی حادثے یا خرابی سے محفوظ رکھنے کے لیے تازہ بیک اپ ڈاؤن لوڈ فرما لیں۔
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <a href="settings.php?action=export_db_backup&csrf=<?=e(csrf_token())?>" class="btn sm" style="background:#ea580c;color:#ffffff;text-decoration:none;font-weight:700;padding:8px 16px;border-radius:6px;box-shadow:0 2px 4px rgba(234,88,12,0.25);display:inline-flex;align-items:center;gap:6px;">
+                            📥 تازہ ڈیٹا بیس بیک اپ ڈاؤن لوڈ کریں
+                        </a>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- Pending Approvals Alert Banner -->
             <?php if ($pendingCount > 0): ?>
                 <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:16px 20px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;box-shadow:0 2px 6px rgba(245,158,11,0.06);">
@@ -870,8 +940,41 @@ if (!$canApprove) {
             </section>
 
             <!-- Cashiers & Users Cash in Hand Monitor (Pending Handover & In Custody) -->
-            <?php if (!empty($cashiersInHand)): ?>
+            <?php if (!empty($cashiersInHand)): 
+                $overLimitCashiers = [];
+                foreach ($cashiersInHand as $cih) {
+                    $cihNet = (float)($cih['posted_cash_balance'] ?? 0) + ((float)($cih['pending_income'] ?? 0) - (float)($cih['pending_expense'] ?? 0));
+                    if ($cihNet >= $cashierMaxLimit) {
+                        $overLimitCashiers[] = [
+                            'name' => $cih['full_name'],
+                            'amount' => $cihNet,
+                            'acc_id' => $cih['cash_account_id']
+                        ];
+                    }
+                }
+            ?>
                 <section style="margin: 24px 0;">
+                    <?php if (!empty($overLimitCashiers)): ?>
+                        <div style="background:#fef2f2;border:1.5px solid #f87171;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 2px 5px rgba(239,68,68,0.1);">
+                            <div style="display:flex;align-items:center;gap:12px;">
+                                <span style="font-size:26px;">⚠️</span>
+                                <div>
+                                    <strong style="font-size:14px;color:#991b1b;display:block;">تنبیہ برائے نقد کیش (High Cash Limit Alert): فیلڈ کیشیئرز کے پاس مقررہ حد سے زیادہ کیش جمع ہے!</strong>
+                                    <div style="font-size:12.5px;color:#7f1d1d;margin-top:3px;">
+                                        درج ذیل کیشیئرز کے پاس محفوظ حد (<b><?=money($cashierMaxLimit)?></b>) سے زیادہ نقد کیش موجود ہے:
+                                        <?php foreach ($overLimitCashiers as $olc): ?>
+                                            <span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:700;margin:0 4px;border:1px solid #fca5a5;">
+                                                <?=e($olc['name'])?>: <?=money($olc['amount'])?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <a href="cash_bank.php?tab=transfer" class="btn sm" style="background:#dc2626;color:#ffffff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;text-decoration:none;box-shadow:0 1px 3px rgba(220,38,38,0.3);">
+                                📦 نقد وصولی / ٹرانسفر کریں &rarr;
+                            </a>
+                        </div>
+                    <?php endif; ?>
                     <div class="panel" style="border:1.5px solid #fed7aa;background:#fffaf5;">
                         <div class="panel-heading" style="border-bottom:1px solid #ffedd5;">
                             <div>

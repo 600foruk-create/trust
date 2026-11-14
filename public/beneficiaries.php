@@ -842,7 +842,22 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
 
         <?php if (!empty($_GET['paid_voucher_id']) && ($_GET['success'] ?? '') === 'stipend_paid'): 
             $paidVid = (int)$_GET['paid_voucher_id'];
-            $paidVoucher = $pdo->query("SELECT v.*, f.name AS fund_name, b.full_name AS ben_name FROM vouchers v LEFT JOIN funds f ON f.id = v.fund_id LEFT JOIN beneficiaries b ON b.id = v.beneficiary_id WHERE v.id = {$paidVid}")->fetch();
+            $paidVoucher = $pdo->query("SELECT v.*, f.name AS fund_name, b.full_name AS ben_name, b.phone AS ben_phone, b.category AS ben_category FROM vouchers v LEFT JOIN funds f ON f.id = v.fund_id LEFT JOIN beneficiaries b ON b.id = v.beneficiary_id WHERE v.id = {$paidVid}")->fetch();
+            $bPhone = normalize_pakistan_phone($paidVoucher['ben_phone'] ?? '');
+            $vToken = function_exists('get_voucher_public_token') ? get_voucher_public_token($paidVid) : '';
+            $slipUrl = (function_exists('get_app_base_url') ? get_app_base_url() : '') . "/print_voucher.php?id={$paidVid}" . (!empty($vToken) ? "&token={$vToken}" : '');
+            $isStaff = (($paidVoucher['ben_category'] ?? '') === 'staff');
+            $slipTitleUrdu = $isStaff ? 'ماہانہ تنخواہ سلپ (Monthly Salary Slip)' : 'وظیفہ و مالی امداد سلپ (Stipend Slip)';
+            $msgText = "السلام علیکم ورحمۃ اللہ وبرکاتہ\n"
+                     . "محترم جناب *" . ($paidVoucher['payee_name'] ?? ($paidVoucher['ben_name'] ?? 'محترم')) . "* صاحب!\n"
+                     . "*" . $madrasaName . "* کی جانب سے آپ کی " . ($isStaff ? "ماہانہ تنخواہ" : "ماہانہ وظیفہ / امداد") . " کی رقم ادا کر دی گئی ہے۔\n\n"
+                     . "📋 *واؤچر نمبر:* " . ($paidVoucher['voucher_no'] ?? '') . "\n"
+                     . "📅 *تاریخ:* " . date('d-m-Y', strtotime($paidVoucher['voucher_date'] ?? date('Y-m-d'))) . "\n"
+                     . "💰 *ادا شدہ رقم:* *PKR " . number_format((float)($paidVoucher['total_amount'] ?? 0), 2) . "*\n\n"
+                     . "📄 *آن لائن تصدیقی " . $slipTitleUrdu . " دیکھنے یا ڈاؤنلوڈ کرنے کے لیے لنک کھولیں:* \n"
+                     . $slipUrl . "\n\n"
+                     . "جزاکم اللہ خیراً و احسن الجزاء\n*" . $madrasaName . "*";
+            $payWaUrl = "https://api.whatsapp.com/send?" . (!empty($bPhone) ? "phone={$bPhone}&" : "") . "text=" . urlencode($msgText);
         ?>
             <div class="no-print" style="background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 2px 6px rgba(16,185,129,0.15);">
                 <div style="display:flex;align-items:center;gap:12px;">
@@ -854,9 +869,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel' && $currentTab === 'tr
                         </div>
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <a href="print_voucher.php?id=<?=$paidVid?>&autoprint=1" target="_blank" class="btn sm" style="background:#059669;color:#ffffff;border:none;font-weight:700;padding:8px 16px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.12);text-decoration:none;">
-                        🖨️ Print Payment Slip (رسید پرنٹ کریں)
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <a href="<?=$payWaUrl?>" target="_blank" class="btn sm" style="background:#25D366;color:#ffffff;border:none;font-weight:700;padding:8px 14px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.12);text-decoration:none;" title="Send Pay Slip via WhatsApp">
+                        📲 Send WhatsApp Pay Slip (واٹس ایپ سلپ)
+                    </a>
+                    <a href="print_voucher.php?id=<?=$paidVid?>&autoprint=1" target="_blank" class="btn sm" style="background:#059669;color:#ffffff;border:none;font-weight:700;padding:8px 14px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.12);text-decoration:none;">
+                        🖨️ Print Payment Slip (پرنٹ کریں)
                     </a>
                 </div>
             </div>

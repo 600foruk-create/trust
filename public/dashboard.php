@@ -261,29 +261,27 @@ if (!$canApprove) {
     if ($isRegDirector && $userRegionId > 0) {
         $cashierWhere .= " AND u.region_id = {$userRegionId}";
     }
-    $cashiersSql = "SELECT * FROM (
-                        SELECT u.id, u.full_name, u.username, r.name AS role_name,
-                               COALESCE(SUM(CASE WHEN v.voucher_type = 'income' AND v.status = 'draft' THEN v.total_amount ELSE 0 END), 0) AS pending_income,
-                               COALESCE(SUM(CASE WHEN v.voucher_type = 'expense' AND v.status = 'draft' THEN v.total_amount ELSE 0 END), 0) AS pending_expense,
-                               COUNT(CASE WHEN v.status = 'draft' THEN 1 ELSE NULL END) AS pending_count,
-                               COALESCE(ca.acc_id, 0) AS cash_account_id,
-                               COALESCE(ca.posted_balance, 0) AS posted_cash_balance
-                        FROM users u
-                        JOIN roles r ON r.id = u.role_id
-                        LEFT JOIN vouchers v ON v.created_by = u.id
-                        LEFT JOIN (
-                            SELECT a.user_id, a.id AS acc_id,
-                                   COALESCE(SUM(jl.debit - jl.credit), 0) AS posted_balance
-                            FROM accounts a
-                            LEFT JOIN journal_lines jl ON jl.account_id = a.id
-                            LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted'
-                            WHERE a.is_cash_or_bank = 1 AND a.user_id IS NOT NULL AND a.is_active = 1
-                            GROUP BY a.user_id, a.id
-                        ) ca ON ca.user_id = u.id
-                        {$cashierWhere}
-                        GROUP BY u.id, r.name, ca.acc_id, ca.posted_balance
-                    ) sub
-                    WHERE pending_income > 0 OR pending_expense > 0 OR pending_count > 0 OR posted_cash_balance > 0.01 OR posted_cash_balance < -0.01
+    $cashiersSql = "SELECT u.id, u.full_name, u.username, r.name AS role_name,
+                           COALESCE(SUM(CASE WHEN v.voucher_type = 'income' AND v.status = 'draft' THEN v.total_amount ELSE 0 END), 0) AS pending_income,
+                           COALESCE(SUM(CASE WHEN v.voucher_type = 'expense' AND v.status = 'draft' THEN v.total_amount ELSE 0 END), 0) AS pending_expense,
+                           COUNT(CASE WHEN v.status = 'draft' THEN 1 ELSE NULL END) AS pending_count,
+                           COALESCE(ca.acc_id, 0) AS cash_account_id,
+                           COALESCE(ca.posted_balance, 0) AS posted_cash_balance
+                    FROM users u
+                    JOIN roles r ON r.id = u.role_id
+                    LEFT JOIN vouchers v ON v.created_by = u.id
+                    LEFT JOIN (
+                        SELECT a.user_id, a.id AS acc_id,
+                               COALESCE(SUM(jl.debit - jl.credit), 0) AS posted_balance
+                        FROM accounts a
+                        LEFT JOIN journal_lines jl ON jl.account_id = a.id
+                        LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted'
+                        WHERE a.is_cash_or_bank = 1 AND a.user_id IS NOT NULL AND a.is_active = 1
+                        GROUP BY a.user_id, a.id
+                    ) ca ON ca.user_id = u.id
+                    {$cashierWhere}
+                    GROUP BY u.id, u.full_name, u.username, r.name, ca.acc_id, ca.posted_balance
+                    HAVING (pending_income > 0 OR pending_expense > 0 OR pending_count > 0 OR posted_cash_balance > 0.01 OR posted_cash_balance < -0.01)
                     ORDER BY (posted_cash_balance + (pending_income - pending_expense)) DESC, pending_count DESC";
     try {
         $cashiersInHand = $pdo->query($cashiersSql)->fetchAll() ?: [];

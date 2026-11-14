@@ -530,9 +530,15 @@ div.en-only, p.en-only { display: block !important; }
       <?php if (!function_exists('has_permission') || has_permission('settings.manage')): ?>
         <a class="<?= $currentPage === 'settings' ? 'active' : '' ?>" href="settings.php">⚙ &nbsp; <?=is_madrasa_mode() ? 'Madrasa Settings <span class="ur">(مدرسہ سیٹنگز)</span>' : 'Settings <span class="ur">(سیٹنگز)</span>'?></a>
       <?php endif; ?>
+      <?php if (!empty($isSuperAdmin)): ?>
+        <a class="<?= $currentPage === 'brochure' ? 'active' : '' ?>" href="brochure.php" style="color:#fde047;border-left:3px solid #facc15;background:rgba(234,179,8,0.12);display:flex;align-items:center;justify-content:space-between;" title="SoftifyX Marketing Brochure & PDF WhatsApp Dispatcher">
+          <span>⭐ &nbsp; Marketing Brochure <span class="ur">(سافٹ ویئر بروشر)</span></span>
+          <span style="font-size:9.5px;background:#eab308;color:#0f172a;padding:1px 6px;border-radius:4px;font-weight:800;">PRO</span>
+        </a>
+      <?php endif; ?>
       <a href="javascript:void(0)" onclick="openAboutSoftwareModal()" style="display:flex;align-items:center;justify-content:space-between;">
         <span>ℹ &nbsp; About ERP <span class="ur">(سافٹ ویئر تعارف)</span></span>
-        <span style="font-size:9.5px;background:rgba(59,130,246,0.3);color:#bfdbfe;padding:1px 5px;border-radius:4px;font-weight:700;">v2.8</span>
+        <span style="font-size:9.5px;background:rgba(59,130,246,0.3);color:#bfdbfe;padding:1px 5px;border-radius:4px;font-weight:700;">v2.9</span>
       </a>
     <?php endif; ?>
   </nav>
@@ -546,7 +552,7 @@ div.en-only, p.en-only { display: block !important; }
         <span style="font-size:13px;">ℹ️</span>
         <span>About &amp; License <span class="ur">(تفصیلات)</span></span>
       </span>
-      <span style="font-size:10px;background:#2563eb;color:#ffffff;padding:2px 6px;border-radius:10px;font-weight:700;">v2.8</span>
+      <span style="font-size:10px;background:#2563eb;color:#ffffff;padding:2px 6px;border-radius:10px;font-weight:700;">v2.9</span>
     </button>
     <div style="font-weight:600;font-size:12px;color:#f8fafc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?=e($madrasaName)?>">
       <?=e(mb_strimwidth($madrasaName, 0, 22, '...'))?>
@@ -693,6 +699,22 @@ $phpVer = PHP_VERSION;
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Audit Trail &amp; 2FA PIN</span>
         </div>
       </div>
+
+      <?php if (!empty($isSuperAdmin)): ?>
+      <div style="margin-top:16px;background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);border:1.5px solid #fcd34d;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:26px;">📑</span>
+          <div>
+            <div style="font-size:11px;color:#92400e;font-weight:700;text-transform:uppercase;">SoftifyX Marketing &amp; Sales Suite</div>
+            <strong style="color:#78350f;font-size:13.5px;">آفیشل سافٹ ویئر بروشر، فیچرز اور واٹس ایپ پچ</strong>
+            <div style="font-size:11.5px;color:#b45309;margin-top:2px;">گاہکوں اور مدارس کو بھیجنے کے لیے 1-کلک واٹس ایپ اور خوبصورت PDF ڈاؤنلوڈر</div>
+          </div>
+        </div>
+        <a href="brochure.php" target="_blank" class="btn sm" style="background:#d97706;color:#ffffff;text-decoration:none;font-weight:700;padding:7px 14px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;font-size:12px;box-shadow:0 2px 4px rgba(217,119,6,0.25);">
+          📄 بروشر کھولیں / شیئر کریں &rarr;
+        </a>
+      </div>
+      <?php endif; ?>
     </div>
 
     <!-- Tab 2: License Details -->
@@ -1174,10 +1196,15 @@ $phpVer = PHP_VERSION;
 
     <!-- Modal Footer -->
     <div style="padding:12px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-      <div style="display:flex;align-items:center;gap:6px;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <button type="button" onclick="switchAboutTab('guide')" class="btn sm" style="background:#0284c7;color:#ffffff;border:none;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;">
           📖 Quick Guide <span class="ur">(رہنمائی و ہدایات)</span>
         </button>
+        <?php if (!empty($isSuperAdmin)): ?>
+          <a href="brochure.php" target="_blank" class="btn sm" style="background:#d97706;color:#ffffff;text-decoration:none;font-weight:700;padding:6px 12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;font-size:12px;box-shadow:0 1px 3px rgba(217,119,6,0.3);">
+            ⭐ <span>Marketing Brochure (خصوصیات و PDF)</span>
+          </a>
+        <?php endif; ?>
       </div>
       <button type="button" onclick="closeAboutSoftwareModal()" class="btn secondary sm" style="padding:6px 16px;font-weight:700;">
         Close <span class="ur">(بند کریں)</span>

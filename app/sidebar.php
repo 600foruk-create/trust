@@ -668,7 +668,10 @@ $phpVer = PHP_VERSION;
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Double Entry Accounting</span>
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Online Donations &amp; Slips</span>
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Pledges &amp; Kafalat Tracker</span>
-          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Smart WhatsApp Receipts</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Smart WhatsApp Receipts &amp; Pay Slips</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Cash Handover &amp; Deposit Slips</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Staff Payroll &amp; Stipends</span>
+          <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Public Donor Verification</span>
           <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;">Audit &amp; Multi-Role Security</span>
         </div>
       </div>
@@ -911,6 +914,105 @@ $phpVer = PHP_VERSION;
           </div>
           <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
             • آمدنی یا خرچ کے صفحے پر جائیں اور اوپر سرچ بار میں واؤچر نمبر (جیسے: <code>RV-202611-0001</code>)، ڈونر کا نام یا فون نمبر لکھیں۔ سسٹم فوراً مطلوبہ رسید سامنے لے آئے گا۔
+          </div>
+        </div>
+
+        <!-- FAQ 12 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">💼</span>
+              <strong style="color:#0f172a;font-size:13px;">12. کیشیئر کے پاس نقد کیش (Cash in Hand) اور بینک میں جمع کروانے (Cash Handover) کا طریقہ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • فیلڈ کیشیئرز جب بھی کوئی چندہ وصول کرتے ہیں یا خرچ درج کرتے ہیں، تو رقم خودکار طور پر کیشیئر کے تفویض کردہ ذاتی کیش کھاتے (Cash in Hand) میں رہتی ہے۔<br>
+            • جب کیشیئر یہ نقد رقم بینک (جیسے ABL Gadoon) یا مرکزی دفتر میں جمع کروا دے، تو ڈیش بورڈ پر موجود <b>"📦 بینک / دفتر میں کیش جمع کروائیں"</b> بٹن یا <b>Cash &amp; Bank</b> مینو میں جا کر <b>Transfer</b> منتخب کریں۔<br>
+            • کیش جمع ہوتے ہی دوطرفہ تصدیقی <b>تحویلِ نقد و بینک ڈپازٹ سلپ (Cash Handover Slip)</b> تھرمل یا A4 میں پرنٹ کی جا سکتی ہے جس پر کیشیئر اور وصول کنندہ کے دستخط اور بینک ڈپازٹ سلپ کی تصویر منسلک ہوتی ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 13 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">⚠️</span>
+              <strong style="color:#0f172a;font-size:13px;">13. کیشیئر کیش ہولڈنگ الرٹ (Max Cash Limit) اور سیکیورٹی کی حد کیسے تبدیل کریں؟</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • سیکیورٹی اور حفاظت کے پیش نظر سسٹم میں کیشیئر کے پاس نقد رقم رکھنے کی محفوظ حد مقرر ہے (ڈیفالٹ: 50,000 روپے)۔<br>
+            • اگر کسی کیشیئر کے پاس نقد کیش اس حد سے تجاوز کر جائے تو کیشیئر کے ڈیش بورڈ اور ایڈمن اسکرین پر فوری وارننگ بینر ظاہر ہوتا ہے تاکہ رقم فوری بینک میں جمع کروائی جائے۔<br>
+            • اس حد کو کم یا زیادہ کرنے کے لیے ایڈمن <b>Settings ⚙️ -> Accounting</b> ٹیب میں جائیں اور <b>Cashier Max Cash Limit</b> میں مطلوبہ حد درج کر کے محفوظ فرما لیں۔
+          </div>
+        </div>
+
+        <!-- FAQ 14 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🧾</span>
+              <strong style="color:#0f172a;font-size:13px;">14. اساتذہ و عملہ کی ماہانہ تنخواہ سلپ (Monthly Salary Slip) اور واٹس ایپ ڈسپیچ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • <b>Students &amp; Beneficiaries</b> میں <b>Monthly Payroll &amp; Stipend Tracker</b> ٹیب کھولیں۔<br>
+            • یہاں تمام اساتذہ و ملازمین (Staff) کی طے شدہ تنخواہیں، زیرِ تعلیم طلبہ کے وظائف اور سابقہ مہینوں کے بقایا جات خودکار حساب کے ساتھ نظر آتے ہیں۔<br>
+            • <b>💰 Pay Stipend</b> پر کلک کر کے تنخواہ ادا کرتے ہی واؤچر خودکار طور پر <b>ماہانہ تنخواہ پرچی (Monthly Salary Slip)</b> کے فارمیٹ میں بنتا ہے جس پر ملازم کا نام، عہدہ، شعبہ اور وصولی کے دستخط شامل ہوتے ہیں۔<br>
+            • ساتھ ہی <b>📲 Send WhatsApp Pay Slip</b> کے بٹن سے ملازم کے موبائل پر آن لائن تصدیقی پرچی کا لنک فوری روانہ کیا جا سکتا ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 15 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">📲</span>
+              <strong style="color:#0f172a;font-size:13px;">15. ڈونرز کو واٹس ایپ پر سالانہ کھاتہ و رسیدیں بغیر لاگ ان دکھانے کا طریقہ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • بیرونی ڈونرز و معاونین کے پاس سافٹ ویئر کا لاگ ان اور پاس ورڈ نہیں ہوتا۔ سسٹم ہر ڈونر کے لیے ایک محفوظ، خفیہ ڈیجیٹل ٹوکن (Public Verification Token) خودکار بناتا ہے۔<br>
+            • جب آپ <b>Donors</b> لسٹ یا <b>Pledges Tracker</b> سے ڈونر کو واٹس ایپ پر شکریہ یا سالانہ کھاتے کا میسج بھیجتے ہیں تو اس میں یہ لنک شامل ہوتا ہے۔<br>
+            • ڈونر اپنے موبائل سے اس لنک پر کلک کر کے بغیر کسی لاگ ان یا پاس ورڈ کے اپنا تفصیلی سالانہ کھاتہ، رسیدات اور عطیات پی ڈی ایف کے خوبصورت ڈیزائن میں دیکھ اور ڈاؤنلوڈ کر سکتا ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 16 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🔔</span>
+              <strong style="color:#0f172a;font-size:13px;">16. نوٹیفیکیشن بیل (🔔) کے پیغامات پڑھنا اور مکمل صاف (Clear All) کرنا:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • اوپر نیویگیشن بار میں نوٹیفیکیشن بیل (🔔) پر نیا ٹاسک یا الرٹ آنے پر ریڈ بیج نظر آتا ہے۔<br>
+            • بیل پر کلک کرنے پر ڈراپ ڈاؤن میں دو بٹن دیے گئے ہیں:<br>
+            &nbsp;&nbsp;&bull; <b>✓ Mark read:</b> تمام نوٹیفیکیشنز کو پڑھا ہوا قرار دے کر بیج ہٹا دیتا ہے۔<br>
+            &nbsp;&nbsp;&bull; <b>🗑️ Clear all:</b> تمام پرانے نوٹیفیکیشنز کو ڈیٹابیس سے مستقل صاف کر دیتا ہے۔<br>
+            • ڈیش بورڈ پر ظاہر ہونے والے بینرز کے کونے پر موجود <b>`✕`</b> پر کلک کر کے آپ کسی بھی الرٹ بینر کو عارضی طور پر فوری بند (Dismiss) کر سکتے ہیں۔
+          </div>
+        </div>
+
+        <!-- FAQ 17 -->
+        <div class="ug-accordion-item" style="border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🛡️</span>
+              <strong style="color:#0f172a;font-size:13px;">17. ڈیٹا بیس سیکیورٹی، 7 روزہ بیک اپ یاد دہانی اور بحالی (Restore):</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#64748b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • اگر آخری بیک اپ لیے 7 دن سے زیادہ ہو جائیں تو ایڈمن ڈیش بورڈ پر اورنج سیکیورٹی الرٹ خودکار ظاہر ہوتا ہے۔<br>
+            • الرٹ میں دیے گئے <b>"📥 تازہ ڈیٹا بیس بیک اپ ڈاؤن لوڈ کریں"</b> بٹن پر کلک کر کے صرف 1 سیکنڈ میں مکمل ڈیٹابیس فائل اپنے کمپیوٹر میں محفوظ کر لیں۔<br>
+            • کسی بھی ناگہانی سرور خرابی کی صورت میں <b>Settings -> Database Backups</b> میں جا کر <b>Upload &amp; Restore Backup</b> سے سابقہ فائل اپلوڈ کر کے پورا ڈیٹا سیکنڈوں میں بحال کیا جا سکتا ہے۔
           </div>
         </div>
 

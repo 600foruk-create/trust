@@ -3,39 +3,48 @@ ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
-require __DIR__ . '/../app/bootstrap.php';
+// Start session directly and set Super Admin user
+require_once __DIR__ . '/../app/bootstrap.php';
 
-// Log in as Super Admin
 $user = $pdo->query("SELECT u.*, r.name AS role FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'Super Admin' LIMIT 1")->fetch();
 $_SESSION['user'] = $user;
 echo "Logged in as: " . htmlspecialchars($user['full_name']) . " (" . htmlspecialchars($user['role']) . ")<br>";
 
-// Test including beneficiaries.php in output buffer
-$_GET['tab'] = 'tracker';
-$_GET['month'] = date('Y-m');
+// Let's do a curl locally to beneficiaries.php with session cookie to see its actual HTTP output!
+$sessionId = session_id();
+$cookies = "madrasa_accounts_session=" . $sessionId;
 
-ob_start();
-try {
-    include __DIR__ . '/beneficiaries.php';
-    $out = ob_get_clean();
-    echo "beneficiaries.php included successfully! Output length: " . strlen($out) . " bytes.<br>";
-} catch (Throwable $e) {
-    ob_end_clean();
-    echo "<b style='color:red;'>ERROR including beneficiaries.php:</b> " . htmlspecialchars($e->getMessage()) . "<br>";
-    echo "In " . $e->getFile() . " on line " . $e->getLine() . "<br>";
-    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, "https://palegoldenrod-dotterel-292319.hostingersite.com/beneficiaries.php?tab=tracker");
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_COOKIE, $cookies);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+$res = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+echo "HTTP Code for tab=tracker: " . $httpCode . "<br>";
+if ($httpCode !== 200) {
+    echo "Response: <pre>" . htmlspecialchars(substr($res, 0, 1000)) . "</pre><br>";
+} else {
+    echo "tab=tracker returned 200 OK! Length: " . strlen($res) . "<br>";
 }
 
-// Test with tab=directory
-$_GET['tab'] = 'directory';
-ob_start();
-try {
-    include __DIR__ . '/beneficiaries.php';
-    $out2 = ob_get_clean();
-    echo "beneficiaries.php (directory) included successfully! Output length: " . strlen($out2) . " bytes.<br>";
-} catch (Throwable $e) {
-    ob_end_clean();
-    echo "<b style='color:red;'>ERROR including beneficiaries.php (directory):</b> " . htmlspecialchars($e->getMessage()) . "<br>";
-    echo "In " . $e->getFile() . " on line " . $e->getLine() . "<br>";
-    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+// Test tab=directory
+$ch2 = curl_init();
+curl_setopt($ch2, CURLOPT_URL, "https://palegoldenrod-dotterel-292319.hostingersite.com/beneficiaries.php?tab=directory");
+curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch2, CURLOPT_COOKIE, $cookies);
+curl_setopt($ch2, CURLOPT_FOLLOWLOCATION, false);
+curl_setopt($ch2, CURLOPT_SSL_VERIFYPEER, false);
+$res2 = curl_exec($ch2);
+$httpCode2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+curl_close($ch2);
+
+echo "HTTP Code for tab=directory: " . $httpCode2 . "<br>";
+if ($httpCode2 !== 200) {
+    echo "Response: <pre>" . htmlspecialchars(substr($res2, 0, 1000)) . "</pre><br>";
+} else {
+    echo "tab=directory returned 200 OK! Length: " . strlen($res2) . "<br>";
 }

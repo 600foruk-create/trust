@@ -872,15 +872,10 @@ $isFormOpen = ($editVoucher !== null)
 
         <!-- Income Vouchers History Table -->
         <article class="panel" id="vouchersLedger" style="margin-top:24px;">
-            <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div class="panel-heading">
                 <div>
                     <h3 style="margin:0;">Income Vouchers Ledger <span class="ur">(آمدنی واؤچرز فہرست)</span></h3>
                     <p style="margin:2px 0 0;">Recent recorded income transactions with instant thermal slips and WhatsApp sharing</p>
-                </div>
-                <div>
-                    <button type="button" class="btn blue sm" onclick="toggleIncomeForm(true);" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;">
-                        ＋ New Income Voucher <span class="ur">(نیا واؤچر درج کریں)</span>
-                    </button>
                 </div>
             </div>
 

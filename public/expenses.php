@@ -703,15 +703,10 @@ $isFormOpen = ($editVoucher !== null)
 
         <!-- Expenses List Table -->
         <article class="panel" id="expensesLedger">
-            <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div class="panel-heading">
                 <div>
                     <h3 style="margin:0;">Expense Payments Register <span class="ur">(اخراجات رجسٹر)</span></h3>
                     <p style="margin:2px 0 0;">Records with double-entry ledger status and attached receipts</p>
-                </div>
-                <div>
-                    <button type="button" class="btn danger sm" onclick="toggleExpenseForm(true);" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;">
-                        ＋ New Expense Voucher <span class="ur">(نیا واؤچر درج کریں)</span>
-                    </button>
                 </div>
             </div>
 

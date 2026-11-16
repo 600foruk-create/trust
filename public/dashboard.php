@@ -120,12 +120,14 @@ $overBudgets = [];
 if ($canApprove || has_permission('budgets.view')) {
     try {
         $curYm = date('Y-m');
+        $curMonthStart = $curYm . '-01';
+        $curMonthEnd = date('Y-m-t');
         $bgtSql = "SELECT b.budget_amount, b.alert_threshold_percent, a.account_code, a.account_name,
                           COALESCE(SUM(jl.debit - jl.credit), 0) AS actual_spent
                    FROM budgets b
                    JOIN accounts a ON a.id = b.account_id
                    LEFT JOIN journal_lines jl ON jl.account_id = a.id
-                   LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted' AND DATE_FORMAT(je.entry_date, '%Y-%m') = b.fiscal_month
+                   LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.status = 'posted' AND je.entry_date BETWEEN '{$curMonthStart}' AND '{$curMonthEnd}'
                    WHERE b.fiscal_month = '{$curYm}' AND b.budget_amount > 0
                    GROUP BY b.id, a.id
                    HAVING actual_spent >= (b.budget_amount * (b.alert_threshold_percent / 100))";

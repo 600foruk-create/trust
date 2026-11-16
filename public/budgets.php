@@ -128,12 +128,14 @@ foreach ($stmtBgt->fetchAll(PDO::FETCH_ASSOC) as $b) {
 }
 
 // Fetch Actual Spent for each account in this month
+$monthStart = $selectedMonth . '-01';
+$monthEnd = date('Y-m-t', strtotime($monthStart));
 $stmtSpent = $pdo->prepare("SELECT jl.account_id, SUM(jl.debit - jl.credit) AS actual_spent 
     FROM journal_lines jl 
     JOIN journal_entries je ON je.id = jl.journal_entry_id 
-    WHERE je.status = 'posted' AND DATE_FORMAT(je.entry_date, '%Y-%m') = ? 
+    WHERE je.status = 'posted' AND je.entry_date BETWEEN ? AND ? 
     GROUP BY jl.account_id");
-$stmtSpent->execute([$selectedMonth]);
+$stmtSpent->execute([$monthStart, $monthEnd]);
 $spentMap = [];
 foreach ($stmtSpent->fetchAll(PDO::FETCH_ASSOC) as $s) {
     $spentMap[(int)$s['account_id']] = max(0, (float)$s['actual_spent']);

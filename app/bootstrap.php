@@ -955,6 +955,15 @@ function get_all_permissions_definition(): array {
         'Audit Trail & Security (سیکیورٹی آڈٹ لاگ)' => [
             'audit.view' => ['label' => 'View Audit Trail Logs', 'ur' => 'حساس سرگرمیوں کا آڈٹ لاگ دیکھنا'],
         ],
+        'Certificates & Awards (اعزازات و سرٹیفکیٹ)' => [
+            'certificate.view' => ['label' => 'View & Issue Lifetime Certificates', 'ur' => 'تعریفی و لائف ٹائم سرٹیفکیٹ جاری و پرنٹ کرنا'],
+        ],
+        'Brochure & Marketing (تعارفی بروشر و میڈیا)' => [
+            'brochure.view' => ['label' => 'View & Share Marketing Brochure', 'ur' => 'ادارے کا تعارفی بروشر اور واٹس ایپ شیئر'],
+        ],
+        'Zakat Assessment (زکوٰۃ کیلکولیٹر)' => [
+            'zakat.view' => ['label' => 'View & Calculate Zakat', 'ur' => 'زکوٰۃ کیلکولیٹر اور تخمینہ لگانا'],
+        ],
     ];
 }
 }
@@ -1014,7 +1023,11 @@ function sync_user_role_permissions(PDO $pdo, int $userId, string $roleName): vo
             'funds.view', 'accounts.view',
             'reports.view',
             'tasks.view', 'tasks.manage', 'tasks.update_progress',
-            'regions.view', 'team.manage'
+            'regions.view', 'team.manage',
+            'budgets.view', 'budgets.manage',
+            'inventory.view', 'inventory.manage',
+            'campaigns.view', 'campaigns.manage',
+            'brochure.view', 'certificate.view', 'zakat.view'
         ];
     } elseif ($roleName === 'Approver / Checker' || $roleName === 'Checker') {
         foreach (get_all_permissions_definition() as $group => $items) {
@@ -1025,9 +1038,23 @@ function sync_user_role_permissions(PDO $pdo, int $userId, string $roleName): vo
             }
         }
     } elseif ($roleName === 'User / Cashier' || $roleName === 'Cashier' || $roleName === 'Accountant') {
-        $codes = ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'tasks.view', 'tasks.update_progress'];
+        $codes = [
+            'income.view', 'income.create', 'income.slip',
+            'expense.view', 'expense.create',
+            'donors.view', 'donors.manage',
+            'beneficiaries.view', 'beneficiaries.manage',
+            'tasks.view', 'tasks.update_progress',
+            'inventory.view', 'campaigns.view',
+            'brochure.view', 'zakat.view'
+        ];
     } elseif ($roleName === 'Viewer') {
-        $codes = ['income.view', 'expense.view', 'donors.view', 'beneficiaries.view', 'funds.view', 'accounts.view', 'reports.view', 'tasks.view'];
+        $codes = [
+            'income.view', 'expense.view', 'donors.view',
+            'beneficiaries.view', 'funds.view', 'accounts.view',
+            'reports.view', 'tasks.view',
+            'budgets.view', 'inventory.view', 'campaigns.view',
+            'brochure.view', 'zakat.view'
+        ];
     }
 
     if (!empty($codes)) {

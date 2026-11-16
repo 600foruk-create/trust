@@ -952,8 +952,12 @@ if (!is_array($donationEnabledFundIds)) {
 }
 $donationDefaultFundId = (int)($settingsRows['donation_default_fund_id'] ?? 0);
 
-// Fetch active users for admin password reset dropdown
-$allUsersList = $pdo->query("SELECT u.id, u.full_name, u.username, r.name AS role_name FROM users u JOIN roles r ON r.id = u.role_id WHERE u.is_active = 1 ORDER BY u.full_name ASC")->fetchAll();
+// Fetch active users for admin password reset dropdown and permissions overview
+try {
+    $allUsersList = $pdo->query("SELECT u.id, u.full_name, u.username, u.phone_number, u.email, r.name AS role_name, rg.name AS region_name, (SELECT COUNT(*) FROM user_permissions WHERE user_id = u.id) AS perms_count FROM users u JOIN roles r ON r.id = u.role_id LEFT JOIN regions rg ON rg.id = u.region_id WHERE u.is_active = 1 ORDER BY r.id ASC, u.full_name ASC")->fetchAll();
+} catch (Throwable $e) {
+    $allUsersList = $pdo->query("SELECT u.id, u.full_name, u.username, r.name AS role_name, '' AS phone_number, '' AS region_name, 0 AS perms_count FROM users u JOIN roles r ON r.id = u.role_id WHERE u.is_active = 1 ORDER BY u.full_name ASC")->fetchAll();
+}
 
 // Auto-Backup & Archive Info
 $cronToken = get_or_create_cron_token();
@@ -986,7 +990,7 @@ $userRole = $currUser['role'] ?? '';
 $isSuperAdmin = in_array($userRole, ['Super Admin', 'Administrator'], true);
 
 // Available Navigation Tabs (Option A: Clean Top Tabs)
-$validTabs = ['org', 'donations', 'accounting', 'print', 'security', 'backups'];
+$validTabs = ['org', 'donations', 'accounting', 'print', 'security', 'users', 'backups'];
 if ($isSuperAdmin) {
     $validTabs[] = 'danger';
 }
@@ -998,6 +1002,7 @@ if (!in_array($activeTab, $validTabs, true)) {
 // Global 2FA and Security PIN Settings
 $curr2fa = (get_setting('admin_2fa_enabled', '0') === '1');
 $currPin = get_setting('admin_security_pin', '7860');
+$allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all_permissions_definition() : [];
 ?>
 <!doctype html>
 <html lang="en">
@@ -1035,6 +1040,9 @@ $currPin = get_setting('admin_security_pin', '7860');
             </a>
             <a href="settings.php?tab=security" class="tab-link <?=$activeTab === 'security' ? 'active' : ''?>">
                 🔒 Security &amp; Passwords <span class="ur">(سیکیورٹی و پاس ورڈز)</span>
+            </a>
+            <a href="settings.php?tab=users" class="tab-link <?=$activeTab === 'users' ? 'active' : ''?>">
+                👥 Users &amp; Permissions <span class="ur">(صارفین و اختیارات)</span>
             </a>
             <a href="settings.php?tab=backups" class="tab-link <?=$activeTab === 'backups' ? 'active' : ''?>">
                 💾 Database &amp; Backups <span class="ur">(ڈیٹا بیس و بیک اپ)</span>
@@ -1155,6 +1163,67 @@ $currPin = get_setting('admin_security_pin', '7860');
 
                         <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
                             <button class="btn blue" type="submit" style="padding:11px 24px;font-weight:700;">💾 Save Organization Details <span class="ur">(ادارے کی تفصیلات محفوظ کریں)</span></button>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- New Feature Section: Official Certificate & Marketing Brochure -->
+                <article class="panel" style="border: 1.5px solid #fed7aa; background: #fffaf5; margin-top: 18px;">
+                    <div class="panel-heading" style="background:#ffedd5;border-bottom:1px solid #fed7aa;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="font-size:24px;">📜</span>
+                            <div>
+                                <h3 style="color:#9a3412;margin:0;">Lifetime Certificate &amp; Marketing Brochure <span class="ur">(لائف ٹائم اعزازی سرٹیفکیٹ و تعارفی بروشر)</span></h3>
+                                <p style="color:#c2410c;margin:2px 0 0;font-size:12.5px;">Official honor certificates for leadership and digital marketing presentation</p>
+                            </div>
+                        </div>
+                        <span class="badge" style="background:#ea580c;color:#ffffff;font-size:11.5px;padding:4px 10px;font-weight:700;">★ New Feature</span>
+                    </div>
+
+                    <div style="padding: 20px 24px;">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
+                            <!-- Certificate Card -->
+                            <div style="background:#ffffff;border:1.5px solid #fed7aa;border-radius:10px;padding:16px;">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                                    <span style="font-size:22px;">🎖️</span>
+                                    <div>
+                                        <b style="color:#9a3412;font-size:14px;display:block;">Certificate of Lifetime Excellence</b>
+                                        <span class="ur" style="color:#64748b;font-size:11.5px;">محترم جناب لال محمد صاحب (1000/100 مارکس)</span>
+                                    </div>
+                                </div>
+                                <p style="font-size:12px;color:#475569;line-height:1.5;margin-bottom:12px;">
+                                    چیف پیٹرن و ایڈمنسٹریٹر کے لیے جاری کردہ سرکاری توصیفی سرٹیفکیٹ مع فوٹو، گولڈن اسٹیمپ اور بارکوڈ۔
+                                </p>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    <a href="certificate.php" target="_blank" class="btn sm" style="background:#ea580c;color:#fff;border-color:#c2410c;text-decoration:none;font-weight:700;">
+                                        👁️ View Certificate (سرٹیفکیٹ دیکھیں)
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Brochure Card -->
+                            <div style="background:#ffffff;border:1.5px solid #bfdbfe;border-radius:10px;padding:16px;">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                                    <span style="font-size:22px;">📑</span>
+                                    <div>
+                                        <b style="color:#1e40af;font-size:14px;display:block;">SoftifyX ERP Marketing Brochure</b>
+                                        <span class="ur" style="color:#64748b;font-size:11.5px;">سافٹ ویئر کا مکمل تعارفی بروشر و ڈیمو</span>
+                                    </div>
+                                </div>
+                                <p style="font-size:12px;color:#475569;line-height:1.5;margin-bottom:12px;">
+                                    ادارے کے تعارف اور سوفٹ ویئر فیچرز پر مشتمل باوقار بروشر۔ 1-کلک سے واٹس ایپ شیئر اور PDF پرنٹ کیا جا سکتا ہے۔
+                                </p>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    <a href="brochure.php" target="_blank" class="btn sm" style="background:#2563eb;color:#fff;border-color:#1d4ed8;text-decoration:none;font-weight:700;">
+                                        👁️ View Brochure (بروشر دیکھیں)
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:14px;background:#f8fafc;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;color:#475569;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                            <span>💡 <strong>یوزر رائٹس نوٹ:</strong> عملے یا دیگر صارفین کو بروشر و سرٹیفکیٹ دیکھنے کی اجازت دینے کے لیے <code>Users &amp; Permissions</code> ٹیب سے <code>certificate.view</code> یا <code>brochure.view</code> اختیار دیں۔</span>
+                            <a href="settings.php?tab=users" style="color:#2563eb;font-weight:700;text-decoration:none;">اختیارات مینیج کریں &rarr;</a>
                         </div>
                     </div>
                 </article>
@@ -1427,6 +1496,41 @@ $currPin = get_setting('admin_security_pin', '7860');
                         </div>
                     </div>
                 </article>
+
+                <!-- New Feature Section: Campaigns & Seasonal Appeals -->
+                <article class="panel" style="border: 1.5px solid #a7f3d0; background: #f0fdf4; margin-top: 18px;">
+                    <div class="panel-heading" style="background:#dcfce7;border-bottom:1px solid #a7f3d0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="font-size:24px;">📢</span>
+                            <div>
+                                <h3 style="color:#065f46;margin:0;">Campaigns &amp; Seasonal Appeals <span class="ur">(مہمات، رمضان اپیلز اور فنڈ ریزنگ)</span></h3>
+                                <p style="color:#047857;margin:2px 0 0;font-size:12.5px;">Manage targeted donation drives, WhatsApp fundraising appeals, and target milestones</p>
+                            </div>
+                        </div>
+                        <span class="badge" style="background:#059669;color:#ffffff;font-size:11.5px;padding:4px 10px;font-weight:700;">★ Live Campaigns</span>
+                    </div>
+
+                    <div style="padding: 20px 24px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;background:#ffffff;border:1px solid #bbf7d0;border-radius:10px;padding:16px;">
+                            <div>
+                                <b style="font-size:14px;color:#065f46;display:block;">رمضان، راشن، زکوٰۃ و موسمی مہمات کا انتظام</b>
+                                <p style="font-size:12px;color:#475569;margin:4px 0 0;">
+                                    ہر مہم کا الگ فنڈ ریزنگ ہدف، ڈونرز کو براہِ راست واٹس ایپ اپیل میسجز اور جمع شدہ رقم کی لائیو پروگریس ٹریکنگ۔
+                                </p>
+                            </div>
+                            <div style="display:flex;gap:8px;">
+                                <a href="campaigns.php" class="btn sm" style="background:#059669;color:#fff;border-color:#047857;text-decoration:none;font-weight:700;">
+                                    📢 Open Campaigns Manager (مہمات مینیجر) &rarr;
+                                </a>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:14px;background:#ffffff;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;color:#475569;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                            <span>💡 <strong>یوزر رائٹس نوٹ:</strong> کیشیئر یا فیلڈ اسٹاف کو مہمات دیکھنے یا اپیلز بھیجنے کے اختیارات کے لیے <code>campaigns.view</code> اور <code>campaigns.manage</code> دیں۔</span>
+                            <a href="settings.php?tab=users" style="color:#059669;font-weight:700;text-decoration:none;">اختیارات مینیج کریں &rarr;</a>
+                        </div>
+                    </div>
+                </article>
             </div>
         </form>
 
@@ -1521,6 +1625,80 @@ $currPin = get_setting('admin_security_pin', '7860');
 
                         <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
                             <button class="btn blue" type="submit" style="padding:11px 24px;font-weight:700;">💾 Save Accounting Preferences <span class="ur">(مالیاتی ترتیبات محفوظ کریں)</span></button>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- New Feature Section: Budgets, Inventory & Zakat Controls -->
+                <article class="panel" style="border: 1.5px solid #bfdbfe; background: #eff6ff; margin-top: 18px;">
+                    <div class="panel-heading" style="background:#dbeafe;border-bottom:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="font-size:24px;">📊</span>
+                            <div>
+                                <h3 style="color:#1e40af;margin:0;">Budgets, Inventory &amp; Zakat Controls <span class="ur">(بجٹ، راشن انوینٹری و زکوٰۃ کنٹرول)</span></h3>
+                                <p style="color:#1d4ed8;margin:2px 0 0;font-size:12.5px;">Advanced financial control: spending limits, ration stock inward/outward, and Nisab calculation</p>
+                            </div>
+                        </div>
+                        <span class="badge" style="background:#2563eb;color:#ffffff;font-size:11.5px;padding:4px 10px;font-weight:700;">★ Financial Control</span>
+                    </div>
+
+                    <div style="padding: 20px 24px;">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:16px;">
+                            <!-- Budgets Card -->
+                            <div style="background:#ffffff;border:1.5px solid #bfdbfe;border-radius:10px;padding:16px;">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                                    <span style="font-size:22px;">📊</span>
+                                    <div>
+                                        <b style="color:#1e40af;font-size:14px;display:block;">Budgets &amp; Limits Manager</b>
+                                        <span class="ur" style="color:#64748b;font-size:11.5px;">ماہانہ بجٹ کی حد اور الرٹس</span>
+                                    </div>
+                                </div>
+                                <p style="font-size:12px;color:#475569;line-height:1.5;margin-bottom:12px;">
+                                    ہر خرچے کا ماہانہ بجٹ مقرر کریں، 80% حد پر خودکار انتباہی الرٹ اور اوور بجٹ اخراجات کی سخت روک تھام۔
+                                </p>
+                                <a href="budgets.php" class="btn sm" style="background:#2563eb;color:#fff;border-color:#1d4ed8;text-decoration:none;font-weight:700;">
+                                    📊 Manage Budgets &rarr;
+                                </a>
+                            </div>
+
+                            <!-- Inventory Card -->
+                            <div style="background:#ffffff;border:1.5px solid #fed7aa;border-radius:10px;padding:16px;">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                                    <span style="font-size:22px;">📦</span>
+                                    <div>
+                                        <b style="color:#9a3412;font-size:14px;display:block;">Inventory &amp; Ration Stock</b>
+                                        <span class="ur" style="color:#64748b;font-size:11.5px;">راشن، سامان و فلاحی اشیاء</span>
+                                    </div>
+                                </div>
+                                <p style="font-size:12px;color:#475569;line-height:1.5;margin-bottom:12px;">
+                                    عطیہ شدہ راشن بیگز، آٹا، تیل اور ادویات کی گودام میں وصولی (Inward) اور مستحقین میں تقسیم (Outward) کا مکمل ٹریکر۔
+                                </p>
+                                <a href="inventory.php" class="btn sm" style="background:#ea580c;color:#fff;border-color:#c2410c;text-decoration:none;font-weight:700;">
+                                    📦 Manage Inventory &rarr;
+                                </a>
+                            </div>
+
+                            <!-- Zakat Calculator Card -->
+                            <div style="background:#ffffff;border:1.5px solid #a7f3d0;border-radius:10px;padding:16px;">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                                    <span style="font-size:22px;">🧮</span>
+                                    <div>
+                                        <b style="color:#065f46;font-size:14px;display:block;">Zakat Calculator &amp; Nisab</b>
+                                        <span class="ur" style="color:#64748b;font-size:11.5px;">زکوٰۃ کا شرعی تخمینہ و نصاب</span>
+                                    </div>
+                                </div>
+                                <p style="font-size:12px;color:#475569;line-height:1.5;margin-bottom:12px;">
+                                    سونے چاندی کے مارکیٹ ریٹس، نقدی، مالِ تجارت اور قرضوں کی کٹوتی کے بعد زکوٰۃ کا 1-کلک خودکار درست حساب۔
+                                </p>
+                                <a href="zakat_calculator.php" class="btn sm" style="background:#059669;color:#fff;border-color:#047857;text-decoration:none;font-weight:700;">
+                                    🧮 Open Zakat Calculator &rarr;
+                                </a>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:14px;background:#ffffff;padding:10px 14px;border-radius:8px;border:1px solid #bfdbfe;font-size:12px;color:#475569;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                            <span>💡 <strong>یوزر رائٹس نوٹ:</strong> بجٹ کے لیے <code>budgets.manage</code>، راشن کے لیے <code>inventory.manage</code> اور زکوٰۃ کے لیے <code>zakat.view</code> کا اختیار تفویض کریں۔</span>
+                            <a href="settings.php?tab=users" style="color:#2563eb;font-weight:700;text-decoration:none;">اختیارات مینیج کریں &rarr;</a>
                         </div>
                     </div>
                 </article>
@@ -1912,6 +2090,213 @@ $currPin = get_setting('admin_security_pin', '7860');
                             </table>
                         </div>
                     <?php endif; ?>
+                </div>
+            </article>
+
+            <!-- New Feature Section: Audit Trail & Security Logs -->
+            <article class="panel" style="border: 1.5px solid #cbd5e1; background: #ffffff; grid-column: 1 / -1; margin-top: 18px; border-radius: 10px; overflow:hidden;">
+                <div class="panel-heading" style="background:#f1f5f9;border-bottom:1px solid #cbd5e1;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:24px;">🛡️</span>
+                        <div>
+                            <h3 style="color:#1e293b;margin:0;">Audit Trail &amp; Sensitive Actions Log <span class="ur">(حساس سرگرمیوں کا آڈٹ لاگ)</span></h3>
+                            <p style="color:#475569;margin:2px 0 0;font-size:12.5px;">Complete chronological record of logins, password changes, approvals, voucher deletions, and backups</p>
+                        </div>
+                    </div>
+                    <a href="audit_log.php" class="btn sm" style="background:#0f172a;color:#fff;border-color:#020617;text-decoration:none;font-weight:700;">
+                        🛡️ Open Full Audit Trail (مکمل آڈٹ لاگ دیکھیں) &rarr;
+                    </a>
+                </div>
+                <div style="padding: 18px 24px;">
+                    <p style="font-size:12.5px;color:#475569;margin:0 0 10px 0;line-height:1.5;">
+                        سسٹم میں ہونے والی ہر اہم تبدیلی (جیسے لاگ ان، واؤچر کی منظوری یا حذف، ڈیٹا بیس بیک اپ اور ڈینجر زون کارروائی) یوزر کے نام، وقت اور IP ایڈریس کے ساتھ محفوظ ہوتی ہے۔
+                    </p>
+                    <div style="background:#f8fafc;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;color:#475569;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                        <span>💡 <strong>یوزر رائٹس نوٹ:</strong> نگرانوں یا آڈیٹرز کو آڈٹ لاگ دیکھنے کی اجازت دینے کے لیے <code>Users &amp; Permissions</code> ٹیب سے <code>audit.view</code> ٹک کریں۔</span>
+                        <a href="settings.php?tab=users" style="color:#2563eb;font-weight:700;text-decoration:none;">اختیارات مینیج کریں &rarr;</a>
+                    </div>
+                </div>
+            </article>
+        </div>
+
+        <?php elseif ($activeTab === 'users'): ?>
+        <!-- Tab: Users & Permissions Management Hub (صارفین اور اختیارات) -->
+        <div style="margin-top: 14px;">
+            <!-- Header Banner -->
+            <article class="panel" style="border: 1.5px solid #bfdbfe; background: #eff6ff; border-radius: 12px; margin-bottom: 20px;">
+                <div style="padding: 20px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <span style="font-size:32px;">👥</span>
+                        <div>
+                            <h2 style="color:#1e40af;margin:0;font-size:18px;">Users, Roles &amp; Permissions Manager <span class="ur">(صارفین، رولز اور اختیارات مینیجر)</span></h2>
+                            <p style="color:#1d4ed8;margin:3px 0 0;font-size:13px;">
+                                نئے ماڈیولز (بجٹ، راشن انوینٹری، مہمات، آڈٹ لاگ، بروشر، سرٹیفکیٹ، زکوٰۃ) کے اختیارات اپنے عملے کو باآسانی تفویض کریں۔
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <a href="users.php" class="btn blue" style="font-weight:700;padding:10px 18px;display:flex;align-items:center;gap:6px;text-decoration:none;">
+                            <span>＋</span> Create New User <span class="ur">(نیا صارف بنائیں)</span>
+                        </a>
+                        <a href="users.php?tab=regions" class="btn secondary" style="font-weight:700;padding:10px 16px;text-decoration:none;">
+                            🏛️ Provinces &amp; Branches <span class="ur">(صوبائی برانچز)</span>
+                        </a>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Active Staff Members Directory -->
+            <article class="panel" style="border: 1px solid #e2e8f0; background: #ffffff; border-radius: 12px; margin-bottom: 24px; overflow:hidden;">
+                <div class="panel-heading" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 20px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:18px;">📋</span>
+                        <h3 style="margin:0;font-size:15px;color:#0f172a;">Active Users &amp; Assigned Roles <span class="ur">(فعال صارفین و رولز)</span></h3>
+                    </div>
+                    <span class="badge" style="background:#e0e7ff;color:#4338ca;font-weight:700;font-size:12px;padding:4px 10px;">
+                        <?=count($allUsersList)?> کل صارفین
+                    </span>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+                        <thead>
+                            <tr style="background:#f1f5f9;color:#475569;font-weight:700;">
+                                <th style="padding:10px 14px;border-bottom:2px solid #cbd5e1;width:40px;">#</th>
+                                <th style="padding:10px 14px;border-bottom:2px solid #cbd5e1;">Staff Member <span class="ur">(نام و صارف)</span></th>
+                                <th style="padding:10px 14px;border-bottom:2px solid #cbd5e1;width:170px;">Role Template <span class="ur">(بنیادی رول)</span></th>
+                                <th style="padding:10px 14px;border-bottom:2px solid #cbd5e1;width:150px;">Branch / Province <span class="ur">(برانچ / صوبہ)</span></th>
+                                <th style="padding:10px 14px;border-bottom:2px solid #cbd5e1;width:120px;">Phone <span class="ur">(فون)</span></th>
+                                <th style="padding:10px 14px;border-bottom:2px solid #cbd5e1;width:110px;">Rights <span class="ur">(اختیارات)</span></th>
+                                <th style="padding:10px 14px;border-bottom:2px solid #cbd5e1;text-align:right;width:200px;">Actions <span class="ur">(کارروائی)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($allUsersList as $uIdx => $uItem): 
+                                $isSuper = in_array($uItem['role_name'] ?? '', ['Super Admin', 'Administrator'], true);
+                                $isDir = in_array($uItem['role_name'] ?? '', ['Regional Director', 'Director'], true);
+                                $badgeBg = '#e2e8f0'; $badgeColor = '#334155';
+                                if ($isSuper) { $badgeBg = '#fee2e2'; $badgeColor = '#991b1b'; }
+                                elseif ($isDir) { $badgeBg = '#dbeafe'; $badgeColor = '#1e40af'; }
+                                elseif (strpos($uItem['role_name'] ?? '', 'Checker') !== false || strpos($uItem['role_name'] ?? '', 'Approver') !== false) { $badgeBg = '#fef3c7'; $badgeColor = '#92400e'; }
+                                elseif (strpos($uItem['role_name'] ?? '', 'Cashier') !== false) { $badgeBg = '#dcfce7'; $badgeColor = '#166534'; }
+                            ?>
+                                <tr style="border-bottom:1px solid #f1f5f9;">
+                                    <td style="padding:10px 14px;color:#64748b;font-weight:600;"><?=$uIdx + 1?></td>
+                                    <td style="padding:10px 14px;">
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <div style="width:32px;height:32px;border-radius:50%;background:#e0e7ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;">
+                                                <?=strtoupper(substr($uItem['username'] ?? 'U', 0, 2))?>
+                                            </div>
+                                            <div>
+                                                <strong style="color:#0f172a;display:block;font-size:13.5px;"><?=e($uItem['full_name'])?></strong>
+                                                <span style="font-size:11px;color:#64748b;">@<?=e($uItem['username'])?></span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="padding:10px 14px;">
+                                        <span class="badge" style="background:<?=$badgeBg?>;color:<?=$badgeColor?>;font-weight:700;font-size:11.5px;padding:4px 9px;border-radius:12px;">
+                                            <?=e(function_exists('get_role_display_name') ? get_role_display_name($uItem['role_name'], false) : $uItem['role_name'])?>
+                                        </span>
+                                    </td>
+                                    <td style="padding:10px 14px;color:#475569;font-size:12px;">
+                                        <?=e(!empty($uItem['region_name']) ? $uItem['region_name'] : 'مرکزی ہیڈ آفس')?>
+                                    </td>
+                                    <td style="padding:10px 14px;color:#475569;font-size:12px;font-family:monospace;">
+                                        <?=e($uItem['phone_number'] ?: '—')?>
+                                    </td>
+                                    <td style="padding:10px 14px;">
+                                        <?php if ($isSuper): ?>
+                                            <span class="badge" style="background:#fee2e2;color:#991b1b;font-size:11px;font-weight:700;">100% Full Access</span>
+                                        <?php else: ?>
+                                            <span class="badge" style="background:#f1f5f9;color:#334155;font-size:11px;font-weight:600;">
+                                                <?=(int)($uItem['perms_count'] ?? 0)?> مخصوص اختیارات
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="padding:10px 14px;text-align:right;">
+                                        <div style="display:flex;gap:6px;justify-content:flex-end;">
+                                            <a href="users.php?edit_user_id=<?=$uItem['id']?>" class="btn sm" style="background:#2563eb;color:#fff;border-color:#1d4ed8;font-size:11.5px;padding:4px 9px;text-decoration:none;font-weight:700;">
+                                                🛡️ Edit Rights (اختیارات)
+                                            </a>
+                                            <a href="settings.php?tab=security#passwordSection" class="btn secondary sm" style="font-size:11.5px;padding:4px 8px;text-decoration:none;">
+                                                🔑 Password
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <!-- Complete Permissions Matrix Directory (All 18 Groups) -->
+            <article class="panel" style="border: 1px solid #e2e8f0; background: #ffffff; border-radius: 12px; margin-bottom: 24px; padding: 22px 24px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px;border-bottom:1.5px solid #f1f5f9;padding-bottom:14px;">
+                    <div>
+                        <h3 style="margin:0;font-size:16px;color:#0f172a;display:flex;align-items:center;gap:8px;">
+                            <span>🛡️</span>
+                            <span>System Permissions Directory <span class="ur">(سسٹم کے تمام 18 شعبہ جات و اختیارات کی فہرست)</span></span>
+                        </h3>
+                        <p style="margin:4px 0 0;font-size:12.5px;color:#64748b;">
+                            جب آپ کسی صارف کو ایڈٹ کریں گے تو نیچے دیے گئے تمام اختیارات انفرادی طور پر منتخب کیے جا سکتے ہیں:
+                        </p>
+                    </div>
+                    <a href="users.php" class="btn blue sm" style="font-weight:700;text-decoration:none;">
+                        ⚙️ Open Permissions Editor &rarr;
+                    </a>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:14px;">
+                    <?php foreach ($allPermissionsDef as $grpTitle => $pItems): 
+                        $grpParts = explode('(', $grpTitle, 2);
+                        $grpEn = trim($grpParts[0]);
+                        $grpUr = isset($grpParts[1]) ? '(' . trim($grpParts[1]) : '';
+                        $isNewModule = in_array($grpEn, ['Budgets & Control', 'Inventory & Ration Stock', 'Campaigns & Appeals', 'Audit Trail & Security', 'Certificates & Awards', 'Brochure & Marketing', 'Zakat Assessment'], true);
+                    ?>
+                        <div style="background:<?=$isNewModule ? '#f0fdf4' : '#f8fafc'?>;border:1.5px solid <?=$isNewModule ? '#86efac' : '#e2e8f0'?>;border-radius:10px;padding:12px 14px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid <?=$isNewModule ? '#bbf7d0' : '#e2e8f0'?>;padding-bottom:6px;">
+                                <b style="color:<?=$isNewModule ? '#166534' : '#0f172a'?>;font-size:13px;">
+                                    <?=e($grpEn)?> <span class="ur" style="font-size:11.5px;"><?=e($grpUr)?></span>
+                                </b>
+                                <?php if ($isNewModule): ?>
+                                    <span class="badge" style="background:#16a34a;color:#fff;font-size:10px;padding:2px 6px;">New Update</span>
+                                <?php endif; ?>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:6px;">
+                                <?php foreach ($pItems as $pCode => $pMeta): ?>
+                                    <div style="font-size:11.5px;background:#ffffff;padding:6px 8px;border-radius:6px;border:1px solid #f1f5f9;">
+                                        <code style="font-size:11px;color:#2563eb;font-weight:700;display:block;"><?=e($pCode)?></code>
+                                        <div style="color:#1e293b;font-weight:600;margin-top:2px;"><?=e($pMeta['label'])?></div>
+                                        <div class="ur" style="color:#64748b;font-size:11px;"><?=e($pMeta['ur'])?></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </article>
+
+            <!-- Role Templates Guide Banner -->
+            <article class="panel" style="border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 12px; padding: 20px 24px;">
+                <h4 style="margin:0 0 10px 0;font-size:14.5px;color:#0f172a;">💡 Quick Role Templates Guide (رولز کی آسان گائیڈ برائے ایڈمن)</h4>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;font-size:12px;line-height:1.5;">
+                    <div style="background:#ffffff;padding:12px;border-radius:8px;border:1px solid #e2e8f0;">
+                        <b style="color:#991b1b;display:block;margin-bottom:4px;">👑 Super Admin (مرکزی ایڈمن)</b>
+                        تمام 18 شعبہ جات پر مکمل کنٹرول، ترتیبات، بیک اپس اور ڈینجر زون اختیارات۔
+                    </div>
+                    <div style="background:#ffffff;padding:12px;border-radius:8px;border:1px solid #e2e8f0;">
+                        <b style="color:#1e40af;display:block;margin-bottom:4px;">🏛️ Regional Director (صوبائی ڈائریکٹر)</b>
+                        صوبائی واؤچرز کی منظوری، بجٹ، راشن انوینٹری، مہمات اور اپنی ٹیم کا انتظام۔
+                    </div>
+                    <div style="background:#ffffff;padding:12px;border-radius:8px;border:1px solid #e2e8f0;">
+                        <b style="color:#92400e;display:block;margin-bottom:4px;">✅ Approver / Checker (نائب مہتمم)</b>
+                        واؤچرز کی جانچ و پڑتال، منظوری یا مسترد، بجٹ نگرانی اور رپورٹس ڈاؤن لوڈ۔
+                    </div>
+                    <div style="background:#ffffff;padding:12px;border-radius:8px;border:1px solid #e2e8f0;">
+                        <b style="color:#166534;display:block;margin-bottom:4px;">💰 User / Cashier (خزانچی / کیشئر)</b>
+                        وصولی رسیدات بنانا، خرچ کا اندراج، راشن وصولی، مہمات اور ڈونرز۔
+                    </div>
                 </div>
             </article>
         </div>

@@ -487,7 +487,15 @@ if ($editUser) {
                 foreach ($items as $k => $v) $activeUserPermissions[] = $k;
             }
         } elseif ($rName === 'Regional Director') {
-            $activeUserPermissions = ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'voucher.approve', 'voucher.direct_post', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'funds.view', 'accounts.view', 'reports.view', 'tasks.view', 'tasks.manage', 'tasks.update_progress', 'regions.view', 'team.manage'];
+            $activeUserPermissions = [
+                'income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create',
+                'voucher.approve', 'voucher.direct_post', 'donors.view', 'donors.manage',
+                'beneficiaries.view', 'beneficiaries.manage', 'funds.view', 'accounts.view',
+                'reports.view', 'tasks.view', 'tasks.manage', 'tasks.update_progress',
+                'regions.view', 'team.manage', 'budgets.view', 'budgets.manage',
+                'inventory.view', 'inventory.manage', 'campaigns.view', 'campaigns.manage',
+                'brochure.view', 'certificate.view', 'zakat.view'
+            ];
         } elseif ($rName === 'Approver / Checker' || $rName === 'Checker') {
             foreach ($allPermissionsDef as $grp => $items) {
                 foreach ($items as $k => $v) {
@@ -495,9 +503,18 @@ if ($editUser) {
                 }
             }
         } elseif ($rName === 'User / Cashier' || $rName === 'Cashier') {
-            $activeUserPermissions = ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'tasks.view', 'tasks.update_progress'];
+            $activeUserPermissions = [
+                'income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create',
+                'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage',
+                'tasks.view', 'tasks.update_progress', 'inventory.view', 'campaigns.view',
+                'brochure.view', 'zakat.view'
+            ];
         } elseif ($rName === 'Viewer') {
-            $activeUserPermissions = ['income.view', 'expense.view', 'donors.view', 'beneficiaries.view', 'funds.view', 'accounts.view', 'reports.view', 'tasks.view'];
+            $activeUserPermissions = [
+                'income.view', 'expense.view', 'donors.view', 'beneficiaries.view',
+                'funds.view', 'accounts.view', 'reports.view', 'tasks.view',
+                'budgets.view', 'inventory.view', 'campaigns.view', 'brochure.view', 'zakat.view'
+            ];
         }
     }
 }
@@ -1117,11 +1134,11 @@ if ($editUser) {
 
 <script>
 var PRESETS = {
-    'cashier': ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'tasks.view', 'tasks.update_progress'],
-    'approver': ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'voucher.approve', 'voucher.direct_post', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'funds.view', 'funds.manage', 'accounts.view', 'accounts.manage', 'reports.view', 'reports.export', 'tasks.view', 'tasks.manage', 'tasks.update_progress'],
-    'director': ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'voucher.approve', 'voucher.direct_post', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'funds.view', 'accounts.view', 'reports.view', 'tasks.view', 'tasks.manage', 'tasks.update_progress', 'regions.view', 'team.manage'],
-    'viewer': ['income.view', 'expense.view', 'donors.view', 'beneficiaries.view', 'funds.view', 'accounts.view', 'reports.view', 'tasks.view'],
-    'all': ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'voucher.approve', 'voucher.direct_post', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'funds.view', 'funds.manage', 'accounts.view', 'accounts.manage', 'reports.view', 'reports.export', 'tasks.view', 'tasks.manage', 'tasks.update_progress', 'users.manage', 'settings.manage', 'regions.view', 'regions.manage', 'team.manage']
+    'cashier': ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'tasks.view', 'tasks.update_progress', 'inventory.view', 'campaigns.view', 'brochure.view', 'zakat.view'],
+    'approver': ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'voucher.approve', 'voucher.direct_post', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'funds.view', 'funds.manage', 'accounts.view', 'accounts.manage', 'reports.view', 'reports.export', 'tasks.view', 'tasks.manage', 'tasks.update_progress', 'budgets.view', 'budgets.manage', 'inventory.view', 'inventory.manage', 'campaigns.view', 'campaigns.manage', 'audit.view', 'brochure.view', 'certificate.view', 'zakat.view'],
+    'director': ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'voucher.approve', 'voucher.direct_post', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'funds.view', 'accounts.view', 'reports.view', 'tasks.view', 'tasks.manage', 'tasks.update_progress', 'regions.view', 'team.manage', 'budgets.view', 'budgets.manage', 'inventory.view', 'inventory.manage', 'campaigns.view', 'campaigns.manage', 'brochure.view', 'certificate.view', 'zakat.view'],
+    'viewer': ['income.view', 'expense.view', 'donors.view', 'beneficiaries.view', 'funds.view', 'accounts.view', 'reports.view', 'tasks.view', 'budgets.view', 'inventory.view', 'campaigns.view', 'brochure.view', 'zakat.view'],
+    'all': ['income.view', 'income.create', 'income.slip', 'expense.view', 'expense.create', 'voucher.approve', 'voucher.direct_post', 'donors.view', 'donors.manage', 'beneficiaries.view', 'beneficiaries.manage', 'funds.view', 'funds.manage', 'accounts.view', 'accounts.manage', 'reports.view', 'reports.export', 'tasks.view', 'tasks.manage', 'tasks.update_progress', 'users.manage', 'settings.manage', 'regions.view', 'regions.manage', 'team.manage', 'budgets.view', 'budgets.manage', 'inventory.view', 'inventory.manage', 'campaigns.view', 'campaigns.manage', 'audit.view', 'brochure.view', 'certificate.view', 'zakat.view']
 };
 
 function applyPreset(presetKey) {
@@ -1130,10 +1147,14 @@ function applyPreset(presetKey) {
         boxes.forEach(function(b) { b.checked = false; });
         return;
     }
+    if (presetKey === 'all') {
+        boxes.forEach(function(b) { b.checked = true; });
+        return;
+    }
     var targetList = PRESETS[presetKey] || [];
     boxes.forEach(function(b) {
         var code = b.getAttribute('data-code');
-        b.checked = (presetKey === 'all') || (targetList.indexOf(code) !== -1);
+        b.checked = (targetList.indexOf(code) !== -1);
     });
 }
 

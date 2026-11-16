@@ -6,10 +6,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
 $isPublicView = (isset($_GET['view']) && $_GET['view'] === 'public');
 if (!$isPublicView) {
     require_login();
-    if (!function_exists('is_super_admin') || !is_super_admin()) {
-        if (!in_array(current_user()['role'] ?? '', ['Super Admin', 'Administrator'], true)) {
-            redirect_with_alert('dashboard.php', 'error', 'یہ مارکیٹنگ بروشر صرف SoftifyX ایڈمنسٹریٹر کے لیے مخصوص ہے۔');
-        }
+    if (!has_permission('brochure.view') && !is_super_admin() && !in_array(current_user()['role'] ?? '', ['Super Admin', 'Administrator'], true)) {
+        redirect_with_alert('dashboard.php', 'error', 'یہ مارکیٹنگ بروشر دیکھنے کے لیے متعلقہ اختیارات درکار ہیں۔');
     }
 }
 

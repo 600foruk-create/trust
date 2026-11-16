@@ -2,6 +2,10 @@
 require __DIR__ . '/../app/bootstrap.php';
 require_login();
 
+if (!has_permission('zakat.view') && !is_super_admin() && !can_approve() && !has_permission('income.view')) {
+    redirect_with_alert('dashboard.php', 'error', 'آپ کے پاس زکوٰۃ کیلکولیٹر استعمال کرنے کا اختیار نہیں ہے۔');
+}
+
 $activePage = 'zakat_calculator';
 $madrasaName = get_setting('madrasa_name', 'Trust Accounts');
 $currency = get_setting('currency', 'PKR');

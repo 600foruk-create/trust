@@ -465,7 +465,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $currency = trim($_POST['currency']);
             $timezone = trim($_POST['timezone'] ?? 'Asia/Karachi');
             $finYearStart = trim($_POST['financial_year_start'] ?? '07-01');
-            $uiLanguage = in_array($_POST['ui_language'] ?? '', ['english', 'bilingual'], true) ? $_POST['ui_language'] : 'bilingual';
+            $allowedLangs = ['english', 'bilingual', 'bilingual_ur', 'bilingual_ar', 'bilingual_ps', 'bilingual_fa'];
+            $uiLanguage = in_array($_POST['ui_language'] ?? '', $allowedLangs, true) ? $_POST['ui_language'] : 'bilingual_ur';
             $orgType = in_array($_POST['org_type'] ?? '', ['trust', 'madrasa'], true) ? $_POST['org_type'] : 'trust';
 
             $stmt->execute(['currency', $currency]);
@@ -1609,17 +1610,23 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                             </div>
                         </div>
 
-                        <div class="form-group" style="margin-bottom:20px;padding:14px;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;">
-                            <label style="font-weight:700;display:block;margin-bottom:6px;">
-                                Urdu Text & Language Mode <span class="ur">(اردو ٹیکسٹ اور زبان کا انتخاب)</span>
+                        <div class="form-group" style="margin-bottom:20px;padding:16px;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;">
+                            <label style="font-weight:700;display:block;margin-bottom:6px;font-size:14px;color:#0f172a;">
+                                🌐 Subtitles &amp; UI Language Mode <span class="ur">(ذیلی عنوانات اور ترجمہ کی زبان)</span>
                             </label>
-                            <select name="ui_language" style="width:100%;font-size:13.5px;padding:9px 12px;border:1.5px solid #94a3b8;border-radius:7px;background:#ffffff;font-weight:600;color:#0f172a;">
-                                <option value="bilingual" <?=$uiLanguage === 'bilingual' ? 'selected' : ''?>>🌐 Bilingual (English + اردو ترجمہ)</option>
-                                <option value="english" <?=$uiLanguage === 'english' ? 'selected' : ''?>>🔤 English Only (صرف انگریزی - بغیر اردو ٹیکسٹ)</option>
+                            <p style="font-size:12px;color:#475569;margin:0 0 10px 0;">
+                                تمام مینیوز، بٹنوں اور فارمز کے ساتھ ثانوی رہنمائی کی زبان منتخب کریں۔ (Select subtitle language for navigation menus, buttons, and form labels).
+                            </p>
+                            <select name="ui_language" style="width:100%;font-size:14px;padding:10px 12px;border:1.5px solid #94a3b8;border-radius:7px;background:#ffffff;font-weight:600;color:#0f172a;">
+                                <option value="bilingual_ur" <?=($uiLanguage === 'bilingual_ur' || $uiLanguage === 'bilingual' || empty($uiLanguage)) ? 'selected' : ''?>>🇵🇰 English + اردو (Urdu - اردو ترجمہ)</option>
+                                <option value="bilingual_ar" <?=$uiLanguage === 'bilingual_ar' ? 'selected' : ''?>>🇸🇦 English + العربية (Arabic - الترجمة العربية)</option>
+                                <option value="bilingual_ps" <?=$uiLanguage === 'bilingual_ps' ? 'selected' : ''?>>🇦🇫 English + پښتو (Pashto - د پښتو ژباړه)</option>
+                                <option value="bilingual_fa" <?=$uiLanguage === 'bilingual_fa' ? 'selected' : ''?>>🇮🇷 English + فارسی (Persian - ترجمه فارسی)</option>
+                                <option value="english" <?=$uiLanguage === 'english' ? 'selected' : ''?>>🔤 English Only (صرف انگریزی - تمام ذیلی عنوانات پوشیدہ)</option>
                             </select>
-                            <small class="muted" style="display:block;margin-top:6px;font-size:11.5px;line-height:1.4;">
-                                <span class="ur">اگر آپ سافٹ ویئر کے مینیو، کارڈز اور ہیڈنگز پر اردو ترجمہ دیکھنا چاہتے ہیں تو <b>Bilingual</b> منتخب کریں۔ اگر آپ مکمل سافٹ ویئر صرف انگریزی میں دیکھنا چاہتے ہیں تو <b>English Only</b> منتخب کریں۔</span>
-                                <span class="en-only" style="display:none;">Select <b>Bilingual</b> to display Urdu subtitles across menus and cards, or <b>English Only</b> for an English-only interface.</span>
+                            <small class="muted" style="display:block;margin-top:8px;font-size:11.5px;line-height:1.4;">
+                                <span class="ur">آپ اردو، عربی، پښتو یا فارسی میں سے اپنی پسندیدہ زبان منتخب کر سکتے ہیں، یا خالص انگریزی کے لیے <b>English Only</b> منتخب کر سکتے ہیں۔</span>
+                                <span class="en-only" style="display:none;">Choose between Urdu, Arabic, Pashto, Persian, or English Only mode for the system interface.</span>
                             </small>
                         </div>
 

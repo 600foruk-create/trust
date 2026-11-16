@@ -5,6 +5,8 @@ $user = current_user() ?? ['name' => 'User', 'role' => 'Viewer'];
 $madrasaName = function_exists('get_setting') ? get_setting('madrasa_name', 'Trust Accounts') : 'Trust Accounts';
 $shortBrand = mb_strtoupper(mb_substr($madrasaName, 0, 2));
 $isUrdu = function_exists('is_urdu_enabled') ? is_urdu_enabled() : true;
+$uiLang = function_exists('get_ui_language') ? get_ui_language() : ($isUrdu ? 'ur' : 'en');
+$langInfo = function_exists('get_ui_language_info') ? get_ui_language_info($uiLang) : ['code' => 'ur', 'font' => '', 'dir' => 'rtl'];
 
 $pendingCount = 0;
 if (function_exists('has_permission') && has_permission('voucher.approve')) {
@@ -32,7 +34,7 @@ $recentLoginsList = function_exists('get_recent_login_activities') ? get_recent_
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Madrasa ERP">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
-<?php if (!$isUrdu): ?>
+<?php if ($uiLang === 'en'): ?>
 <style>
 .ur, .ur-sub, div.ur, p.ur { display: none !important; }
 .en-only { display: inline !important; }
@@ -106,6 +108,91 @@ div.en-only, p.en-only { display: block !important; }
             }
         }
     });
+})();
+</script>
+<?php elseif ($uiLang === 'ar' || $uiLang === 'ps' || $uiLang === 'fa'): ?>
+<style>
+.ur, .ur-sub, [data-i18n-ur] {
+    font-family: <?= $langInfo['font'] ?? 'inherit' ?> !important;
+}
+</style>
+<script>
+(function() {
+    var SOFTIFYX_I18N = <?= json_encode(function_exists('get_multilingual_phrases') ? get_multilingual_phrases() : [], JSON_UNESCAPED_UNICODE) ?>;
+    var TARGET_LANG = <?= json_encode($uiLang) ?>;
+
+    function translateText(str) {
+        if (!str || !/[\u0600-\u06FF]/.test(str)) return str;
+        var trimmed = str.trim();
+        var hasParens = /^\((.*)\)$/.test(trimmed);
+        var inner = hasParens ? trimmed.replace(/^\(|\)$/g, '').trim() : trimmed;
+
+        if (SOFTIFYX_I18N[inner] && SOFTIFYX_I18N[inner][TARGET_LANG]) {
+            var trans = SOFTIFYX_I18N[inner][TARGET_LANG];
+            return hasParens ? '(' + trans + ')' : trans;
+        }
+        if (SOFTIFYX_I18N[trimmed] && SOFTIFYX_I18N[trimmed][TARGET_LANG]) {
+            return SOFTIFYX_I18N[trimmed][TARGET_LANG];
+        }
+
+        var res = str;
+        for (var k in SOFTIFYX_I18N) {
+            if (SOFTIFYX_I18N.hasOwnProperty(k) && SOFTIFYX_I18N[k][TARGET_LANG]) {
+                if (res.indexOf(k) !== -1) {
+                    res = res.split(k).join(SOFTIFYX_I18N[k][TARGET_LANG]);
+                }
+            }
+        }
+        return res;
+    }
+
+    function walkAndTranslate(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            if (node.nodeValue && /[\u0600-\u06FF]/.test(node.nodeValue)) {
+                node.nodeValue = translateText(node.nodeValue);
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            var tag = node.tagName.toLowerCase();
+            if (tag === 'script' || tag === 'style' || tag === 'textarea') return;
+            var ch = node.childNodes;
+            for (var c = 0; c < ch.length; c++) {
+                walkAndTranslate(ch[c]);
+            }
+        }
+    }
+
+    function applyTranslations() {
+        var urElements = document.querySelectorAll('.ur, .ur-sub, [data-i18n-ur]');
+        for (var i = 0; i < urElements.length; i++) {
+            var el = urElements[i];
+            if (el.children.length === 0) {
+                el.textContent = translateText(el.textContent);
+            } else {
+                walkAndTranslate(el);
+            }
+        }
+
+        var options = document.querySelectorAll('option');
+        for (var j = 0; j < options.length; j++) {
+            if (options[j].text && /[\u0600-\u06FF]/.test(options[j].text)) {
+                options[j].text = translateText(options[j].text);
+            }
+        }
+
+        var titled = document.querySelectorAll('[title]');
+        for (var k = 0; k < titled.length; k++) {
+            var t = titled[k].getAttribute('title');
+            if (t && /[\u0600-\u06FF]/.test(t)) {
+                titled[k].setAttribute('title', translateText(t));
+            }
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyTranslations);
+    } else {
+        applyTranslations();
+    }
 })();
 </script>
 <?php endif; ?>

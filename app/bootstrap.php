@@ -2357,49 +2357,57 @@ if (!empty($_SESSION['user']['id'])) {
     }
 }
 
+require_once __DIR__ . '/i18n.php';
+
 function is_urdu_enabled(): bool {
-    return get_setting('ui_language', 'bilingual') !== 'english';
+    $lang = function_exists('get_ui_language') ? get_ui_language() : 'ur';
+    return $lang !== 'en';
 }
 
 function format_ui_text(?string $text): string {
     if ($text === null || $text === '') {
         return '';
     }
-    if (is_urdu_enabled()) {
-        return $text;
+    $lang = function_exists('get_ui_language') ? get_ui_language() : 'ur';
+    if ($lang === 'en') {
+        $text = trim($text);
+
+        // 1. Convert user cash account prefix "نقدی کیش - " to "Cash in Hand - "
+        if (preg_match('/^[\x{0600}-\x{06FF}\s]+\s*-\s*(.+)$/u', $text, $m)) {
+            return 'Cash in Hand - ' . trim($m[1]);
+        }
+
+        // Check for optional leading code like "4130 - " or "1000: "
+        $prefix = '';
+        if (preg_match('/^([A-Z0-9\-]+(?:\s*[-:]\s*))(.+)$/u', $text, $pm)) {
+            $prefix = $pm[1];
+            $text = trim($pm[2]);
+        }
+
+        // 2. Pattern: "Urdu (English)" -> "English"
+        if (preg_match('/^[\x{0600}-\x{06FF}\s\d\/\-،؛_&]+\s*\(([^)]*[a-zA-Z][^)]*)\)$/u', $text, $m)) {
+            return $prefix . trim($m[1]);
+        }
+
+        // 3. Pattern: "English (Urdu)" -> "English"
+        if (preg_match('/^([a-zA-Z\d\s\/\-_&.,\'"]+)\s*\([\x{0600}-\x{06FF}\s\d\/\-،؛_]+\)$/u', $text, $m)) {
+            return $prefix . trim($m[1]);
+        }
+
+        // 4. Any remaining parenthetical Urdu: "Text (Urdu)" -> "Text"
+        $text = preg_replace('/\s*\([\x{0600}-\x{06FF}\s\d\/\-،؛_–—:]+\)/u', '', $text);
+
+        // 5. Replace any standalone "نقدی کیش" with "Cash in Hand"
+        $text = str_replace('نقدی کیش', 'Cash in Hand', $text);
+
+        return $prefix . trim($text);
     }
 
-    $text = trim($text);
-
-    // 1. Convert user cash account prefix "نقدی کیش - " to "Cash in Hand - "
-    if (preg_match('/^[\x{0600}-\x{06FF}\s]+\s*-\s*(.+)$/u', $text, $m)) {
-        return 'Cash in Hand - ' . trim($m[1]);
+    if ($lang !== 'ur' && function_exists('t_phrase')) {
+        return t_phrase($text, $lang);
     }
 
-    // Check for optional leading code like "4130 - " or "1000: "
-    $prefix = '';
-    if (preg_match('/^([A-Z0-9\-]+(?:\s*[-:]\s*))(.+)$/u', $text, $pm)) {
-        $prefix = $pm[1];
-        $text = trim($pm[2]);
-    }
-
-    // 2. Pattern: "Urdu (English)" -> "English"
-    if (preg_match('/^[\x{0600}-\x{06FF}\s\d\/\-،؛_&]+\s*\(([^)]*[a-zA-Z][^)]*)\)$/u', $text, $m)) {
-        return $prefix . trim($m[1]);
-    }
-
-    // 3. Pattern: "English (Urdu)" -> "English"
-    if (preg_match('/^([a-zA-Z\d\s\/\-_&.,\'"]+)\s*\([\x{0600}-\x{06FF}\s\d\/\-،؛_]+\)$/u', $text, $m)) {
-        return $prefix . trim($m[1]);
-    }
-
-    // 4. Any remaining parenthetical Urdu: "Text (Urdu)" -> "Text"
-    $text = preg_replace('/\s*\([\x{0600}-\x{06FF}\s\d\/\-،؛_–—:]+\)/u', '', $text);
-
-    // 5. Replace any standalone "نقدی کیش" with "Cash in Hand"
-    $text = str_replace('نقدی کیش', 'Cash in Hand', $text);
-
-    return $prefix . trim($text);
+    return $text;
 }
 
 function render_app_footer(string $madrasaName = ''): string {

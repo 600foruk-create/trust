@@ -429,6 +429,46 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
+/* User Guide Quick Shortcut Button in Header */
+.header-guide-btn {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 20px;
+  padding: 5px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #166534;
+  font-weight: 700;
+  font-size: 12.5px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.header-guide-btn:hover {
+  background: #dcfce7;
+  border-color: #22c55e;
+  color: #15803d;
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.15);
+}
+@media (max-width: 640px) {
+  .header-guide-btn {
+    padding: 5px 8px;
+    font-size: 11.5px;
+  }
+  .header-guide-btn .ur {
+    display: none !important;
+  }
+}
+@media (max-width: 480px) {
+  .header-guide-btn {
+    padding: 4px 7px;
+  }
+  .header-guide-btn .guide-btn-text {
+    display: none;
+  }
+}
+
 .header-user-avatar {
   width: 36px;
   height: 36px;

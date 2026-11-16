@@ -297,6 +297,12 @@ div.en-only, p.en-only { display: block !important; }
       </div>
     </div>
 
+    <!-- User Guide Quick Shortcut Button (Header Shortcut) -->
+    <button type="button" class="header-guide-btn" onclick="openAboutSoftwareModal('guide')" title="Open Interactive User Guide &amp; FAQ (سافٹ ویئر استعمال کرنے کی رہنمائی و سوالات)">
+      <span style="font-size:14px;">📖</span>
+      <span class="guide-btn-text">Guide <span class="ur">(رہنمائی)</span></span>
+    </button>
+
     <!-- Logged-in User Profile on the Right Side of the Header (Links to Change Password) -->
     <a href="change_password.php" class="header-user-pill" style="text-decoration:none;" title="<?=e($user['name'] ?? 'User')?> (<?=e($user['role'] ?? '')?>) - Click to Change Password">
       <span class="header-user-avatar">
@@ -544,6 +550,15 @@ div.en-only, p.en-only { display: block !important; }
     📲 Install App on Phone <span class="ur">(موبائل پر ایپ انسٹال کریں)</span>
   </button>
 
+  <!-- User Guide & FAQ Mobile Quick Pill -->
+  <button type="button" onclick="openAboutSoftwareModal('guide')" style="width:100%;margin-bottom:12px;background:rgba(59,130,246,0.18);border:1px solid rgba(147,197,253,0.3);color:#bfdbfe;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+    <span style="display:inline-flex;align-items:center;gap:6px;">
+      <span>📖</span>
+      <span>User Guide &amp; FAQ <span class="ur">(فوری رہنمائی)</span></span>
+    </span>
+    <span style="font-size:10px;background:#2563eb;color:#ffffff;padding:2px 6px;border-radius:8px;">28 FAQs</span>
+  </button>
+
   <nav>
     <a class="<?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="dashboard.php">▦ &nbsp; Dashboard <span class="ur">(ڈیش بورڈ)</span></a>
     
@@ -692,11 +707,11 @@ $licenseKeyDisplay = 'SFX-TR-2026-' . substr($licHash, 0, 4) . '-' . substr($lic
 $phpVer = PHP_VERSION;
 ?>
 <!-- Modal Dialog for About Software, License & Contact Info -->
-<div id="aboutSoftwareModal" class="tracker-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:999999;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);" onclick="handleAboutOverlayClick(event)">
-  <div style="background:#ffffff;border-radius:14px;width:100%;max-width:600px;box-shadow:0 25px 40px -10px rgba(0,0,0,0.35);overflow:hidden;border:1px solid #cbd5e1;" role="dialog" aria-modal="true">
+<div id="aboutSoftwareModal" class="tracker-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:999999;align-items:center;justify-content:center;padding:10px;backdrop-filter:blur(4px);" onclick="handleAboutOverlayClick(event)">
+  <div style="background:#ffffff;border-radius:14px;width:100%;max-width:640px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 40px -10px rgba(0,0,0,0.4);overflow:hidden;border:1px solid #cbd5e1;" role="dialog" aria-modal="true">
     
-    <!-- Modal Header -->
-    <div style="padding:16px 20px;background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%);color:#ffffff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
+    <!-- Modal Header (Fixed at top) -->
+    <div style="flex-shrink:0;padding:14px 18px;background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%);color:#ffffff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
       <div style="display:flex;align-items:center;gap:12px;">
         <span style="font-size:24px;background:rgba(255,255,255,0.12);padding:6px 10px;border-radius:8px;">ℹ️</span>
         <div>
@@ -707,27 +722,27 @@ $phpVer = PHP_VERSION;
           <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Enterprise Accounting &amp; Institutional ERP</p>
         </div>
       </div>
-      <button type="button" onclick="closeAboutSoftwareModal()" style="background:transparent;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1;" title="Close">&times;</button>
+      <button type="button" onclick="closeAboutSoftwareModal()" style="background:transparent;border:none;color:#94a3b8;font-size:28px;cursor:pointer;line-height:1;padding:4px 8px;min-width:36px;min-height:36px;" title="Close">&times;</button>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div style="display:flex;background:#f8fafc;border-bottom:1.5px solid #e2e8f0;padding:4px 12px 0;overflow-x:auto;">
-      <button type="button" id="aboutTabBtn_info" onclick="switchAboutTab('info')" style="padding:10px 13px;font-size:12px;font-weight:700;border:none;background:transparent;color:#2563eb;border-bottom:3px solid #2563eb;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+    <!-- Navigation Tabs (Touch Scrollable on Mobile) -->
+    <div style="flex-shrink:0;display:flex;background:#f8fafc;border-bottom:1.5px solid #e2e8f0;padding:4px 8px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;gap:4px;">
+      <button type="button" id="aboutTabBtn_info" onclick="switchAboutTab('info')" style="padding:10px 14px;font-size:12.5px;font-weight:700;border:none;background:transparent;color:#2563eb;border-bottom:3px solid #2563eb;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;">
         💻 Software Info
       </button>
-      <button type="button" id="aboutTabBtn_license" onclick="switchAboutTab('license')" style="padding:10px 13px;font-size:12px;font-weight:700;border:none;background:transparent;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+      <button type="button" id="aboutTabBtn_license" onclick="switchAboutTab('license')" style="padding:10px 14px;font-size:12.5px;font-weight:700;border:none;background:transparent;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;">
         📜 License Details
       </button>
-      <button type="button" id="aboutTabBtn_guide" onclick="switchAboutTab('guide')" style="padding:10px 13px;font-size:12px;font-weight:700;border:none;background:transparent;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+      <button type="button" id="aboutTabBtn_guide" onclick="switchAboutTab('guide')" style="padding:10px 14px;font-size:12.5px;font-weight:700;border:none;background:transparent;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;">
         📖 User Guide <span class="ur">(فوری رہنمائی)</span>
       </button>
-      <button type="button" id="aboutTabBtn_contact" onclick="switchAboutTab('contact')" style="padding:10px 13px;font-size:12px;font-weight:700;border:none;background:transparent;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+      <button type="button" id="aboutTabBtn_contact" onclick="switchAboutTab('contact')" style="padding:10px 14px;font-size:12.5px;font-weight:700;border:none;background:transparent;color:#64748b;border-bottom:3px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;">
         📞 Contact Info
       </button>
     </div>
 
     <!-- Tab 1: Software Information -->
-    <div id="aboutTabContent_info" style="padding:20px;display:block;">
+    <div id="aboutTabContent_info" style="padding:18px;display:block;flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:calc(92vh - 125px);">
       <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
         <span style="font-size:28px;">⚡</span>
         <div>
@@ -811,7 +826,7 @@ $phpVer = PHP_VERSION;
     </div>
 
     <!-- Tab 2: License Details -->
-    <div id="aboutTabContent_license" style="padding:20px;display:none;">
+    <div id="aboutTabContent_license" style="padding:16px 18px;display:none;flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:calc(92vh - 125px);">
       <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
         <span style="font-size:28px;">📜</span>
         <div>
@@ -850,7 +865,7 @@ $phpVer = PHP_VERSION;
     </div>
 
     <!-- Tab 3: User Guide & Quick Help (Interactive Accordion FAQ Style) -->
-    <div id="aboutTabContent_guide" style="padding:16px 20px;display:none;max-height:450px;overflow-y:auto;direction:rtl;text-align:right;">
+    <div id="aboutTabContent_guide" style="padding:14px 16px 20px;display:none;flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:calc(92vh - 125px);direction:rtl;text-align:right;">
       <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;direction:rtl;">
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:24px;">📖</span>
@@ -1334,7 +1349,7 @@ $phpVer = PHP_VERSION;
     </div>
 
     <!-- Tab 4: Contact Info -->
-    <div id="aboutTabContent_contact" style="padding:20px;display:none;">
+    <div id="aboutTabContent_contact" style="padding:16px 18px;display:none;flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:calc(92vh - 125px);">
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
         <span style="font-size:28px;">📞</span>
         <div>
@@ -1371,8 +1386,8 @@ $phpVer = PHP_VERSION;
       </div>
     </div>
 
-    <!-- Modal Footer -->
-    <div style="padding:12px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <!-- Modal Footer (Fixed at bottom) -->
+    <div style="flex-shrink:0;padding:10px 16px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <button type="button" onclick="switchAboutTab('guide')" class="btn sm" style="background:#0284c7;color:#ffffff;border:none;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;">
           📖 Quick Guide <span class="ur">(رہنمائی و ہدایات)</span>
@@ -1694,12 +1709,12 @@ function escapeHtml(str) {
 }
 
 // About Software Modal Controller
-function openAboutSoftwareModal() {
+function openAboutSoftwareModal(initialTab) {
   var m = document.getElementById('aboutSoftwareModal');
   if (m) {
     m.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    switchAboutTab('info');
+    switchAboutTab(initialTab || 'info');
     closeAppMobileSidebar();
   }
 }
@@ -1728,6 +1743,8 @@ function switchAboutTab(tab) {
         btn.style.color = '#2563eb';
         btn.style.borderBottom = '3px solid #2563eb';
         content.style.display = 'block';
+        content.scrollTop = 0;
+        try { btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } catch(e){}
       } else {
         btn.style.color = '#64748b';
         btn.style.borderBottom = '3px solid transparent';

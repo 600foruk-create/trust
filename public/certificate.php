@@ -129,6 +129,72 @@ $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
             background: #ffffff;
         }
 
+        /* Mobile Responsive Adjustments */
+        @media (max-width: 768px) {
+            body {
+                padding: 8px 6px;
+            }
+            .top-action-bar {
+                padding: 12px 14px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .top-action-bar .cert-action-btns {
+                flex-direction: column;
+                width: 100%;
+                gap: 8px;
+            }
+            .top-action-bar .btn {
+                width: 100%;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+            .cert-sheet {
+                border-width: 8px;
+                outline-width: 2px;
+                outline-offset: -4px;
+                padding: 24px 12px 20px;
+                border-radius: 6px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            }
+            .corner {
+                width: 20px;
+                height: 20px;
+            }
+            .corner-tl { top: 6px; right: 6px; }
+            .corner-tr { top: 6px; left: 6px; }
+            .corner-bl { bottom: 6px; right: 6px; }
+            .corner-br { bottom: 6px; left: 6px; }
+            .cert-title-h1 {
+                font-size: 20px !important;
+                letter-spacing: 1px !important;
+            }
+            .cert-recipient-box {
+                min-width: unset !important;
+                width: 100% !important;
+                padding: 6px 10px 4px !important;
+                box-sizing: border-box;
+            }
+            .cert-recipient-name {
+                font-size: 21px !important;
+            }
+            .cert-scores-grid {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
+            }
+            .cert-signatures-row {
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 16px !important;
+            }
+            .cert-footnote {
+                flex-direction: column !important;
+                text-align: center !important;
+                gap: 6px !important;
+            }
+        }
+
         @media print {
             body {
                 background: #ffffff !important;
@@ -173,7 +239,7 @@ $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
             </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div class="cert-action-btns" style="display:flex;align-items:center;gap:10px;">
             <button type="button" onclick="window.print()" class="btn" style="background:#d97706;color:#ffffff;border:none;font-weight:700;padding:9px 18px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;box-shadow:0 2px 4px rgba(0,0,0,0.25);">
                 🖨️ پرنٹ / محفوظ کریں (Print to PDF)
             </button>
@@ -212,7 +278,7 @@ $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
 
         <!-- Certificate Title -->
         <div style="text-align:center;margin-bottom:16px;">
-            <h1 style="font-family:'Cinzel', serif;font-size:28px;color:#0f172a;letter-spacing:2px;margin:0;font-weight:900;text-transform:uppercase;">
+            <h1 class="cert-title-h1" style="font-family:'Cinzel', serif;font-size:28px;color:#0f172a;letter-spacing:2px;margin:0;font-weight:900;text-transform:uppercase;">
                 CERTIFICATE OF LIFETIME EXCELLENCE
             </h1>
             <div style="font-size:17px;font-weight:700;color:#b45309;margin-top:2px;" class="cert-ur-nastaliq">
@@ -236,8 +302,8 @@ $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
             </div>
 
             <!-- Recipient Name Box -->
-            <div style="display:inline-block;padding:6px 36px 4px;border-bottom:2.5px solid #d97706;min-width:420px;">
-                <div style="font-size:26px;font-weight:800;color:#0f172a;line-height:1.3;">
+            <div class="cert-recipient-box" style="display:inline-block;padding:6px 36px 4px;border-bottom:2.5px solid #d97706;min-width:420px;">
+                <div class="cert-recipient-name" style="font-size:26px;font-weight:800;color:#0f172a;line-height:1.3;">
                     <?=$recipientNameUrdu?>
                 </div>
                 <div style="font-size:16px;font-weight:700;color:#1e3a8a;font-family:'Cinzel', serif;margin-top:2px;">
@@ -259,7 +325,7 @@ $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
         </div>
 
         <!-- Distinction Badges / Marks Score -->
-        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;max-width:880px;margin:0 auto 20px;font-size:12px;">
+        <div class="cert-scores-grid" style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;max-width:880px;margin:0 auto 20px;font-size:12px;">
             <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px;text-align:center;">
                 <span style="color:#64748b;display:block;font-size:10.5px;">Honorary Score</span>
                 <b style="color:#d97706;font-size:16px;">1000 / 100</b>
@@ -286,7 +352,7 @@ $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
         </div>
 
         <!-- Seal & Signatures Row -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px;padding-top:14px;border-top:1.5px solid #e2e8f0;flex-wrap:wrap;gap:14px;">
+        <div class="cert-signatures-row" style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px;padding-top:14px;border-top:1.5px solid #e2e8f0;flex-wrap:wrap;gap:14px;">
             
             <!-- Left Signature: SoftifyX Technologies -->
             <div style="text-align:center;min-width:180px;">
@@ -330,7 +396,7 @@ $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
         </div>
 
         <!-- Verification Footnote -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;font-size:10px;color:#94a3b8;border-top:1px dashed #cbd5e1;padding-top:7px;">
+        <div class="cert-footnote" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;font-size:10px;color:#94a3b8;border-top:1px dashed #cbd5e1;padding-top:7px;">
             <div>
                 Certificate ID: <strong style="font-family:monospace;color:#475569;"><?=$certNumber?></strong>
             </div>

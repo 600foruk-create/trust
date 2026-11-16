@@ -94,6 +94,73 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
 
+        /* Mobile Responsive Adjustments */
+        @media (max-width: 768px) {
+            body {
+                background: #f1f5f9;
+            }
+            .no-print-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                padding: 10px 14px;
+            }
+            .no-print-bar .action-btns {
+                flex-direction: column;
+                width: 100%;
+                gap: 8px;
+            }
+            .no-print-bar .btn {
+                width: 100%;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+            .brochure-sheet {
+                margin: 0;
+                border-radius: 0;
+                border: none;
+                box-shadow: none;
+            }
+            .hero-banner {
+                padding: 22px 16px 18px;
+            }
+            .hero-banner .brand-badge {
+                width: 100%;
+                margin-top: 10px;
+                box-sizing: border-box;
+            }
+            .benefits-section {
+                padding: 14px 14px !important;
+            }
+            .modules-section {
+                padding: 18px 14px !important;
+            }
+            .modules-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 4px;
+            }
+            .modules-grid {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+            .terms-section {
+                padding: 16px 14px !important;
+            }
+            .terms-grid {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+            .brochure-footer {
+                padding: 20px 14px !important;
+            }
+            .footer-cta-box {
+                width: 100%;
+                text-align: center !important;
+                box-sizing: border-box;
+            }
+        }
+
         @media print {
             body {
                 background: #ffffff;
@@ -139,7 +206,7 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
             </div>
         </div>
 
-        <div style="display:flex;gap:10px;align-items:center;">
+        <div class="action-btns" style="display:flex;gap:10px;align-items:center;">
             <button type="button" onclick="window.print()" class="btn" style="background:#2563eb;color:#ffffff;border:none;font-weight:700;padding:8px 16px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;box-shadow:0 2px 4px rgba(0,0,0,0.2);">
                 🖨️ Save as PDF / Print <span style="font-size:11px;">(پی ڈی ایف ڈاؤنلوڈ)</span>
             </button>
@@ -180,7 +247,7 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
                 </div>
 
                 <!-- Software Brand Badge -->
-                <div style="background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:14px 18px;text-align:center;min-width:170px;">
+                <div class="brand-badge" style="background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:14px 18px;text-align:center;min-width:170px;">
                     <div style="font-size:26px;">🏛️</div>
                     <b style="color:#ffffff;font-size:13px;display:block;margin-top:4px;">SoftifyX Technologies</b>
                     <span style="color:#93c5fd;font-size:11px;display:block;">Enterprise Stack 2026</span>
@@ -192,7 +259,7 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
         </div>
 
         <!-- 4 Quick Institutional Benefits -->
-        <div style="background:#f1f5f9;padding:16px 36px;border-bottom:1px solid #cbd5e1;">
+        <div class="benefits-section" style="background:#f1f5f9;padding:16px 36px;border-bottom:1px solid #cbd5e1;">
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;">
                 <div class="benefit-pill">
                     <span style="font-size:20px;">⚖️</span>
@@ -229,8 +296,8 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
         </div>
 
         <!-- 10 Hero Modules Grid -->
-        <div style="padding:28px 36px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">
+        <div class="modules-section" style="padding:28px 36px;">
+            <div class="modules-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">
                 <h2 style="font-size:18px;color:#0f172a;margin:0;display:flex;align-items:center;gap:8px;">
                     <span>⭐</span>
                     <span>سافٹ ویئر کے سولہ جامع اور انقلابی ماڈیولز (16 Core Modules)</span>
@@ -238,7 +305,7 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
                 <span style="font-size:12px;color:#64748b;font-weight:600;">All-in-One Enterprise ERP</span>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(270px, 1fr));gap:14px;">
+            <div class="modules-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(270px, 1fr));gap:14px;">
 
                 <!-- Module 1 -->
                 <div class="module-card">
@@ -420,8 +487,8 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
         </div>
 
         <!-- Institutional Terms & Guarantee -->
-        <div style="background:#f8fafc;padding:24px 36px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:12.5px;">
+        <div class="terms-section" style="background:#f8fafc;padding:24px 36px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
+            <div class="terms-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:12.5px;">
                 <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;padding:14px;">
                     <b style="color:#1e3a8a;font-size:13px;display:block;margin-bottom:6px;">🔒 100% ڈیٹا ملکیت اور رازداری:</b>
                     <span style="color:#475569;line-height:1.6;display:block;">
@@ -439,7 +506,7 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
         </div>
 
         <!-- Call to Action & Contact Details Footer -->
-        <div style="background:#0f172a;color:#ffffff;padding:28px 36px;">
+        <div class="brochure-footer" style="background:#0f172a;color:#ffffff;padding:28px 36px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px;">
                 <div>
                     <span style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;font-weight:700;">
@@ -454,7 +521,7 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
                 </div>
 
                 <!-- Contact & WhatsApp CTA Box -->
-                <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);padding:12px 18px;border-radius:10px;text-align:right;">
+                <div class="footer-cta-box" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);padding:12px 18px;border-radius:10px;text-align:right;">
                     <div style="font-size:11px;color:#cbd5e1;">بالمشافہ ڈیمو یا آن لائن ٹیسٹنگ کے لیے رابطہ فرمائیں:</div>
                     <div style="font-size:18px;font-weight:800;color:#22c55e;margin:3px 0;" dir="ltr">
                         +92 331 7240256

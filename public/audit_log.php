@@ -9,6 +9,15 @@ if (!has_permission('audit.view') && !can_approve() && !in_array(current_user()[
 $activePage = 'audit_log';
 $madrasaName = function_exists('get_setting') ? get_setting('madrasa_name', 'Trust Accounts') : 'Trust Accounts';
 
+// Ensure audit_logs table exists (Auto-create if not yet created)
+try {
+    $pdo->query("SELECT 1 FROM audit_logs LIMIT 1");
+} catch (Throwable $e) {
+    if (function_exists('run_schema_and_seed_migrations')) {
+        run_schema_and_seed_migrations($pdo);
+    }
+}
+
 // Filters
 $actionFilter = trim($_GET['action_type'] ?? 'all');
 $userFilter = (int)($_GET['user_id'] ?? 0);

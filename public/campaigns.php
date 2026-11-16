@@ -10,6 +10,15 @@ $activePage = 'campaigns';
 $error = '';
 $success = '';
 
+// Ensure campaigns table exists (Auto-create if not yet created)
+try {
+    $pdo->query("SELECT 1 FROM campaigns LIMIT 1");
+} catch (Throwable $e) {
+    if (function_exists('run_schema_and_seed_migrations')) {
+        run_schema_and_seed_migrations($pdo);
+    }
+}
+
 $userId = (int)current_user()['id'];
 $canManageCampaigns = has_permission('campaigns.manage') || can_approve();
 $madrasaName = function_exists('get_setting') ? get_setting('madrasa_name', 'Trust Accounts') : 'Trust Accounts';

@@ -11,6 +11,24 @@ $activePage = 'budgets';
 $error = '';
 $success = '';
 
+// Ensure budgets table exists (Auto-create if not yet created)
+try {
+    $pdo->query("SELECT 1 FROM budgets LIMIT 1");
+} catch (Throwable $e) {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS budgets (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      account_id BIGINT UNSIGNED NOT NULL,
+      fiscal_month VARCHAR(7) NOT NULL,
+      budget_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+      alert_threshold_percent INT UNSIGNED NOT NULL DEFAULT 80,
+      created_by BIGINT UNSIGNED NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_acc_month (account_id, fiscal_month),
+      INDEX idx_bgt_month (fiscal_month)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
 $userId = (int)current_user()['id'];
 $canManageBudgets = has_permission('budgets.manage') || can_approve();
 $madrasaName = function_exists('get_setting') ? get_setting('madrasa_name', 'Trust Accounts') : 'Trust Accounts';

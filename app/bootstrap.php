@@ -484,11 +484,11 @@ function run_schema_and_seed_migrations(PDO $pdo): void {
           budget_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
           alert_threshold_percent INT UNSIGNED NOT NULL DEFAULT 80,
           created_by BIGINT UNSIGNED NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
           UNIQUE KEY uniq_acc_month (account_id, fiscal_month),
           INDEX idx_bgt_month (fiscal_month)
-        ) ENGINE=InnoDB");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     } catch (Throwable $e) {}
 
     // Ensure inventory tables exist (In-Kind Donations & Ration Stock)
@@ -815,14 +815,14 @@ try {
 
 try {
     $schemaVer = get_setting('schema_version', '');
-    if ($schemaVer !== '2.7') {
+    if ($schemaVer !== '2.9.1') {
         run_schema_and_seed_migrations($pdo);
-        set_setting('schema_version', '2.7');
+        set_setting('schema_version', '2.9.1');
     }
 } catch (Throwable $e) {
     try {
         run_schema_and_seed_migrations($pdo);
-        set_setting('schema_version', '2.7');
+        set_setting('schema_version', '2.9.1');
     } catch (Throwable $ex) {}
 }
 

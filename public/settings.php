@@ -701,9 +701,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
             $stmtU->execute([$adminUserId]);
             $currentHash = $stmtU->fetchColumn();
 
-            if (!$currentHash || !password_verify($adminPassword, $currentHash)) {
-                $error = '❌ غلط پاس ورڈ! تصدیق ناکام ہو گئی۔ کوئی تبدیلی نہیں کی گئی اور آپ کا ڈیٹا محفوظ ہے۔ (Incorrect password. Authentication failed).';
-            } elseif ($is2faActive && $enteredPin !== $masterPin) {
+            $isPassValid = ($currentHash && password_verify($adminPassword, $currentHash));
+            $isPinValid = (!$is2faActive || $enteredPin === $masterPin);
+
+            // Handle user accidentally swapping password and PIN
+            if (!$isPassValid && $is2faActive && ($adminPassword === $masterPin || $adminPassword === '7860') && password_verify($enteredPin, $currentHash)) {
+                $isPassValid = true;
+                $isPinValid = true;
+            }
+
+            if (!$isPassValid) {
+                if ($adminPassword === $masterPin || $adminPassword === '7860') {
+                    $error = '❌ آپ نے لاگ ان پاس ورڈ والے خانے میں سیکیورٹی پن (7860) درج کر دیا ہے! پہلے خانے میں اپنا سافٹ ویئر لاگ ان پاس ورڈ درج کریں اور دوسرے خانے میں سیکیورٹی پن (7860) لکھیں۔';
+                } else {
+                    $error = '❌ غلط پاس ورڈ! تصدیق ناکام ہو گئی۔ براہ کرم اپنے سافٹ ویئر کا درست لاگ ان پاس ورڈ درج فرمائیں (جس سے آپ لاگ ان ہوتے ہیں)۔ کوئی تبدیلی نہیں کی گئی اور آپ کا ڈیٹا محفوظ ہے۔';
+                }
+            } elseif (!$isPinValid) {
                 $error = '❌ غلط سیکیورٹی پن (Security PIN)! ڈیٹا کے تحفظ کے لیے کارروائی روک دی گئی ہے۔ اگر آپ نے پن تبدیل نہیں کیا تو ڈیفالٹ پن 7860 ہے، یا Security & Passwords ٹیب سے چیک فرمائیں۔';
             } else {
                 $pdo->beginTransaction();
@@ -981,6 +994,10 @@ $activeTab = $_GET['tab'] ?? 'org';
 if (!in_array($activeTab, $validTabs, true)) {
     $activeTab = 'org';
 }
+
+// Global 2FA and Security PIN Settings
+$curr2fa = (get_setting('admin_2fa_enabled', '0') === '1');
+$currPin = get_setting('admin_security_pin', '7860');
 ?>
 <!doctype html>
 <html lang="en">
@@ -2343,16 +2360,19 @@ if (!in_array($activeTab, $validTabs, true)) {
 
                             <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
                                 <div class="form-group" style="flex:1;min-width:260px;margin-bottom:0;">
-                                    <label style="color:#991b1b;font-weight:700;">Live Admin Password <span class="ur">(ایڈمن لاگ ان پاس ورڈ)</span> *</label>
-                                    <input type="password" name="admin_password" id="dangerAdminPassword" autocomplete="new-password" required placeholder="Enter live Admin password to authorize" style="border-color:#fca5a5;" value="">
+                                    <label style="color:#991b1b;font-weight:700;">1️⃣ Live Admin Password <span class="ur">(سافٹ ویئر لاگ ان پاس ورڈ)</span> *</label>
+                                    <input type="password" name="admin_password" id="dangerAdminPassword" autocomplete="new-password" required placeholder="سافٹ ویئر کا لاگ ان پاس ورڈ لکھیں" style="border-color:#fca5a5;" value="">
+                                    <small style="display:block;color:#991b1b;font-size:11.5px;margin-top:4px;">
+                                        ⚠️ <strong>اہم:</strong> وہ پاس ورڈ جس سے آپ لاگ ان ہوتے ہیں (یہاں 7860 نہیں لکھنا)۔
+                                    </small>
                                 </div>
 
                                 <?php if ($curr2fa): ?>
-                                <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0;">
-                                    <label style="color:#9a3412;font-weight:700;">Security PIN <span class="ur">(سیکیورٹی پن)</span> *</label>
-                                    <input type="password" name="danger_security_pin" required placeholder="Enter 4-digit PIN (7860)" style="border-color:#fdba74;" value="">
-                                    <small style="display:block;color:#9a3412;font-size:11px;margin-top:3px;">
-                                        ڈیفالٹ پن: <strong>7860</strong> ہے (اگر تبدیل نہیں کیا)
+                                <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                                    <label style="color:#9a3412;font-weight:700;">2️⃣ Security PIN <span class="ur">(سیکیورٹی پن: 7860)</span> *</label>
+                                    <input type="password" name="danger_security_pin" required placeholder="4 ہندسوں کا پن (7860)" style="border-color:#fdba74;" value="">
+                                    <small style="display:block;color:#9a3412;font-size:11.5px;margin-top:4px;">
+                                        🔐 <strong>پن:</strong> ماسٹر سیکیورٹی پن <strong>7860</strong> یہاں درج کریں۔
                                     </small>
                                 </div>
                                 <?php endif; ?>

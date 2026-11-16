@@ -704,7 +704,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
             if (!$currentHash || !password_verify($adminPassword, $currentHash)) {
                 $error = '❌ غلط پاس ورڈ! تصدیق ناکام ہو گئی۔ کوئی تبدیلی نہیں کی گئی اور آپ کا ڈیٹا محفوظ ہے۔ (Incorrect password. Authentication failed).';
             } elseif ($is2faActive && $enteredPin !== $masterPin) {
-                $error = '❌ غلط سیکیورٹی پن (Security PIN)! ڈیٹا کے تحفظ کے لیے ڈینجر زون کارروائی روک دی گئی ہے۔ (Invalid Security PIN).';
+                $error = '❌ غلط سیکیورٹی پن (Security PIN)! ڈیٹا کے تحفظ کے لیے کارروائی روک دی گئی ہے۔ اگر آپ نے پن تبدیل نہیں کیا تو ڈیفالٹ پن 7860 ہے، یا Security & Passwords ٹیب سے چیک فرمائیں۔';
             } else {
                 $pdo->beginTransaction();
                 $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
@@ -2350,7 +2350,10 @@ if (!in_array($activeTab, $validTabs, true)) {
                                 <?php if ($curr2fa): ?>
                                 <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0;">
                                     <label style="color:#9a3412;font-weight:700;">Security PIN <span class="ur">(سیکیورٹی پن)</span> *</label>
-                                    <input type="password" name="danger_security_pin" required placeholder="Enter 4-digit PIN" style="border-color:#fdba74;" value="">
+                                    <input type="password" name="danger_security_pin" required placeholder="Enter 4-digit PIN (7860)" style="border-color:#fdba74;" value="">
+                                    <small style="display:block;color:#9a3412;font-size:11px;margin-top:3px;">
+                                        ڈیفالٹ پن: <strong>7860</strong> ہے (اگر تبدیل نہیں کیا)
+                                    </small>
                                 </div>
                                 <?php endif; ?>
 

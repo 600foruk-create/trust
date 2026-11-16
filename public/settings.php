@@ -467,12 +467,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $finYearStart = trim($_POST['financial_year_start'] ?? '07-01');
             $allowedLangs = ['english', 'bilingual', 'bilingual_ur', 'bilingual_ar', 'bilingual_ps', 'bilingual_fa'];
             $uiLanguage = in_array($_POST['ui_language'] ?? '', $allowedLangs, true) ? $_POST['ui_language'] : 'bilingual_ur';
+            $allowedFonts = ['system', 'jameel', 'noto_nastaliq', 'amiri'];
+            $urduFont = in_array($_POST['urdu_font'] ?? '', $allowedFonts, true) ? $_POST['urdu_font'] : 'system';
             $orgType = in_array($_POST['org_type'] ?? '', ['trust', 'madrasa'], true) ? $_POST['org_type'] : 'trust';
 
             $stmt->execute(['currency', $currency]);
             $stmt->execute(['timezone', $timezone]);
             $stmt->execute(['financial_year_start', $finYearStart]);
             $stmt->execute(['ui_language', $uiLanguage]);
+            $stmt->execute(['urdu_font', $urduFont]);
             $stmt->execute(['org_type', $orgType]);
             $cashSettlementMode = in_array($_POST['cash_settlement_mode'] ?? '', ['two_step', 'auto_settle'], true) ? $_POST['cash_settlement_mode'] : 'two_step';
             $stmt->execute(['cash_settlement_mode', $cashSettlementMode]);
@@ -903,6 +906,7 @@ $currency = $settingsRows['currency'] ?? 'PKR';
 $timezone = $settingsRows['timezone'] ?? 'Asia/Karachi';
 $finYearStart = $settingsRows['financial_year_start'] ?? '07-01';
 $uiLanguage = $settingsRows['ui_language'] ?? 'bilingual';
+$urduFont = $settingsRows['urdu_font'] ?? (function_exists('get_urdu_font') ? get_urdu_font() : 'system');
 $orgType = $settingsRows['org_type'] ?? 'trust';
 $cashSettlementMode = $settingsRows['cash_settlement_mode'] ?? 'two_step';
 $cashierMaxLimit = $settingsRows['cashier_max_cash_limit'] ?? '50000';
@@ -1012,6 +1016,20 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Settings | <?=e($madrasaName)?></title>
     <link rel="stylesheet" href="assets/style.css?v=<?=css_ver()?>">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&family=Amiri:wght@400;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/jameel-noori-nastaleeq">
+    <style>
+    @font-face {
+        font-family: 'Jameel Noori Nastaleeq';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: local('Jameel Noori Nastaleeq'),
+             local('Jameel Noori Nastaleeq Kasheeda'),
+             url('assets/fonts/JameelNooriNastaleeq.woff') format('woff'),
+             url('https://fonts.cdnfonts.com/s/149204/JameelNooriNastaleeqRegular.woff') format('woff');
+    }
+    </style>
 </head>
 <body>
 <div class="app-shell">
@@ -1647,6 +1665,39 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                             <small class="muted" style="display:block;margin-top:8px;font-size:11.5px;line-height:1.4;">
                                 <span class="ur">آپ اردو، عربی، پښتو یا فارسی میں سے اپنی پسندیدہ زبان منتخب کر سکتے ہیں، یا خالص انگریزی کے لیے <b>English Only</b> منتخب کر سکتے ہیں۔</span>
                                 <span class="en-only" style="display:none;">Choose between Urdu, Arabic, Pashto, Persian, or English Only mode for the system interface.</span>
+                            </small>
+                        </div>
+
+                        <!-- Urdu Typography & Font Style Option -->
+                        <div class="form-group" style="margin-bottom:20px;padding:16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;">
+                            <label style="font-weight:700;display:block;margin-bottom:6px;font-size:14px;color:#0f172a;">
+                                ✒️ Urdu &amp; Subtitle Typography / Font Style <span class="ur">(اردو فونٹ اور خطاطی کا انداز)</span>
+                            </label>
+                            <p style="font-size:12px;color:#166534;margin:0 0 10px 0;">
+                                سسٹم کے تمام اردو عنوانات، رسیدوں، واؤچرز اور مینیوز کے لیے اپنی پسندیدہ خطاطی منتخب کریں۔ (Select typography/font style for Urdu subtitles, slips, and menus).
+                            </p>
+                            <select name="urdu_font" id="urduFontSelect" onchange="previewUrduFont(this.value)" style="width:100%;font-size:14px;padding:10px 12px;border:1.5px solid #22c55e;border-radius:7px;background:#ffffff;font-weight:700;color:#0f172a;">
+                                <option value="system" <?=$urduFont === 'system' ? 'selected' : ''?>>⚡ سادہ کمپیوٹرائزڈ نسخ (System Default - تیز رفتار، سیدھا)</option>
+                                <option value="jameel" <?=$urduFont === 'jameel' ? 'selected' : ''?>>📜 جمیل نوری نستعلیق (Jameel Noori Nastaleeq - روایتی قلمی خطاطی)</option>
+                                <option value="noto_nastaliq" <?=$urduFont === 'noto_nastaliq' ? 'selected' : ''?>>🌸 گوگل نوٹو نستعلیق (Google Noto Nastaliq Urdu - جدید و ہموار)</option>
+                                <option value="amiri" <?=$urduFont === 'amiri' ? 'selected' : ''?>>📖 خطِ نسخ و ثلث / امیری (Amiri / Islamic Naskh - دینی و قرآنی کتب جیسا)</option>
+                            </select>
+
+                            <!-- Live Font Preview Box -->
+                            <div id="fontPreviewCard" style="margin-top:12px;background:#ffffff;border:1.5px solid #86efac;border-radius:8px;padding:12px 14px;direction:rtl;text-align:right;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                                    <span style="font-size:11px;color:#166534;font-weight:700;">فونٹ کا لائیو نمونہ (Live Preview):</span>
+                                    <span id="fontPreviewBadge" class="badge" style="background:#15803d;color:#ffffff;font-size:10.5px;padding:3px 9px;border-radius:10px;font-weight:700;">
+                                        <?=$urduFont === 'jameel' ? 'جمیل نوری نستعلیق' : ($urduFont === 'noto_nastaliq' ? 'گوگل نوٹو نستعلیق' : ($urduFont === 'amiri' ? 'خطِ نسخ امیری' : 'سسٹم ڈیفالٹ'))?>
+                                    </span>
+                                </div>
+                                <div id="fontPreviewSample" style="font-size:20px;color:#0f172a;line-height:2;">
+                                    بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — دینی مدارس اور فلاحی ٹرسٹس کا مکمل کمپیوٹرائزڈ فنانشل اکاؤنٹنگ سوفٹ ویئر
+                                </div>
+                            </div>
+
+                            <small class="muted" style="display:block;margin-top:8px;font-size:11.5px;line-height:1.4;color:#166534;">
+                                <span><b>جمیل نوری نستعلیق</b> منتخب کرنے پر تمام اردو الفاظ خوبصورت کتابتی انداز میں بدل جائیں گے۔ کمپیوٹر، موبائل اور ٹیبلٹ پر یہ خودکار لوڈ ہوتا ہے۔</span>
                             </small>
                         </div>
 
@@ -3162,6 +3213,37 @@ function updateFundCardStyle(fid, isChecked) {
         card.style.borderColor = isChecked ? '#10b981' : '#cbd5e1';
     }
 }
+
+function previewUrduFont(val) {
+    var sample = document.getElementById('fontPreviewSample');
+    var badge = document.getElementById('fontPreviewBadge');
+    if (!sample) return;
+    if (val === 'jameel') {
+        sample.style.fontFamily = "'Jameel Noori Nastaleeq', 'Jameel Noori Nastaleeq Kasheeda', 'Noto Nastaliq Urdu', serif";
+        sample.style.lineHeight = '2.1';
+        sample.style.fontSize = '22px';
+        if (badge) { badge.textContent = 'جمیل نوری نستعلیق'; badge.style.background = '#15803d'; }
+    } else if (val === 'noto_nastaliq') {
+        sample.style.fontFamily = "'Noto Nastaliq Urdu', serif";
+        sample.style.lineHeight = '2';
+        sample.style.fontSize = '20px';
+        if (badge) { badge.textContent = 'گوگل نوٹو نستعلیق'; badge.style.background = '#0284c7'; }
+    } else if (val === 'amiri') {
+        sample.style.fontFamily = "'Amiri', serif";
+        sample.style.lineHeight = '1.7';
+        sample.style.fontSize = '21px';
+        if (badge) { badge.textContent = 'خطِ نسخ امیری'; badge.style.background = '#d97706'; }
+    } else {
+        sample.style.fontFamily = 'inherit';
+        sample.style.lineHeight = '1.6';
+        sample.style.fontSize = '18px';
+        if (badge) { badge.textContent = 'سسٹم ڈیفالٹ'; badge.style.background = '#64748b'; }
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var sel = document.getElementById('urduFontSelect');
+    if (sel) previewUrduFont(sel.value);
+});
 </script>
 </body>
 </html>

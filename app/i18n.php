@@ -57,6 +57,59 @@ if (!function_exists('get_ui_language_info')) {
     }
 }
 
+if (!function_exists('get_urdu_font')) {
+    function get_urdu_font(): string {
+        $font = function_exists('get_setting') ? get_setting('urdu_font', 'system') : 'system';
+        $allowed = ['system', 'jameel', 'noto_nastaliq', 'amiri'];
+        return in_array($font, $allowed, true) ? $font : 'system';
+    }
+}
+
+if (!function_exists('get_urdu_font_info')) {
+    function get_urdu_font_info(?string $key = null): array {
+        if ($key === null) $key = get_urdu_font();
+        $map = [
+            'system' => [
+                'key' => 'system',
+                'name' => 'سادہ کمپیوٹرائزڈ نسخ (System Default - تیز رفتار، سیدھا)',
+                'label' => 'Standard Computerized Naskh (System Default)',
+                'family' => 'inherit',
+                'line_height' => '1.5',
+                'scale' => '1em',
+                'google_fonts' => '',
+            ],
+            'jameel' => [
+                'key' => 'jameel',
+                'name' => 'جمیل نوری نستعلیق (Jameel Noori Nastaleeq - روایتی قلمی خطاطی)',
+                'label' => 'Jameel Noori Nastaleeq (Classic Authentic Calligraphy)',
+                'family' => "'Jameel Noori Nastaleeq', 'Jameel Noori Nastaleeq Kasheeda', 'Noto Nastaliq Urdu', serif",
+                'line_height' => '1.9',
+                'scale' => '1.08em',
+                'google_fonts' => 'https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap',
+            ],
+            'noto_nastaliq' => [
+                'key' => 'noto_nastaliq',
+                'name' => 'گوگل نوٹو نستعلیق (Google Noto Nastaliq Urdu - جدید و ہموار)',
+                'label' => 'Google Noto Nastaliq Urdu (Modern Digital Nastaliq)',
+                'family' => "'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif",
+                'line_height' => '1.85',
+                'scale' => '1.05em',
+                'google_fonts' => 'https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap',
+            ],
+            'amiri' => [
+                'key' => 'amiri',
+                'name' => 'خطِ نسخ و ثلث / امیری (Amiri / Islamic Naskh - دینی و قرآنی کتب جیسا)',
+                'label' => 'Amiri Arabic / Islamic Naskh (Quranic & Scholarly Script)',
+                'family' => "'Amiri', 'Traditional Arabic', 'Segoe UI', Tahoma, sans-serif",
+                'line_height' => '1.65',
+                'scale' => '1.05em',
+                'google_fonts' => 'https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap',
+            ],
+        ];
+        return $map[$key] ?? $map['system'];
+    }
+}
+
 if (!function_exists('get_multilingual_phrases')) {
     function get_multilingual_phrases(): array {
         return [

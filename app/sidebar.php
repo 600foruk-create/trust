@@ -7,6 +7,8 @@ $shortBrand = mb_strtoupper(mb_substr($madrasaName, 0, 2));
 $isUrdu = function_exists('is_urdu_enabled') ? is_urdu_enabled() : true;
 $uiLang = function_exists('get_ui_language') ? get_ui_language() : ($isUrdu ? 'ur' : 'en');
 $langInfo = function_exists('get_ui_language_info') ? get_ui_language_info($uiLang) : ['code' => 'ur', 'font' => '', 'dir' => 'rtl'];
+$activeUrduFont = function_exists('get_urdu_font') ? get_urdu_font() : 'system';
+$activeFontInfo = function_exists('get_urdu_font_info') ? get_urdu_font_info($activeUrduFont) : [];
 
 $pendingCount = 0;
 if (function_exists('has_permission') && has_permission('voucher.approve')) {
@@ -34,6 +36,43 @@ $recentLoginsList = function_exists('get_recent_login_activities') ? get_recent_
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Madrasa ERP">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
+<?php if (!empty($activeFontInfo['google_fonts'])): ?>
+<link rel="stylesheet" href="<?= $activeFontInfo['google_fonts'] ?>">
+<?php endif; ?>
+<?php if ($activeUrduFont === 'jameel'): ?>
+<link rel="stylesheet" href="https://fonts.cdnfonts.com/css/jameel-noori-nastaleeq">
+<style>
+@font-face {
+    font-family: 'Jameel Noori Nastaleeq';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: local('Jameel Noori Nastaleeq'),
+         local('Jameel Noori Nastaleeq Kasheeda'),
+         url('assets/fonts/JameelNooriNastaleeq.woff') format('woff'),
+         url('https://fonts.cdnfonts.com/s/149204/JameelNooriNastaleeqRegular.woff') format('woff');
+}
+</style>
+<?php endif; ?>
+<?php if ($uiLang !== 'en' && $activeUrduFont !== 'system'): ?>
+<style>
+.ur, .ur-sub, [data-i18n-ur], .cert-ur-nastaliq {
+    font-family: <?= $activeFontInfo['family'] ?> !important;
+    line-height: <?= $activeFontInfo['line_height'] ?> !important;
+}
+.sidebar .ur, .sidebar .ur-sub {
+    font-family: <?= $activeFontInfo['family'] ?> !important;
+    font-size: 11px !important;
+}
+h1 .ur, h2 .ur, h3 .ur, h4 .ur, .panel-heading .ur {
+    font-family: <?= $activeFontInfo['family'] ?> !important;
+}
+.form-group label span.ur {
+    font-family: <?= $activeFontInfo['family'] ?> !important;
+    font-size: 13px !important;
+}
+</style>
+<?php endif; ?>
 <?php if ($uiLang === 'en'): ?>
 <style>
 .ur, .ur-sub, div.ur, p.ur { display: none !important; }

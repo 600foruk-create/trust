@@ -233,7 +233,7 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">
                 <h2 style="font-size:18px;color:#0f172a;margin:0;display:flex;align-items:center;gap:8px;">
                     <span>⭐</span>
-                    <span>سافٹ ویئر کے دس بنیادی اور انقلابی ماڈیولز (Core Modules)</span>
+                    <span>سافٹ ویئر کے سولہ جامع اور انقلابی ماڈیولز (16 Core Modules)</span>
                 </h2>
                 <span style="font-size:12px;color:#64748b;font-weight:600;">All-in-One Enterprise ERP</span>
             </div>
@@ -369,6 +369,50 @@ $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($whatsappText);
                     </div>
                     <p style="margin:0;font-size:12px;color:#475569;line-height:1.6;">
                         دکانوں والے چھوٹے پرنٹر کی تیز رفتار تھرمل پرچی (بشمول تصدیقی QR Code) اور باقاعدہ لیٹر ہیڈ پرنٹنگ دونوں کی بیک وقت سہولت۔
+                    </p>
+                </div>
+
+                <!-- Module 13 -->
+                <div class="module-card" style="border-color:#fcd34d;background:#fffdfa;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                        <span style="font-size:22px;">📜</span>
+                        <b style="font-size:13.5px;color:#92400e;">13. لائف ٹائم ایکسیلنس سرٹیفکیٹ و اعزازات</b>
+                    </div>
+                    <p style="margin:0;font-size:12px;color:#475569;line-height:1.6;">
+                        صدر، چیف پیٹرن اور نمایاں ڈونرز کے لیے باوقار توصیفی سند (Certificate of Excellence) کا خودکار کمپیوٹرائزڈ اجرا مع گولڈن اسٹیمپ، تصویر اور لائیو تصدیقی کوڈ۔
+                    </p>
+                </div>
+
+                <!-- Module 14 -->
+                <div class="module-card" style="border-color:#86efac;background:#f0fdf4;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                        <span style="font-size:22px;">🧮</span>
+                        <b style="font-size:13.5px;color:#166534;">14. زکوٰۃ کیلکولیٹر و شرعی نصاب مینیجر</b>
+                    </div>
+                    <p style="margin:0;font-size:12px;color:#475569;line-height:1.6;">
+                        سونے چاندی کے مارکیٹ ریٹس، نقدی، مالِ تجارت اور قرضوں کی کٹوتی کے بعد زکوٰۃ کا 1-کلک شرعی حساب اور براہِ راست زکوٰۃ وصولی واؤچر کا اجرا۔
+                    </p>
+                </div>
+
+                <!-- Module 15 -->
+                <div class="module-card" style="border-color:#93c5fd;background:#eff6ff;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                        <span style="font-size:22px;">👥</span>
+                        <b style="font-size:13.5px;color:#1e40af;">15. جدید یوزر رائٹس و 18 شعبہ جات پرمیشنز</b>
+                    </div>
+                    <p style="margin:0;font-size:12px;color:#475569;line-height:1.6;">
+                        سیٹنگز میں تمام 18 شعبوں کے انفرادی اختیارات۔ کیشیئرز، نگرانوں اور صوبائی ڈائریکٹرز کے لیے 1-کلک پری سیٹس، برانچ مینجمنٹ اور سیکیورٹی کنٹرول۔
+                    </p>
+                </div>
+
+                <!-- Module 16 -->
+                <div class="module-card" style="border-color:#cbd5e1;background:#f8fafc;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                        <span style="font-size:22px;">💾</span>
+                        <b style="font-size:13.5px;color:#0f172a;">16. کلاؤڈ آرکائیو، بیک اپس و ڈیزاسٹر ریکوری</b>
+                    </div>
+                    <p style="margin:0;font-size:12px;color:#475569;line-height:1.6;">
+                        روزانہ خودکار کرون ڈیٹا بیس بیک اپ، کلاؤڈ محفوظ اسٹوریج، اور ہنگامی خرابی پر سابقہ ڈیٹا کی 1-سیکنڈ فوری مکمل بحالی (Disaster Recovery)۔
                     </p>
                 </div>
 

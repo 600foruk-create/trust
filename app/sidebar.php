@@ -1157,6 +1157,90 @@ $phpVer = PHP_VERSION;
           </div>
         </div>
 
+        <!-- FAQ 24: Users & Permissions Hub -->
+        <div class="ug-accordion-item" style="border:1.5px solid #bfdbfe;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#eff6ff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">👥</span>
+              <strong style="color:#1e40af;font-size:13px;">24. صارفین کو اختیارات دینے کا نیا طریقہ اور پرمیشنز مینیجر (Users &amp; Permissions Hub):</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#1e40af;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #bfdbfe;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • <b>سیٹنگز میں نیا ٹیب:</b> اب آپ <b>Settings ⚙️ -> 👥 Users &amp; Permissions</b> میں جا کر اپنے تمام فعال صارفین اور ان کے اختیارات کی تعداد ایک نظر میں دیکھ سکتے ہیں۔<br>
+            • <b>اختیارات میں ترمیم:</b> کسی بھی صارف کے آگے موجود <b>"🛡️ Edit Rights"</b> بٹن پر کلک کرنے سے اس کے انفرادی اختیارات کھل جاتے ہیں۔<br>
+            • <b>تمام 18 شعبہ جات:</b> آمدنی، اخراجات، واؤچر منظوری، بجٹ، راشن انوینٹری، مہمات، آڈٹ لاگ، بروشر، سرٹیفکیٹ اور زکوٰۃ سمیت تمام شعبوں کے چیک باکسز دستیاب ہیں۔<br>
+            • <b>1-کلک پری سیٹس (Presets):</b> اوپر دیے گئے بٹنوں (جیسے خزانچی، نائب مہتمم، صوبائی ڈائریکٹر) پر کلک کرنے سے متعلقہ تمام شعبہ جات خود بخود چند سیکنڈ میں منتخب ہو جاتے ہیں۔
+          </div>
+        </div>
+
+        <!-- FAQ 25: Lifetime Excellence Certificate -->
+        <div class="ug-accordion-item" style="border:1.5px solid #fed7aa;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#fffaf5;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">📜</span>
+              <strong style="color:#9a3412;font-size:13px;">25. لائف ٹائم ایکسیلنس سرٹیفکیٹ (Lifetime Excellence Certificate) اور اعزازی سند:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#9a3412;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #fed7aa;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • چیف پیٹرن و لیڈ ایڈمنسٹریٹر <b>محترم جناب لال محمد صاحب</b> کے لیے جاری کردہ سرکاری توصیفی سرٹیفکیٹ دیکھنے کے لیے <b>Settings -> Organization</b> ٹیب میں دیے گئے بٹن یا ڈائریکٹ <b>certificate.php</b> لنک کھولیں۔<br>
+            • یہ سرٹیفکیٹ 1000/100 مارکس، باوقار نستعلیق کیلیگرافی، گولڈن ایمبسڈ اسٹیمپ، تصویر اور لائیو تصدیقی کیو آر کوڈ کے ساتھ تیار ہے۔<br>
+            • اسے <b>🖨️ پرنٹ / PDF ڈاؤنلوڈ</b> کیا جا سکتا ہے اور <b>💬 واٹس ایپ</b> پر بھی شیئر کیا جا سکتا ہے۔ عملے کو یہ سرٹیفکیٹ دیکھنے کی اجازت دینے کے لیے <code>certificate.view</code> کا اختیار تفویض کریں۔
+          </div>
+        </div>
+
+        <!-- FAQ 26: Official Marketing Brochure -->
+        <div class="ug-accordion-item" style="border:1.5px solid #bfdbfe;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f0f9ff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">📑</span>
+              <strong style="color:#0369a1;font-size:13px;">26. آفیشل پروڈکٹ بروشر (Brochure) اور واٹس ایپ پر ڈیمو شیئرنگ کا طریقہ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#0369a1;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #bfdbfe;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • سافٹ ویئر کے تمام 16 جدید ماڈیولز پر مشتمل آفیشل مارکیٹنگ بروشر دیکھنے کے لیے <b>brochure.php</b> کھولیں۔<br>
+            • اوپر موجود <b>🖨️ Save as PDF / Print</b> سے خوبصورت رنگین یا سادہ A4 بروشر ڈاؤنلوڈ ہو جاتا ہے، جو ڈونرز یا انتظامیہ کے سامنے پیش کیا جا سکتا ہے۔<br>
+            • <b>💬 Share on WhatsApp</b> پر کلک کرنے سے سافٹ ویئر کا مکمل تعارف اور لائیو ڈیمو لنک واٹس ایپ پر خود بخود تیار ہو کر بھیجا جا سکتا ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 27: Zakat Calculator -->
+        <div class="ug-accordion-item" style="border:1.5px solid #a7f3d0;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#f0fdf4;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">🧮</span>
+              <strong style="color:#065f46;font-size:13px;">27. زکوٰۃ کیلکولیٹر اور سونے چاندی کے نصاب کا خودکار شرعی تخمینہ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#065f46;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #a7f3d0;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • بائیں مینو یا سیٹنگز سے <b>Zakat Calculator (zakat_calculator.php)</b> کھولیں۔<br>
+            • سونے اور چاندی کی مقدار (تولہ یا گرام میں)، نقدی رقم، مالِ تجارت اور قرضوں کے واجبات درج کریں۔<br>
+            • سسٹم سونے چاندی کے لائیو مارکیٹ ریٹس کے مطابق شرعی نصاب کا حساب لگاتا ہے اور بتاتا ہے کہ صاحبِ نصاب پر کتنی رقم زکوٰۃ واجب الادا بنتی ہے۔<br>
+            • حساب مکمل ہونے پر نیچے دیے گئے بٹن سے فوری طور پر زکوٰۃ وصولی کی کمپیوٹرائزڈ رسید جاری کی جا سکتی ہے۔
+          </div>
+        </div>
+
+        <!-- FAQ 28: Danger Zone Verification -->
+        <div class="ug-accordion-item" style="border:1.5px solid #fca5a5;border-radius:8px;background:#ffffff;overflow:hidden;transition:all 0.2s;">
+          <div class="ug-accordion-header" onclick="toggleUserGuideFaq(this)" style="padding:11px 14px;background:#fff5f5;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">⚠️</span>
+              <strong style="color:#991b1b;font-size:13px;">28. ڈینجر زون (Danger Zone) میں لاگ ان پاس ورڈ اور سیکیورٹی پن (7860) کا درست طریقہ:</strong>
+            </div>
+            <span class="ug-accordion-icon" style="font-size:13px;color:#991b1b;font-weight:bold;margin-right:8px;">➕</span>
+          </div>
+          <div class="ug-accordion-body" style="display:none;padding:12px 16px;border-top:1px solid #fca5a5;background:#fcfdfe;color:#334155;font-size:12.5px;line-height:1.7;">
+            • ڈینجر زون سسٹم کا سب سے حساس سیکشن ہے جہاں سے ٹیسٹ ڈیٹا وائپ یا مدرسہ/ٹرسٹ موڈ کی ترتیبات لاگو کی جاتی ہیں۔<br>
+            • یہاں دو الگ الگ خانے تصدیق کے لیے دیے گئے ہیں:<br>
+            &nbsp;&nbsp;&bull; <b>1️⃣ پہلا خانہ (Live Admin Password):</b> اس میں آپ کا سافٹ ویئر لاگ ان پاس ورڈ آئے گا جس سے آپ سائن ان ہوتے ہیں۔<br>
+            &nbsp;&nbsp;&bull; <b>2️⃣ دوسرا خانہ (Security PIN):</b> اس میں 4 ہندسوں کا ماسٹر پن <b>7860</b> درج کرنا ہوتا ہے۔<br>
+            • اگر غلطی سے پہلے خانے میں 7860 لکھ دیا جائے تو سسٹم خودکار طور پر اس کی نشاندہی کرتا ہے تاکہ آپ کا ڈیٹا 100% محفوظ رہے۔
+          </div>
+        </div>
+
       </div>
     </div>
 

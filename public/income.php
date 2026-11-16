@@ -679,28 +679,40 @@ $isFormOpen = ($editVoucher !== null)
                     <input type="hidden" name="voucher_id" value="<?=$editVoucher['id']?>">
                 <?php endif; ?>
 
+                <?php
+                $hasIncomeExtra = (!empty($editVoucher['foreign_currency']) && $editVoucher['foreign_currency'] !== 'PKR')
+                    || !empty($editVoucher['reference_no'])
+                    || !empty($editVoucher['donor_phone'])
+                    || !empty($editVoucher['receipt_file'])
+                    || (!empty($editVoucher['region_id']) && $isSuperAdmin);
+                ?>
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Voucher Date <span class="ur">تاریخ</span></label>
-                        <input type="date" name="voucher_date" value="<?=e($editVoucher['voucher_date'] ?? ($prefillDate ?: date('Y-m-d')))?>" required>
+                    <!-- 1. Total Amount (Prominent Top Field on Mobile) -->
+                    <div class="form-group mobile-highlight-amount" style="grid-column: 1 / -1;">
+                        <label style="font-size:14px;font-weight:700;color:#15803d;">
+                            💰 Total Amount <span class="ur">(کل رقم PKR)</span> *
+                        </label>
+                        <input type="number" step="0.01" min="1" name="amount" required placeholder="0.00" value="<?=e($editVoucher['total_amount'] ?? $prefillAmount)?>" style="font-weight:800;font-size:18px;color:#15803d;padding:10px 14px;border:2px solid #22c55e;border-radius:8px;">
                     </div>
 
-                    <?php if ($isSuperAdmin && !empty($allRegions)): ?>
+                    <!-- 2. Income Category / Head -->
                     <div class="form-group">
-                        <label>Province / Region <span class="ur">(صوبہ / علاقہ)</span></label>
-                        <select name="region_id">
-                            <option value="">-- Central / Head Office (مرکزی دفتر) --</option>
-                            <?php foreach ($allRegions as $reg): ?>
-                                <option value="<?=$reg['id']?>" <?=($editVoucher && (int)($editVoucher['region_id'] ?? 0) === (int)$reg['id']) ? 'selected' : ''?>>
-                                    🏛️ <?=e($reg['name'])?> (<?=e($reg['code'])?>)
+                        <label>Income Head <span class="ur">(آمدنی کی مد)</span> *</label>
+                        <select name="income_account_id" required>
+                            <option value="">-- Select Income Category --</option>
+                            <?php foreach ($incomeAccounts as $acc): ?>
+                                <?php $isAccSelected = ($editVoucher && (int)$editIncomeAcc === (int)$acc['id']) || (!$editVoucher && $prefillIncomeAccId === (int)$acc['id']); ?>
+                                <option value="<?=$acc['id']?>" <?=$isAccSelected ? 'selected' : ''?>>
+                                    <?=e($acc['account_code'])?> - <?=e(format_ui_text($acc['account_name']))?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <?php endif; ?>
 
+                    <!-- 3. Fund Account -->
                     <div class="form-group">
-                        <label>Fund Account <span class="ur">(کس فنڈ میں جمع ہوا)</span></label>
+                        <label>Fund Account <span class="ur">(کس فنڈ میں جمع ہوا)</span> *</label>
                         <select name="fund_id" id="fundSelect" required>
                             <option value="">-- Select Fund <span class="ur">(فنڈ منتخب کریں)</span> --</option>
                             <?php foreach ($funds as $f): ?>
@@ -712,6 +724,7 @@ $isFormOpen = ($editVoucher !== null)
                         </select>
                     </div>
 
+                    <!-- 4. Received Into (Cash / Bank) -->
                     <div class="form-group">
                         <label>Received Into <span class="ur">(وصولی کھاتہ کیش / بینک)</span> *</label>
                         <select name="asset_account_id" id="inc_asset_account_id" onchange="onIncomeAccountChange()" required>
@@ -746,24 +759,12 @@ $isFormOpen = ($editVoucher !== null)
                         </select>
                         <?php if (!can_approve()): ?>
                             <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block;">
-                                <span class="ur">نقد وصولی آپ کی تحویل میں رہے گی، یا ڈونر کی طرف سے بینک منتقلی کی صورت میں متعلقہ بینک اکاؤنٹ منتخب کریں۔</span>
+                                <span class="ur">نقد وصولی آپ کی تحویل میں رہے گی، یا بینک منتقلی کی صورت میں متعلقہ بینک منتخب کریں۔</span>
                             </small>
                         <?php endif; ?>
                     </div>
 
-                    <div class="form-group">
-                        <label>Income Head <span class="ur">(آمدنی کی مد)</span></label>
-                        <select name="income_account_id" required>
-                            <option value="">-- Select Income Category --</option>
-                            <?php foreach ($incomeAccounts as $acc): ?>
-                                <?php $isAccSelected = ($editVoucher && (int)$editIncomeAcc === (int)$acc['id']) || (!$editVoucher && $prefillIncomeAccId === (int)$acc['id']); ?>
-                                <option value="<?=$acc['id']?>" <?=$isAccSelected ? 'selected' : ''?>>
-                                    <?=e($acc['account_code'])?> - <?=e(format_ui_text($acc['account_name']))?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
+                    <!-- 5. Select Donor / Contributor -->
                     <div class="form-group">
                         <label>Select Donor / Contributor <span class="ur">(معاون منتخب کریں)</span></label>
                         <select name="donor_id" id="donorSelect" onchange="onDonorSelectChange(this)">
@@ -777,56 +778,13 @@ $isFormOpen = ($editVoucher !== null)
                         </select>
                     </div>
 
+                    <!-- 6. Voucher Date -->
                     <div class="form-group">
-                        <label>Donor WhatsApp / Mobile <span class="ur">(فون نمبر / واٹس ایپ)</span></label>
-                        <input name="donor_phone" id="donorPhoneInput" placeholder="0300-1234567" value="<?=e($editVoucher['donor_phone'] ?? '')?>">
+                        <label>Voucher Date <span class="ur">تاریخ</span></label>
+                        <input type="date" name="voucher_date" value="<?=e($editVoucher['voucher_date'] ?? ($prefillDate ?: date('Y-m-d')))?>" required>
                     </div>
 
-                    <!-- Multi-Currency Selector (Feature #4) -->
-                    <div class="form-group" style="grid-column: 1 / -1; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px 16px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-                            <label style="font-weight:700; color:#1e293b; margin:0; font-size:13px; display:inline-flex; align-items:center; gap:6px;">
-                                <span>💱</span> Multi-Currency &amp; Overseas Donation <span class="ur">(بیرونِ ملک کرنسی و عطیات)</span>
-                            </label>
-                            <span style="font-size:11.5px; color:#64748b;">اگر عطیہ فارن کرنسی (USD, SAR, AED وغیرہ) میں ہے تو یہاں منتخب کریں</span>
-                        </div>
-                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:flex-end;">
-                            <div>
-                                <label style="font-size:12px; font-weight:600;">Donation Currency <span class="ur">(عطیہ کرنسی)</span></label>
-                                <select name="foreign_currency" id="currencySelect" onchange="onCurrencyChange(this.value)">
-                                    <option value="PKR" <?=($editVoucher['foreign_currency'] ?? 'PKR') === 'PKR' ? 'selected' : ''?>>🇵🇰 PKR - Pakistani Rupee (مقامی)</option>
-                                    <option value="USD" <?=($editVoucher['foreign_currency'] ?? '') === 'USD' ? 'selected' : ''?>>🇺🇸 USD - US Dollar ($)</option>
-                                    <option value="SAR" <?=($editVoucher['foreign_currency'] ?? '') === 'SAR' ? 'selected' : ''?>>🇸🇦 SAR - Saudi Riyal (﷼)</option>
-                                    <option value="AED" <?=($editVoucher['foreign_currency'] ?? '') === 'AED' ? 'selected' : ''?>>🇦🇪 AED - UAE Dirham (د.إ)</option>
-                                    <option value="GBP" <?=($editVoucher['foreign_currency'] ?? '') === 'GBP' ? 'selected' : ''?>>🇬🇧 GBP - British Pound (£)</option>
-                                    <option value="EUR" <?=($editVoucher['foreign_currency'] ?? '') === 'EUR' ? 'selected' : ''?>>🇪🇺 EUR - Euro (€)</option>
-                                    <option value="CAD" <?=($editVoucher['foreign_currency'] ?? '') === 'CAD' ? 'selected' : ''?>>🇨🇦 CAD - Canadian Dollar ($)</option>
-                                    <option value="AUD" <?=($editVoucher['foreign_currency'] ?? '') === 'AUD' ? 'selected' : ''?>>🇦🇺 AUD - Australian Dollar ($)</option>
-                                </select>
-                            </div>
-                            <div id="foreignAmountWrap" style="<?=!empty($editVoucher['foreign_currency']) && $editVoucher['foreign_currency'] !== 'PKR' ? 'display:block;' : 'display:none;'?>">
-                                <label style="font-size:12px; font-weight:600;">Foreign Amount <span class="ur">(غیر ملکی رقم)</span></label>
-                                <input type="number" step="0.01" min="0" name="foreign_amount" id="foreignAmountInput" placeholder="e.g. 500" value="<?=e($editVoucher['foreign_amount'] ?? '')?>" oninput="calcForeignToPkr()">
-                            </div>
-                            <div id="exchangeRateWrap" style="<?=!empty($editVoucher['foreign_currency']) && $editVoucher['foreign_currency'] !== 'PKR' ? 'display:block;' : 'display:none;'?>">
-                                <label style="font-size:12px; font-weight:600;">Exchange Rate <span class="ur">(ایکسچینج ریٹ بمقابلہ PKR)</span></label>
-                                <input type="number" step="0.0001" min="0" name="exchange_rate" id="exchangeRateInput" placeholder="e.g. 280.00" value="<?=e($editVoucher['exchange_rate'] ?? '')?>" oninput="calcForeignToPkr()">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Total Amount <span class="ur">(کل رقم PKR)</span></label>
-                        <input type="number" step="0.01" min="1" name="amount" required placeholder="0.00" value="<?=e($editVoucher['total_amount'] ?? $prefillAmount)?>" style="font-weight:700;font-size:15px;color:#15803d;">
-                    </div>
-
-                    <?php if (can_approve()): ?>
-                    <div class="form-group" id="newDonorGroup">
-                        <label>New Donor Name (If not in list) <span class="ur">(نیا معاون نام)</span></label>
-                        <input name="new_donor_name" placeholder="Leave empty if selected above or general">
-                    </div>
-                    <?php endif; ?>
-
+                    <!-- 7. Payment Method -->
                     <div class="form-group">
                         <label>Payment Method <span class="ur">(طریقہ وصولی)</span></label>
                         <select name="payment_method" id="inc_payment_method" onchange="onIncomePaymentMethodChange()">
@@ -839,21 +797,91 @@ $isFormOpen = ($editVoucher !== null)
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Receipt # / Reference <span class="ur">(رسید یا حوالہ نمبر)</span></label>
-                        <input name="reference_no" placeholder="Optional manual book receipt #" value="<?=e($editVoucher['reference_no'] ?? '')?>">
-                    </div>
-
-                    <!-- Bank Deposit Slip / Cheque / Online Transfer Photo Attachment -->
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <label>📷 Attach Deposit Slip / Transfer Screenshot / Cheque Photo <span class="ur">(سلپ یا چیک کی تصویر)</span></label>
-                        <input type="file" name="receipt_file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment">
-                        <small class="muted">Upload bank deposit slip, cheque photo, or online transfer receipt (JPG, PNG, PDF).</small>
-                    </div>
-
+                    <!-- 8. Description / Notes -->
                     <div class="form-group" style="grid-column: 1 / -1;">
                         <label>Description / Notes <span class="ur">(تفصیل و دعا)</span></label>
                         <input name="description" placeholder="e.g. Monthly contribution for Jamia expenses, Dua for Marhoomeen..." value="<?=e($editVoucher['description'] ?? $prefillDesc)?>">
+                    </div>
+
+                    <!-- Secondary / Advanced Fields (Compact on Mobile, Grid on Desktop) -->
+                    <div class="mobile-extra-fields" id="incomeExtraWrap">
+                        <div class="mobile-extra-toggle-wrap">
+                            <button type="button" class="mobile-extra-toggle-btn" onclick="toggleMobileExtraFields('incomeExtraWrap', this);">
+                                <span class="toggle-icon"><?= $hasIncomeExtra ? '▲' : '＋' ?></span>
+                                <span>Additional Options &amp; Attachment <span class="ur">(مزید اختیارات: فارن کرنسی، سلپ فوٹو، رسید نمبر)</span></span>
+                            </button>
+                        </div>
+                        <div class="mobile-extra-content <?= $hasIncomeExtra ? 'open' : '' ?>">
+                            <?php if ($isSuperAdmin && !empty($allRegions)): ?>
+                            <div class="form-group">
+                                <label>Province / Region <span class="ur">(صوبہ / علاقہ)</span></label>
+                                <select name="region_id">
+                                    <option value="">-- Central / Head Office (مرکزی دفتر) --</option>
+                                    <?php foreach ($allRegions as $reg): ?>
+                                        <option value="<?=$reg['id']?>" <?=($editVoucher && (int)($editVoucher['region_id'] ?? 0) === (int)$reg['id']) ? 'selected' : ''?>>
+                                            🏛️ <?=e($reg['name'])?> (<?=e($reg['code'])?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <?php endif; ?>
+
+                            <div class="form-group">
+                                <label>Donor WhatsApp / Mobile <span class="ur">(فون نمبر / واٹس ایپ)</span></label>
+                                <input name="donor_phone" id="donorPhoneInput" placeholder="0300-1234567" value="<?=e($editVoucher['donor_phone'] ?? '')?>">
+                            </div>
+
+                            <?php if (can_approve()): ?>
+                            <div class="form-group" id="newDonorGroup">
+                                <label>New Donor Name (If not in list) <span class="ur">(نیا معاون نام)</span></label>
+                                <input name="new_donor_name" placeholder="Leave empty if selected above or general">
+                            </div>
+                            <?php endif; ?>
+
+                            <div class="form-group">
+                                <label>Receipt # / Reference <span class="ur">(رسید یا حوالہ نمبر)</span></label>
+                                <input name="reference_no" placeholder="Optional manual book receipt #" value="<?=e($editVoucher['reference_no'] ?? '')?>">
+                            </div>
+
+                            <!-- Multi-Currency Selector (Feature #4) -->
+                            <div class="form-group" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                                    <label style="font-weight:700; color:#1e293b; margin:0; font-size:12.5px; display:inline-flex; align-items:center; gap:6px;">
+                                        <span>💱</span> Multi-Currency &amp; Overseas Donation <span class="ur">(بیرونِ ملک کرنسی)</span>
+                                    </label>
+                                </div>
+                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px; align-items:flex-end;">
+                                    <div>
+                                        <label style="font-size:11.5px; font-weight:600;">Donation Currency</label>
+                                        <select name="foreign_currency" id="currencySelect" onchange="onCurrencyChange(this.value)">
+                                            <option value="PKR" <?=($editVoucher['foreign_currency'] ?? 'PKR') === 'PKR' ? 'selected' : ''?>>🇵🇰 PKR - Pakistani Rupee</option>
+                                            <option value="USD" <?=($editVoucher['foreign_currency'] ?? '') === 'USD' ? 'selected' : ''?>>🇺🇸 USD - US Dollar ($)</option>
+                                            <option value="SAR" <?=($editVoucher['foreign_currency'] ?? '') === 'SAR' ? 'selected' : ''?>>🇸🇦 SAR - Saudi Riyal (﷼)</option>
+                                            <option value="AED" <?=($editVoucher['foreign_currency'] ?? '') === 'AED' ? 'selected' : ''?>>🇦🇪 AED - UAE Dirham (د.إ)</option>
+                                            <option value="GBP" <?=($editVoucher['foreign_currency'] ?? '') === 'GBP' ? 'selected' : ''?>>🇬🇧 GBP - British Pound (£)</option>
+                                            <option value="EUR" <?=($editVoucher['foreign_currency'] ?? '') === 'EUR' ? 'selected' : ''?>>🇪🇺 EUR - Euro (€)</option>
+                                            <option value="CAD" <?=($editVoucher['foreign_currency'] ?? '') === 'CAD' ? 'selected' : ''?>>🇨🇦 CAD - Canadian Dollar ($)</option>
+                                            <option value="AUD" <?=($editVoucher['foreign_currency'] ?? '') === 'AUD' ? 'selected' : ''?>>🇦🇺 AUD - Australian Dollar ($)</option>
+                                        </select>
+                                    </div>
+                                    <div id="foreignAmountWrap" style="<?=!empty($editVoucher['foreign_currency']) && $editVoucher['foreign_currency'] !== 'PKR' ? 'display:block;' : 'display:none;'?>">
+                                        <label style="font-size:11.5px; font-weight:600;">Foreign Amount</label>
+                                        <input type="number" step="0.01" min="0" name="foreign_amount" id="foreignAmountInput" placeholder="e.g. 500" value="<?=e($editVoucher['foreign_amount'] ?? '')?>" oninput="calcForeignToPkr()">
+                                    </div>
+                                    <div id="exchangeRateWrap" style="<?=!empty($editVoucher['foreign_currency']) && $editVoucher['foreign_currency'] !== 'PKR' ? 'display:block;' : 'display:none;'?>">
+                                        <label style="font-size:11.5px; font-weight:600;">Exchange Rate</label>
+                                        <input type="number" step="0.0001" min="0" name="exchange_rate" id="exchangeRateInput" placeholder="e.g. 280.00" value="<?=e($editVoucher['exchange_rate'] ?? '')?>" oninput="calcForeignToPkr()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bank Deposit Slip Photo Attachment -->
+                            <div class="form-group">
+                                <label>📷 Attach Deposit Slip / Transfer Screenshot / Cheque Photo <span class="ur">(سلپ یا چیک کی تصویر)</span></label>
+                                <input type="file" name="receipt_file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment">
+                                <small class="muted">Upload bank deposit slip, cheque photo, or online transfer receipt (JPG, PNG, PDF).</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

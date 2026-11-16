@@ -554,28 +554,45 @@ $isFormOpen = ($editVoucher !== null)
                     <input type="hidden" name="voucher_id" value="<?=$editVoucher['id']?>">
                 <?php endif; ?>
 
+                <?php
+                $hasExpenseExtra = !empty($editVoucher['reference_no'])
+                    || !empty($editVoucher['beneficiary_id'])
+                    || !empty($editVoucher['task_id'])
+                    || !empty($editVoucher['receipt_file'])
+                    || (!empty($editVoucher['region_id']) && $isSuperAdmin);
+                ?>
+
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>Voucher Date <span class="ur">(تاریخ)</span></label>
-                        <input type="date" name="voucher_date" value="<?=e($editVoucher['voucher_date'] ?? ($prefillDate ?: date('Y-m-d')))?>" required>
+                    <!-- 1. Amount (Prominent Top Field on Mobile) -->
+                    <div class="form-group mobile-highlight-amount" style="grid-column: 1 / -1;">
+                        <label style="font-size:14px;font-weight:700;color:#b91c1c;">
+                            💸 Amount <span class="ur">(رقم PKR)</span> *
+                        </label>
+                        <input type="number" step="0.01" min="1" name="amount" required placeholder="0.00" value="<?=e($editVoucher['total_amount'] ?? $prefillAmount)?>" style="font-weight:800;font-size:18px;color:#b91c1c;padding:10px 14px;border:2px solid #ef4444;border-radius:8px;">
                     </div>
 
-                    <?php if ($isSuperAdmin && !empty($allRegions)): ?>
+                    <!-- 2. Payee / Paid To -->
                     <div class="form-group">
-                        <label>Province / Region <span class="ur">(صوبہ / علاقہ)</span></label>
-                        <select name="region_id">
-                            <option value="">-- Central / Head Office (مرکزی دفتر) --</option>
-                            <?php foreach ($allRegions as $reg): ?>
-                                <option value="<?=$reg['id']?>" <?=($editVoucher && (int)($editVoucher['region_id'] ?? 0) === (int)$reg['id']) ? 'selected' : ''?>>
-                                    🏛️ <?=e($reg['name'])?> (<?=e($reg['code'])?>)
+                        <label>Payee / Paid To <span class="ur">(کس کو ادائیگی کی)</span> *</label>
+                        <input name="payee_name" placeholder="Teacher name, student, vendor..." required value="<?=e($editVoucher['payee_name'] ?? $prefillPayee)?>">
+                    </div>
+
+                    <!-- 3. Expense Category / Head -->
+                    <div class="form-group">
+                        <label>Expense Head <span class="ur">(اخراجات کی مد)</span> *</label>
+                        <select name="expense_account_id" required>
+                            <option value="">-- Select Expense Category --</option>
+                            <?php foreach ($expenseAccounts as $acc): ?>
+                                <option value="<?=$acc['id']?>" <?=($editVoucher && (int)$editExpenseAcc === (int)$acc['id']) ? 'selected' : ''?>>
+                                    <?=e($acc['account_code'])?> - <?=e(format_ui_text($acc['account_name']))?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <?php endif; ?>
 
+                    <!-- 4. From Fund -->
                     <div class="form-group">
-                        <label>From Fund <span class="ur">(کس فنڈ سے خرچ ہوا)</span></label>
+                        <label>From Fund <span class="ur">(کس فنڈ سے خرچ ہوا)</span> *</label>
                         <select name="fund_id" required>
                             <option value="">-- Select Fund <span class="ur">(فنڈ منتخب کریں)</span> --</option>
                             <?php foreach ($funds as $f): ?>
@@ -587,8 +604,9 @@ $isFormOpen = ($editVoucher !== null)
                         </select>
                     </div>
 
+                    <!-- 5. Paid From -->
                     <div class="form-group">
-                        <label>Paid From <span class="ur">(ادائیگی کا ذریعہ)</span></label>
+                        <label>Paid From <span class="ur">(ادائیگی کا ذریعہ)</span> *</label>
                         <?php if (!can_approve() && !empty($userCashAcc)): ?>
                             <input type="hidden" name="asset_account_id" value="<?=$userCashAcc['id']?>">
                             <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:9px 12px;color:#1e40af;font-weight:600;display:flex;align-items:center;gap:8px;">
@@ -597,7 +615,6 @@ $isFormOpen = ($editVoucher !== null)
                             </div>
                             <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block;">
                                 <span class="ur">خرچ آپ کے کیش میں درج ہو گا۔ چیکر کی منظوری اور رقم وصول ہونے پر مرکزی اکاؤنٹ سے تسویہ ہو گا۔</span>
-                                <span class="en-only" style="display:none;">Expense is recorded in your cashier custody and settled upon checker approval.</span>
                             </small>
                         <?php else: ?>
                             <select name="asset_account_id" required>
@@ -610,42 +627,13 @@ $isFormOpen = ($editVoucher !== null)
                         <?php endif; ?>
                     </div>
 
+                    <!-- 6. Voucher Date -->
                     <div class="form-group">
-                        <label>Expense Head <span class="ur">(اخراجات کی مد)</span></label>
-                        <select name="expense_account_id" required>
-                            <option value="">-- Select Expense Category --</option>
-                            <?php foreach ($expenseAccounts as $acc): ?>
-                                <option value="<?=$acc['id']?>" <?=($editVoucher && (int)$editExpenseAcc === (int)$acc['id']) ? 'selected' : ''?>>
-                                    <?=e($acc['account_code'])?> - <?=e(format_ui_text($acc['account_name']))?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <label>Voucher Date <span class="ur">(تاریخ)</span></label>
+                        <input type="date" name="voucher_date" value="<?=e($editVoucher['voucher_date'] ?? ($prefillDate ?: date('Y-m-d')))?>" required>
                     </div>
 
-                    <!-- Student / Beneficiary Link (Feature #3) -->
-                    <div class="form-group">
-                        <label>Student / Beneficiary <span class="ur">(طالب علم / مستحق - اختیاری)</span></label>
-                        <select name="beneficiary_id" onchange="if(this.value!='0'){ var opt=this.options[this.selectedIndex]; var nm=opt.getAttribute('data-name'); if(nm) document.querySelector('input[name=\'payee_name\']').value=nm; }">
-                            <option value="0" data-name="">-- None / General Expense --</option>
-                            <?php foreach ($allBeneficiaries as $ben): ?>
-                                <?php $isBenSel = ($editVoucher && (int)($editVoucher['beneficiary_id'] ?? 0) === (int)$ben['id']) || (!$editVoucher && $prefillBenId === (int)$ben['id']); ?>
-                                <option value="<?=$ben['id']?>" data-name="<?=e($ben['full_name'])?>" <?=$isBenSel ? 'selected' : ''?>>
-                                    <?=e($ben['full_name'])?> (<?=e($ben['category'])?><?= $ben['department_class'] ? ' - '.e($ben['department_class']) : '' ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Payee / Paid To <span class="ur">(کس کو ادائیگی کی)</span></label>
-                        <input name="payee_name" placeholder="Teacher name, student, vendor..." required value="<?=e($editVoucher['payee_name'] ?? $prefillPayee)?>">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Amount <span class="ur">(رقم PKR)</span></label>
-                        <input type="number" step="0.01" min="1" name="amount" required placeholder="0.00" value="<?=e($editVoucher['total_amount'] ?? $prefillAmount)?>" style="font-weight:700;font-size:15px;color:#b91c1c;">
-                    </div>
-
+                    <!-- 7. Payment Method -->
                     <div class="form-group">
                         <label>Payment Method <span class="ur">(طریقہ ادائیگی)</span></label>
                         <select name="payment_method">
@@ -658,33 +646,73 @@ $isFormOpen = ($editVoucher !== null)
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Bill / Cheque # <span class="ur">(بل یا چیک نمبر)</span></label>
-                        <input name="reference_no" placeholder="Optional bill or cheque no." value="<?=e($editVoucher['reference_no'] ?? '')?>">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Link to Task / Activity <span class="ur">(متعلقہ ٹاسک)</span></label>
-                        <select name="task_id">
-                            <option value="0">-- None / General Expense --</option>
-                            <?php foreach ($activeTasks as $taskItem): ?>
-                                <option value="<?=$taskItem['id']?>" <?=($editVoucher && (int)($editVoucher['task_id'] ?? 0) === (int)$taskItem['id']) ? 'selected' : ''?>>
-                                    [<?=e($taskItem['task_code'])?>] <?=e($taskItem['title'])?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <!-- Bill Photo Attachment -->
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <label>📷 Attach Bill / Receipt Photo <span class="ur">(دکاندار کے بل یا رسید کی تصویر)</span></label>
-                        <input type="file" name="receipt_file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment">
-                        <small class="muted">Upload bill or receipt picture directly from mobile camera or computer (JPG, PNG, PDF).</small>
-                    </div>
-
+                    <!-- 8. Description -->
                     <div class="form-group" style="grid-column: 1 / -1;">
                         <label>Description / Particulars <span class="ur">(تفصیل و یادداشت)</span></label>
                         <input name="description" placeholder="e.g. Teacher salary for current month, electricity bill payment, ration supply..." value="<?=e($editVoucher['description'] ?? $prefillDesc)?>">
+                    </div>
+
+                    <!-- Secondary / Advanced Fields (Compact on Mobile, Grid on Desktop) -->
+                    <div class="mobile-extra-fields" id="expenseExtraWrap">
+                        <div class="mobile-extra-toggle-wrap">
+                            <button type="button" class="mobile-extra-toggle-btn" onclick="toggleMobileExtraFields('expenseExtraWrap', this);">
+                                <span class="toggle-icon"><?= $hasExpenseExtra ? '▲' : '＋' ?></span>
+                                <span>Additional Options &amp; Bill Photo <span class="ur">(مزید اختیارات: طالب علم، بل فوٹو، ٹاسک، چیک نمبر)</span></span>
+                            </button>
+                        </div>
+                        <div class="mobile-extra-content <?= $hasExpenseExtra ? 'open' : '' ?>">
+                            <?php if ($isSuperAdmin && !empty($allRegions)): ?>
+                            <div class="form-group">
+                                <label>Province / Region <span class="ur">(صوبہ / علاقہ)</span></label>
+                                <select name="region_id">
+                                    <option value="">-- Central / Head Office (مرکزی دفتر) --</option>
+                                    <?php foreach ($allRegions as $reg): ?>
+                                        <option value="<?=$reg['id']?>" <?=($editVoucher && (int)($editVoucher['region_id'] ?? 0) === (int)$reg['id']) ? 'selected' : ''?>>
+                                            🏛️ <?=e($reg['name'])?> (<?=e($reg['code'])?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <?php endif; ?>
+
+                            <!-- Student / Beneficiary Link -->
+                            <div class="form-group">
+                                <label>Student / Beneficiary <span class="ur">(طالب علم / مستحق - اختیاری)</span></label>
+                                <select name="beneficiary_id" onchange="if(this.value!='0'){ var opt=this.options[this.selectedIndex]; var nm=opt.getAttribute('data-name'); if(nm) document.querySelector('input[name=\'payee_name\']').value=nm; }">
+                                    <option value="0" data-name="">-- None / General Expense --</option>
+                                    <?php foreach ($allBeneficiaries as $ben): ?>
+                                        <?php $isBenSel = ($editVoucher && (int)($editVoucher['beneficiary_id'] ?? 0) === (int)$ben['id']) || (!$editVoucher && $prefillBenId === (int)$ben['id']); ?>
+                                        <option value="<?=$ben['id']?>" data-name="<?=e($ben['full_name'])?>" <?=$isBenSel ? 'selected' : ''?>>
+                                            <?=e($ben['full_name'])?> (<?=e($ben['category'])?><?= $ben['department_class'] ? ' - '.e($ben['department_class']) : '' ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Link to Task / Activity <span class="ur">(متعلقہ ٹاسک)</span></label>
+                                <select name="task_id">
+                                    <option value="0">-- None / General Expense --</option>
+                                    <?php foreach ($activeTasks as $taskItem): ?>
+                                        <option value="<?=$taskItem['id']?>" <?=($editVoucher && (int)($editVoucher['task_id'] ?? 0) === (int)$taskItem['id']) ? 'selected' : ''?>>
+                                            [<?=e($taskItem['task_code'])?>] <?=e($taskItem['title'])?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Bill / Cheque # <span class="ur">(بل یا چیک نمبر)</span></label>
+                                <input name="reference_no" placeholder="Optional bill or cheque no." value="<?=e($editVoucher['reference_no'] ?? '')?>">
+                            </div>
+
+                            <!-- Bill Photo Attachment -->
+                            <div class="form-group">
+                                <label>📷 Attach Bill / Receipt Photo <span class="ur">(دکاندار کے بل یا رسید کی تصویر)</span></label>
+                                <input type="file" name="receipt_file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment">
+                                <small class="muted">Upload bill or receipt picture directly from mobile camera (JPG, PNG, PDF).</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

@@ -1025,6 +1025,26 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
             </div>
         </header>
 
+        <!-- Mobile Quick-Switch Settings Dropdown -->
+        <div class="settings-mobile-nav no-print">
+            <label>
+                <span>⚙️</span>
+                <span>Select Settings Section <span class="ur">(سیٹنگز سیکشن منتخب کریں)</span>:</span>
+            </label>
+            <select onchange="window.location.href=this.value;">
+                <option value="settings.php?tab=org" <?=$activeTab==='org'?'selected':''?>>🏛️ 1. Organization &amp; Identity (ادارہ و شناخت)</option>
+                <option value="settings.php?tab=donations" <?=$activeTab==='donations'?'selected':''?>>💳 2. Online Donations &amp; Bank Accounts (آن لائن ڈونیشنز)</option>
+                <option value="settings.php?tab=accounting" <?=$activeTab==='accounting'?'selected':''?>>💼 3. Financial &amp; Accounting (مالیاتی ترتیبات)</option>
+                <option value="settings.php?tab=print" <?=$activeTab==='print'?'selected':''?>>🖨️ 4. Print &amp; Slips (پرنٹ و رسید ترتیبات)</option>
+                <option value="settings.php?tab=security" <?=$activeTab==='security'?'selected':''?>>🔒 5. Security &amp; Passwords (سیکیورٹی و پاس ورڈز)</option>
+                <option value="settings.php?tab=users" <?=$activeTab==='users'?'selected':''?>>👥 6. Users &amp; Permissions (صارفین و اختیارات)</option>
+                <option value="settings.php?tab=backups" <?=$activeTab==='backups'?'selected':''?>>💾 7. Database &amp; Backups (ڈیٹا بیس و بیک اپ)</option>
+                <?php if ($isSuperAdmin): ?>
+                <option value="settings.php?tab=danger" <?=$activeTab==='danger'?'selected':''?>>⚠️ 8. Danger Zone (ڈینجر زون)</option>
+                <?php endif; ?>
+            </select>
+        </div>
+
         <!-- Top Navigation Tabs (Option A) -->
         <div class="tab-nav no-print" style="margin-top:16px;margin-bottom:20px;">
             <a href="settings.php?tab=org" class="tab-link <?=$activeTab === 'org' ? 'active' : ''?>">

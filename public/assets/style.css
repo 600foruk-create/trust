@@ -1843,3 +1843,152 @@ footer { font-size: 11px; color: #94a3b8; text-align: center; padding: 30px 0 10
     box-shadow: none !important;
   }
 }
+
+/* ========================================================
+   Mobile-First Optimization: Settings & Income/Expenses
+   ======================================================== */
+
+/* Settings Mobile Navigation */
+.settings-mobile-nav {
+  display: none;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.settings-mobile-nav label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #166534;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-mobile-nav select {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 12px;
+  border: 1.5px solid #22c55e;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+/* Income & Expense Mobile Extra Fields Wrapper */
+.mobile-extra-fields {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.mobile-extra-toggle-wrap {
+  display: none;
+}
+
+.mobile-extra-content {
+  display: contents;
+}
+
+@media (max-width: 992px) {
+  /* Show Settings Mobile Select Dropdown */
+  .settings-mobile-nav {
+    display: block !important;
+  }
+
+  /* Make Desktop Tab Links horizontal scroll bar clean on mobile */
+  .tab-nav {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+    gap: 8px !important;
+    padding-bottom: 10px !important;
+  }
+  .tab-link {
+    font-size: 13px !important;
+    padding: 8px 14px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Responsive Settings Panels */
+  .settings-panel-body,
+  article.panel > div[style*="padding: 22px 26px"] {
+    padding: 16px 14px !important;
+  }
+  .form-grid-2, .form-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Mobile Extra Fields Collapsible for Income & Expenses */
+  .mobile-extra-toggle-wrap {
+    display: block !important;
+    margin: 8px 0 12px !important;
+    width: 100% !important;
+  }
+
+  .mobile-extra-toggle-btn {
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 11px 14px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    border: 1.5px dashed #94a3b8 !important;
+    border-radius: 8px !important;
+    background: #f8fafc !important;
+    color: #334155 !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .mobile-extra-toggle-btn:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
+  .mobile-extra-content {
+    display: none !important;
+    background: #f8fafc !important;
+    border: 1.5px dashed #cbd5e1 !important;
+    border-radius: 10px !important;
+    padding: 14px !important;
+    margin-bottom: 14px !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+  }
+
+  .mobile-extra-content.open {
+    display: flex !important;
+  }
+
+  /* Big Touch-Friendly Amount Field on Mobile */
+  .mobile-highlight-amount input {
+    font-size: 20px !important;
+    font-weight: 800 !important;
+    height: 48px !important;
+    padding: 8px 14px !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  /* Action Buttons Full Width on Mobile */
+  .btn-row .btn,
+  .form-card .btn-row .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 12px 18px !important;
+    font-size: 15px !important;
+  }
+
+  /* Stack Filter Controls and Buttons vertically */
+  .filter-bar {
+    gap: 10px !important;
+  }
+}

@@ -1422,6 +1422,23 @@ function toggleAppMobileSidebar(e) {
   }
 }
 
+function toggleMobileExtraFields(containerId, btn) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  var content = container.querySelector('.mobile-extra-content');
+  var icon = btn ? btn.querySelector('.toggle-icon') : null;
+  if (content) {
+    var isOpen = content.classList.contains('open');
+    if (isOpen) {
+      content.classList.remove('open');
+      if (icon) icon.innerText = '＋';
+    } else {
+      content.classList.add('open');
+      if (icon) icon.innerText = '▲';
+    }
+  }
+}
+
 function toggleHeaderNotifDropdown(e) {
   if (e && e.stopPropagation) e.stopPropagation();
   var drop = document.getElementById('headerNotifDropdown');

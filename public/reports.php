@@ -530,12 +530,15 @@ $totalVouchersAmount = !empty($allVouchers) ? array_sum(array_column($allVoucher
         if ($reportType === 'vouchers') {
             $waReportMsg .= "----------------------------------------\n"
                           . "📝 *کل واؤچرز:* " . count($allVouchers) . "\n"
-                          . "💰 *مجموعی مالیت:* PKR " . number_format($totalVouchersAmount, 2) . "\n";
+                          . "💰 *مجموعی مالیت:* PKR " . number_format((float)($totalVouchersAmount ?? 0), 2) . "\n";
         } else {
+            $repIncome = (float)($totalPeriodIncome ?? 0);
+            $repExpense = (float)($totalPeriodExpense ?? 0);
+            $repSurplus = (float)($netPeriodSurplus ?? 0);
             $waReportMsg .= "----------------------------------------\n"
-                          . "💰 *کل موصولی / آمدنی (Income):* PKR " . number_format($totalIncome, 2) . "\n"
-                          . "💸 *کل ادائیگیاں / اخراجات (Expense):* PKR " . number_format($totalExpense, 2) . "\n"
-                          . "⚖️ *خالص بچت / سرپلس (Net Balance):* PKR " . number_format($netSurplus, 2) . "\n";
+                          . "💰 *کل موصولی / آمدنی (Income):* PKR " . number_format($repIncome, 2) . "\n"
+                          . "💸 *کل ادائیگیاں / اخراجات (Expense):* PKR " . number_format($repExpense, 2) . "\n"
+                          . "⚖️ *خالص بچت / سرپلس (Net Balance):* PKR " . number_format($repSurplus, 2) . "\n";
         }
 
         $waReportMsg .= "----------------------------------------\n"

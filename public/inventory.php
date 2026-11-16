@@ -14,9 +14,43 @@ $success = '';
 try {
     $pdo->query("SELECT 1 FROM inventory_items LIMIT 1");
 } catch (Throwable $e) {
-    if (function_exists('run_schema_and_seed_migrations')) {
-        run_schema_and_seed_migrations($pdo);
-    }
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS inventory_items (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          item_code VARCHAR(30) NOT NULL UNIQUE,
+          item_name VARCHAR(150) NOT NULL,
+          category ENUM('ration', 'construction', 'books', 'medical', 'general') NOT NULL DEFAULT 'ration',
+          unit VARCHAR(30) NOT NULL DEFAULT 'KG',
+          current_stock DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          min_alert_qty DECIMAL(12,2) NOT NULL DEFAULT 5.00,
+          estimated_unit_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          notes TEXT NULL,
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_inv_cat (category),
+          INDEX idx_inv_active (is_active)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS inventory_transactions (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          transaction_type ENUM('in_donation', 'out_consumption', 'adjustment') NOT NULL,
+          item_id INT UNSIGNED NOT NULL,
+          donor_id BIGINT UNSIGNED NULL,
+          quantity DECIMAL(12,2) NOT NULL,
+          unit VARCHAR(30) NOT NULL,
+          unit_value DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          total_estimated_value DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+          recipient_department VARCHAR(150) NULL,
+          reference_no VARCHAR(50) NULL,
+          notes TEXT NULL,
+          created_by BIGINT UNSIGNED NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_inv_tx_item (item_id),
+          INDEX idx_inv_tx_donor (donor_id),
+          INDEX idx_inv_tx_type (transaction_type),
+          INDEX idx_inv_tx_date (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    } catch (Throwable $ex) {}
 }
 
 $userId = (int)current_user()['id'];

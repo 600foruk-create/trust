@@ -13,9 +13,21 @@ $madrasaName = function_exists('get_setting') ? get_setting('madrasa_name', 'Tru
 try {
     $pdo->query("SELECT 1 FROM audit_logs LIMIT 1");
 } catch (Throwable $e) {
-    if (function_exists('run_schema_and_seed_migrations')) {
-        run_schema_and_seed_migrations($pdo);
-    }
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          user_id BIGINT UNSIGNED NULL,
+          action VARCHAR(100) NOT NULL,
+          entity_type VARCHAR(50) NULL,
+          entity_id BIGINT UNSIGNED NULL,
+          details TEXT NULL,
+          ip_address VARCHAR(45) NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_al_user (user_id),
+          INDEX idx_al_action (action),
+          INDEX idx_al_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    } catch (Throwable $ex) {}
 }
 
 // Filters

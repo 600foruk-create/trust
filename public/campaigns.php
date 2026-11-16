@@ -14,9 +14,29 @@ $success = '';
 try {
     $pdo->query("SELECT 1 FROM campaigns LIMIT 1");
 } catch (Throwable $e) {
-    if (function_exists('run_schema_and_seed_migrations')) {
-        run_schema_and_seed_migrations($pdo);
-    }
+    $pdo->exec("CREATE TABLE IF NOT EXISTS campaigns (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      campaign_code VARCHAR(30) NOT NULL UNIQUE,
+      title VARCHAR(150) NOT NULL,
+      category ENUM('ramadan', 'zakat', 'qurbani', 'winter', 'building', 'general') NOT NULL DEFAULT 'ramadan',
+      target_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+      raised_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+      start_date DATE NULL,
+      end_date DATE NULL,
+      appeal_message TEXT NULL,
+      status ENUM('active', 'completed', 'draft') NOT NULL DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_cmp_status (status),
+      INDEX idx_cmp_cat (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    try {
+        $pdo->exec("INSERT IGNORE INTO campaigns (campaign_code, title, category, target_amount, appeal_message, status) VALUES
+            ('RAM-2027', 'رمضان راشن و افطار فنڈ مہم', 'ramadan', 1000000.00, 'رمضان المبارک کے مقدس مہینے میں مستحقین و طلبہ کے راشن اور سحر و افطار میں بھرپور حصہ لیں اور ثوابِ دارین حاصل فرمائیں۔', 'active'),
+            ('ZKT-2027', 'سالانہ زکوٰۃ و صدقات مہم', 'zakat', 2500000.00, 'اپنے مال کو زکوٰۃ کی بروقت اور مستند شرعی ادائیگی سے پاک فرمائیں۔ آپ کی زکوٰۃ 100% شرعی حقداروں تک پہنچائی جاتی ہے۔', 'active'),
+            ('QRB-2027', 'عید الاضحیٰ قربانی و گوشت تقسیم', 'qurbani', 500000.00, 'غریب و نادار گھرانوں اور طلبہ کے لیے قربانی کے حصص اور کھالوں کے عطیات میں شامل ہوں۔', 'draft'),
+            ('WIN-2027', 'سرمائی گرم لباس و کمبل مہم', 'winter', 300000.00, 'سخت سردی میں مستحق طلبہ اور خاندانوں کے لیے گرم بستر، کمبل اور گرم ملبوسات کی فراہمی میں اپنا حصہ ڈالیں۔', 'active')");
+    } catch (Throwable $ex) {}
 }
 
 $userId = (int)current_user()['id'];
@@ -104,7 +124,7 @@ if (!$currentCamp && !empty($campaigns)) {
 
 // Donors list for Dispatcher
 $donorFilter = trim($_GET['donor_filter'] ?? 'all');
-$sqlDonors = "SELECT d.id, d.donor_name, d.phone, d.city, d.is_pledge_active, d.pledge_amount, 
+$sqlDonors = "SELECT d.id, d.donor_name, d.phone, d.address, d.is_pledge_active, d.pledge_amount, 
     (SELECT COALESCE(SUM(total_amount), 0) FROM vouchers WHERE voucher_type = 'income' AND status = 'posted' AND (donor_id = d.id OR payee_name = d.donor_name)) AS lifetime_donated 
     FROM donors d WHERE d.phone IS NOT NULL AND d.phone != ''";
 if ($donorFilter === 'pledgers') {
@@ -278,7 +298,7 @@ $donors = $pdo->query($sqlDonors)->fetchAll(PDO::FETCH_ASSOC);
                             <td style="padding:10px 16px;font-family:monospace;font-weight:600;color:#0f172a;" dir="ltr">
                                 <?=e($dn['phone'])?>
                             </td>
-                            <td style="padding:10px 16px;color:#64748b;"><?=e($dn['city'] ?: '—')?></td>
+                            <td style="padding:10px 16px;color:#64748b;"><?=e($dn['address'] ?: '—')?></td>
                             <td style="padding:10px 16px;font-weight:700;color:#15803d;">
                                 Rs. <?=number_format((float)$dn['lifetime_donated'], 0)?>
                             </td>

@@ -1263,10 +1263,13 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                         <a href="income.php?donor_id=<?=$d['id']?>" class="btn blue sm" style="padding:4px 8px;font-size:11.5px;" title="Issue Donation Receipt">
                                             ＋ Receipt
                                         </a>
-                                        <a href="print_donor_certificate.php?id=<?=$d['id']?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#fffbeb;color:#92400e;border-color:#fde68a;" title="سندِ اعتراف و تشکر پرنٹ کریں">
+                                        <?php 
+                                        $dCertToken = function_exists('get_donor_certificate_public_token') ? get_donor_certificate_public_token((int)$d['id']) : '';
+                                        $dStmtToken = function_exists('get_donor_statement_public_token') ? get_donor_statement_public_token((int)$d['id']) : ''; 
+                                        ?>
+                                        <a href="print_donor_certificate.php?id=<?=$d['id']?><?=!empty($dCertToken)?'&token='.$dCertToken:''?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#fffbeb;color:#92400e;border-color:#fde68a;" title="سندِ اعتراف و اعزاز (سرٹیفکیٹ) دیکھیں یا شیئر کریں">
                                             📜 سند
                                         </a>
-                                        <?php $dStmtToken = function_exists('get_donor_statement_public_token') ? get_donor_statement_public_token((int)$d['id']) : ''; ?>
                                         <a href="print_donor_statement.php?id=<?=$d['id']?><?=!empty($dStmtToken)?'&token='.$dStmtToken:''?>" target="_blank" class="btn secondary sm" style="padding:4px 8px;font-size:11.5px;background:#f0fdf4;color:#166534;border-color:#bbf7d0;" title="سالانہ کھاتہ و عطیات اسٹیٹمنٹ پرنٹ کریں">
                                             📊 کھاتہ
                                         </a>
@@ -1306,6 +1309,11 @@ if (isset($_GET['export']) && in_array($_GET['export'], ['excel', 'csv'], true))
                                                 if (!empty($dStmtLink)) {
                                                     $msg .= "📊 *مکمل سالانہ کھاتہ و عطیات اسٹیٹمنٹ دیکھنے کے لیے لنک:* \n"
                                                           . $dStmtLink . "\n";
+                                                }
+                                                if (!empty($dCertToken) && !empty($baseUrl)) {
+                                                    $dCertLink = "{$baseUrl}/print_donor_certificate.php?id={$d['id']}&token={$dCertToken}";
+                                                    $msg .= "📜 *سندِ تشکر و اعزاز (Certificate) کا لنک:* \n"
+                                                          . $dCertLink . "\n";
                                                 }
                                                 $msg .= "\nاللہ تعالیٰ آپ کے اس صدقہ و خیرات کو قبول فرمائے اور آپ کے رزق، جان اور مال میں برکتیں عطا فرمائے۔ آمین۔\n\n"
                                                      . "جزاکم اللہ خیراً و احسن الجزاء\n"

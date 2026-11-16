@@ -135,9 +135,11 @@ div.en-only, p.en-only { display: block !important; }
             return SOFTIFYX_I18N[trimmed][TARGET_LANG];
         }
 
+        var sortedKeys = Object.keys(SOFTIFYX_I18N).sort(function(a, b) { return b.length - a.length; });
         var res = str;
-        for (var k in SOFTIFYX_I18N) {
-            if (SOFTIFYX_I18N.hasOwnProperty(k) && SOFTIFYX_I18N[k][TARGET_LANG]) {
+        for (var i = 0; i < sortedKeys.length; i++) {
+            var k = sortedKeys[i];
+            if (SOFTIFYX_I18N[k] && SOFTIFYX_I18N[k][TARGET_LANG]) {
                 if (res.indexOf(k) !== -1) {
                     res = res.split(k).join(SOFTIFYX_I18N[k][TARGET_LANG]);
                 }

@@ -7,7 +7,9 @@
 require __DIR__ . '/../app/bootstrap.php';
 
 $orgName = function_exists('get_setting') ? get_setting('madrasa_name', 'Mangalchai Welfare Organization') : 'Mangalchai Welfare Organization';
-$orgSubtitle = function_exists('get_setting') ? get_setting('org_subtitle', 'Financial Accounting & Welfare Trust') : 'Financial Accounting & Welfare Trust';
+$isMadrasa = function_exists('is_madrasa_mode') && is_madrasa_mode();
+$defaultSubtitle = $isMadrasa ? 'دینی درسگاہ و تعلیمی ادارہ' : 'Financial Accounting & Welfare Trust';
+$orgSubtitle = function_exists('get_setting') ? get_setting('org_subtitle', $defaultSubtitle) : $defaultSubtitle;
 $orgPhone = function_exists('get_setting') ? get_setting('madrasa_phone', '+92 331 7240256') : '+92 331 7240256';
 $orgAddress = function_exists('get_setting') ? get_setting('madrasa_address', '') : '';
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;

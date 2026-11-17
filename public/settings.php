@@ -519,6 +519,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute(['donation_appeal_title', trim($_POST['donation_appeal_title'] ?? '')]);
             $stmt->execute(['donation_appeal_text', trim($_POST['donation_appeal_text'] ?? '')]);
             $stmt->execute(['donation_appeal_causes', trim($_POST['donation_appeal_causes'] ?? '')]);
+            $stmt->execute(['donation_trust_badge', trim($_POST['donation_trust_badge'] ?? '')]);
+            $stmt->execute(['donation_impact_tags', trim($_POST['donation_impact_tags'] ?? '')]);
             $stmt->execute(['donation_whatsapp', trim($_POST['donation_whatsapp'] ?? '')]);
             $stmt->execute(['donation_project_location', trim($_POST['donation_project_location'] ?? '')]);
 
@@ -941,6 +943,21 @@ if (empty($donationAppealCauses)) {
         $donationAppealCauses = 'سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ';
     } else {
         $donationAppealCauses = is_madrasa_mode() ? 'کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم' : 'کفالتِ یتیم، راشن، زکوٰۃ، تعلیم';
+    }
+}
+$donationTrustBadge = $settingsRows['donation_trust_badge'] ?? '';
+if (empty($donationTrustBadge)) {
+    $donationTrustBadge = is_madrasa_mode() ? 'باقاعدہ رجسٹرڈ دینی درسگاہ' : 'باقاعدہ تصدیق شدہ فلاحی ٹرسٹ';
+}
+
+$donationImpactTags = $settingsRows['donation_impact_tags'] ?? '';
+if (empty($donationImpactTags)) {
+    if (stripos($donationAppealTitle, 'تعمیر') !== false || stripos($donationAppealTitle, 'مسجد') !== false || stripos($donationAppealCauses, 'سیمنٹ') !== false || stripos($donationAppealCauses, 'سریا') !== false) {
+        $donationImpactTags = '🕌 مسجد و درسگاہ کی تعمیر, 🧱 کلاس رومز و چھت فنڈ,  صدقہ جاریہ و دائمی ثواب, 📜 کمپیوٹرائزڈ شفاف رسید';
+    } elseif (is_madrasa_mode()) {
+        $donationImpactTags = '📖 حفظ القرآن و دینی علوم, 🎓 نادار طلباء کی مفت کفالت, 🍲 مطبخ و رہائش فنڈ, 📜 کمپیوٹرائزڈ شفاف رسید';
+    } else {
+        $donationImpactTags = '🎓 یتامیٰ و مستحقین کی کفالت, 🍲 خوراک و راشن تقسیم, 🏥 فلاحی و میڈیکل خدمات, 📜 کمپیوٹرائزڈ شفاف رسید';
     }
 }
 $donationWhatsapp = $settingsRows['donation_whatsapp'] ?? $madrasaPhone;
@@ -1420,6 +1437,27 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                             <input name="donation_appeal_causes" id="donationAppealCausesInput" value="<?=e($donationAppealCauses)?>" placeholder="مثلاً: سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ" style="font-size:14px;font-weight:700;color:#0f172a;background:#ffffff;border:1.5px solid #22c55e;width:100%;box-sizing:border-box;">
                             <small style="color:#15803d;display:block;margin-top:6px;line-height:1.5;font-size:12px;">
                                 💡 یہ الفاظ کیو آر پوسٹر کی ہدایت نمبر 3 پر بریکٹ میں ظاہر ہوتے ہیں: <b>"3. اپنی پسندیدہ مد (<span id="causesPreviewText"><?=e($donationAppealCauses)?></span>) منتخب کر کے باآسانی رجسٹریشن مکمل فرمائیں۔"</b>
+                            </small>
+                        </div>
+
+                        <!-- Organization Verification Badge (Header) -->
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label>Organization Verification Badge <span class="ur">(ہیڈر تصدیقی بیج - مثلاً: باقاعدہ رجسٹرڈ دینی درسگاہ / فلاحی ٹرسٹ)</span></label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="font-size:20px;">🛡️</span>
+                                <input name="donation_trust_badge" id="donationTrustBadgeInput" value="<?=e($donationTrustBadge)?>" placeholder="مثلاً: باقاعدہ رجسٹرڈ دینی درسگاہ یا باقاعدہ تصدیق شدہ فلاحی ٹرسٹ" style="flex:1;font-size:13.5px;font-weight:600;">
+                            </div>
+                            <small class="muted">
+                                یہ بیج آن لائن ڈونیشن پورٹل (donate.php) کے ہیڈر میں بائیں جانب نظر آتا ہے۔ اگر خالی چھوڑیں گے تو مدرسہ موڈ میں خودکار <b>"باقاعدہ رجسٹرڈ دینی درسگاہ"</b> اور ٹرسٹ موڈ میں <b>"باقاعدہ تصدیق شدہ فلاحی ٹرسٹ"</b> ظاہر ہوگا۔
+                            </small>
+                        </div>
+
+                        <!-- Impact Highlights & Feature Tags -->
+                        <div class="form-group" style="margin-bottom:18px;">
+                            <label>Impact Highlights &amp; Feature Tags <span class="ur">(نمایاں جھلکیاں / فیچر ٹیگز برائے پورٹل)</span></label>
+                            <input name="donation_impact_tags" id="donationImpactTagsInput" value="<?=e($donationImpactTags)?>" placeholder="مثلاً: 🕌 مسجد و مدرسہ تعمیر, 🧱 کلاس رومز و چھت فنڈ,  صدقہ جاریہ, 📜 کمپیوٹرائزڈ شفاف رسید" style="font-size:13.5px;direction:rtl;text-align:right;">
+                            <small class="muted">
+                                کوما (,) کی مدد سے 3 سے 4 نمایاں ٹیگز لکھیں جو ڈونیشن پیج پر بینر کے نیچے سبز کیپسول / پِلز کی صورت میں ظاہر ہوں گے۔ اگر خالی چھوڑیں گے تو سسٹم منتخب مہم اور موڈ کے مطابق خودکار بہترین ٹیگز دکھائے گا۔
                             </small>
                         </div>
 
@@ -3173,37 +3211,51 @@ const appealTemplates = {
     default_madrasa: {
         title: "دینی و تعلیمی خدمات میں ہمارا ساتھ دیں",
         text: "آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، کتب و تعلیم پر دیانت داری سے خرچ کیے جاتے ہیں۔",
-        causes: "کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم"
+        causes: "کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم",
+        trust_badge: "باقاعدہ رجسٹرڈ دینی درسگاہ",
+        impact_tags: "📖 حفظ القرآن و دینی علوم, 🎓 نادار طلباء کی مفت کفالت, 🍲 مطبخ و رہائش فنڈ, 📜 کمپیوٹرائزڈ شفاف رسید"
     },
     default_trust: {
         title: "فلاحی و انسانی خدمات میں ہمارا ساتھ دیں",
         text: "آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات راشن تقسیم، مفت علاج، واٹر پروجیکٹس اور بیواؤں و یتیموں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔",
-        causes: "کفالتِ یتیم، راشن، زکوٰۃ، تعلیم"
+        causes: "کفالتِ یتیم، راشن، زکوٰۃ، تعلیم",
+        trust_badge: "باقاعدہ تصدیق شدہ فلاحی ٹرسٹ",
+        impact_tags: "🎓 یتامیٰ و مستحقین کی کفالت, 🍲 خوراک و راشن تقسیم, 🏥 فلاحی و میڈیکل خدمات, 📜 کمپیوٹرائزڈ شفاف رسید"
     },
     masjid_construction: {
         title: "جامعہ مسجد و مدرسہ تعمیراتی مہم میں حصہ لیں",
         text: "مسجد اور دینی درسگاہ کی تعمیر عظیم صدقہ جاریہ ہے۔ اپنے مرحومین کے ایصال ثواب اور دینی خدمت کے لیے کلاس رومز، چھت اور تعمیراتی مٹیریل میں اپنا حصہ شامل فرمائیں۔",
-        causes: "سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ"
+        causes: "سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ",
+        trust_badge: <?= is_madrasa_mode() ? '"باقاعدہ رجسٹرڈ دینی درسگاہ"' : '"باقاعدہ تصدیق شدہ فلاحی ٹرسٹ"' ?>,
+        impact_tags: "🕌 مسجد و درسگاہ کی تعمیر, 🧱 کلاس رومز و چھت فنڈ,  صدقہ جاریہ و دائمی ثواب, 📜 کمپیوٹرائزڈ شفاف رسید"
     },
     road_bridge: {
         title: "علاقائی راستہ، پل اور عوامی سہولت کے منصوبے میں تعاون فرمائیں",
         text: "عوام الناس اور طلباء کی آسانی کے لیے راستے، پل اور رابطہ سڑک کی تعمیر میں صدقہ جاریہ کا حصہ ڈالیں۔ یہ دائمی اجر اور مخلوق خدا کی خدمت کا عظیم ذریعہ ہے۔",
-        causes: "پتھر، سیمنٹ، سریا، لیبر مزدوری، روڈ و پل فنڈ"
+        causes: "پتھر، سیمنٹ، سریا، لیبر مزدوری، روڈ و پل فنڈ",
+        trust_badge: <?= is_madrasa_mode() ? '"باقاعدہ رجسٹرڈ دینی درسگاہ"' : '"باقاعدہ تصدیق شدہ فلاحی ٹرسٹ"' ?>,
+        impact_tags: "🌉 رابطہ پل و سڑک تعمیر, 🚜 عوامی و طلباء آمدورفت,  صدقہ جاریہ و دائمی اجر, 📜 کمپیوٹرائزڈ شفاف رسید"
     },
     water_project: {
         title: "صاف پینے کے پانی اور ہینڈ پمپ / واٹر پروجیکٹ میں ساتھ دیں",
         text: "پانی پلانا اور واٹر پروجیکٹ لگانا افضل ترین صدقات میں سے ہے۔ پسماندہ دیہات میں میٹھے پانی کے ہینڈ پمپ، کنویں اور واٹر فلٹریشن پلانٹ کی تنصیب میں اپنا تعاون فرمائیں۔",
-        causes: "ہینڈ پمپ، موٹر، بورنگ، پائپ لائن، واٹر فلٹریشن فنڈ"
+        causes: "ہینڈ پمپ، موٹر، بورنگ، پائپ لائن، واٹر فلٹریشن فنڈ",
+        trust_badge: <?= is_madrasa_mode() ? '"باقاعدہ رجسٹرڈ دینی درسگاہ"' : '"باقاعدہ تصدیق شدہ فلاحی ٹرسٹ"' ?>,
+        impact_tags: "🚰 میٹھا پینے کا پانی, 💧 ہینڈ پمپ و فلٹریشن, 🤲 افضل ترین صدقہ جاریہ, 📜 کمپیوٹرائزڈ شفاف رسید"
     },
     ramadan_ration: {
         title: "رمضان راشن پیکج اور غریب گھرانوں کی کفالت میں ہاتھ بٹائیں",
         text: "مستحق، بیوہ، یتیم اور انتہائی غریب خاندانوں تک ماہانہ راشن اور راشن بکس پہنچانے کے لیے اپنے صدقات، عطیات اور زکوٰۃ پیش فرمائیں۔",
-        causes: "راشن بیگ، آٹا، گھی، چینی، دالیں، سحر و افطار فنڈ"
+        causes: "راشن بیگ، آٹا، گھی، چینی، دالیں، سحر و افطار فنڈ",
+        trust_badge: <?= is_madrasa_mode() ? '"باقاعدہ رجسٹرڈ دینی درسگاہ"' : '"باقاعدہ تصدیق شدہ فلاحی ٹرسٹ"' ?>,
+        impact_tags: "🍲 رمضان راشن بیگ, 📦 مستحق خاندانوں کی کفالت, 🤲 زکوٰۃ و صدقاتِ واجبہ, 📜 کمپیوٹرائزڈ شفاف رسید"
     },
     orphan_students: {
         title: "یتیم و مستحق طلباء کی مکمل تعلیمی و رہائشی کفالت فرمائیں",
         text: "قرآن و سنت کی تعلیم حاصل کرنے والے نادار و یتیم طلباء کی خوراک، کتب، علاج اور ماہانہ وظائف کی کفالت کا بیڑا اٹھا کر نبی کریم ﷺ کی رفاقت کے حقدار بنیں۔",
-        causes: "مکمل ماہانہ کفالت، کتب، خوراک، رہائش، علاج فنڈ"
+        causes: "مکمل ماہانہ کفالت، کتب، خوراک، رہائش، علاج فنڈ",
+        trust_badge: <?= is_madrasa_mode() ? '"باقاعدہ رجسٹرڈ دینی درسگاہ"' : '"باقاعدہ تصدیق شدہ فلاحی ٹرسٹ"' ?>,
+        impact_tags: "🎓 یتامیٰ و طلباء کی کفالت, 📖 کتب و تعلیمی اخراجات, 🍲 خوراک و مفت رہائش, 📜 کمپیوٹرائزڈ شفاف رسید"
     }
 };
 
@@ -3219,6 +3271,8 @@ function applyAppealTemplate(key) {
     const titleInput = document.getElementById('donationAppealTitleInput');
     const descInput = document.getElementById('donationAppealTextInput');
     const causesInput = document.getElementById('donationAppealCausesInput');
+    const badgeInput = document.getElementById('donationTrustBadgeInput');
+    const tagsInput = document.getElementById('donationImpactTagsInput');
     const previewSpan = document.getElementById('causesPreviewText');
 
     if (titleInput) titleInput.value = tpl.title;
@@ -3226,6 +3280,12 @@ function applyAppealTemplate(key) {
     if (causesInput && tpl.causes) {
         causesInput.value = tpl.causes;
         if (previewSpan) previewSpan.textContent = tpl.causes;
+    }
+    if (badgeInput && tpl.trust_badge) {
+        badgeInput.value = tpl.trust_badge;
+    }
+    if (tagsInput && tpl.impact_tags) {
+        tagsInput.value = tpl.impact_tags;
     }
 }
 

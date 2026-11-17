@@ -10,7 +10,9 @@ require __DIR__ . '/../app/bootstrap.php';
 // Public page: NO require_login()
 
 $orgName = function_exists('get_setting') ? get_setting('madrasa_name', 'Mangalchai Welfare Organization') : 'Mangalchai Welfare Organization';
-$orgSubtitle = function_exists('get_setting') ? get_setting('org_subtitle', 'Financial Accounting & Welfare Trust') : 'Financial Accounting & Welfare Trust';
+$isMadrasa = function_exists('is_madrasa_mode') && is_madrasa_mode();
+$defaultSubtitle = $isMadrasa ? 'دینی درسگاہ و تعلیمی ادارہ' : 'Financial Accounting & Welfare Trust';
+$orgSubtitle = function_exists('get_setting') ? get_setting('org_subtitle', $defaultSubtitle) : $defaultSubtitle;
 $orgPhone = function_exists('get_setting') ? get_setting('madrasa_phone', '+92 331 7240256') : '+92 331 7240256';
 $orgAddress = function_exists('get_setting') ? get_setting('madrasa_address', '') : '';
 $orgLogo = function_exists('get_org_logo_url') ? get_org_logo_url() : null;
@@ -34,7 +36,42 @@ if (empty($appealCauses)) {
     if (stripos($appealTitle, 'تعمیر') !== false || stripos($appealTitle, 'مسجد') !== false || stripos($appealTitle, 'مدرسہ') !== false) {
         $appealCauses = 'سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ';
     } else {
-        $appealCauses = (function_exists('is_madrasa_mode') && is_madrasa_mode()) ? 'کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم' : 'کفالتِ یتیم، راشن، زکوٰۃ، تعلیم';
+        $appealCauses = $isMadrasa ? 'کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم' : 'کفالتِ یتیم، راشن، زکوٰۃ، تعلیم';
+    }
+}
+
+// Organization Trust / Verification Badge
+$trustBadgeText = get_setting('donation_trust_badge', '');
+if (empty($trustBadgeText)) {
+    $trustBadgeText = $isMadrasa ? 'باقاعدہ رجسٹرڈ دینی درسگاہ' : 'باقاعدہ تصدیق شدہ فلاحی ٹرسٹ';
+}
+
+// Impact Tags List
+$customImpactTagsRaw = get_setting('donation_impact_tags', '');
+if (!empty($customImpactTagsRaw)) {
+    $impactTagsList = array_values(array_filter(array_map('trim', explode(',', $customImpactTagsRaw))));
+} else {
+    if (stripos($appealTitle, 'تعمیر') !== false || stripos($appealTitle, 'مسجد') !== false || stripos($appealCauses, 'سیمنٹ') !== false || stripos($appealCauses, 'سریا') !== false) {
+        $impactTagsList = [
+            '🕌 مسجد و درسگاہ کی تعمیر',
+            '🧱 کلاس رومز و چھت فنڈ',
+            ' صدقہ جاریہ و دائمی ثواب',
+            '📜 کمپیوٹرائزڈ شفاف رسید'
+        ];
+    } elseif ($isMadrasa) {
+        $impactTagsList = [
+            '📖 حفظ القرآن و دینی علوم',
+            '🎓 نادار طلباء کی مفت کفالت',
+            '🍲 مطبخ و رہائش فنڈ',
+            '📜 کمپیوٹرائزڈ شفاف رسید'
+        ];
+    } else {
+        $impactTagsList = [
+            '🎓 یتامیٰ و مستحقین کی کفالت',
+            '🍲 خوراک و راشن تقسیم',
+            '🏥 فلاحی و میڈیکل خدمات',
+            '📜 کمپیوٹرائزڈ شفاف رسید'
+        ];
     }
 }
 
@@ -444,7 +481,7 @@ if ($submittedData) {
     }
 
     $officeWaMsg = "السلام علیکم ورحمۃ اللہ!\n" .
-        "میں نے ٹرسٹ کے آن لائن پورٹل پر رجسٹریشن کروائی ہے۔\n" .
+        "میں نے " . ($isMadrasa ? "دینی درسگاہ / مدرسہ" : "ٹرسٹ") . " کے آن لائن پورٹل پر رجسٹریشن کروائی ہے۔\n" .
         "🔹 رجسٹریشن کوڈ: #DON-" . str_pad((string)$submittedData['id'], 4, '0', STR_PAD_LEFT) . "\n" .
         "🔹 نام: *" . $submittedData['name'] . "*\n" .
         "🔹 مقصد / فنڈ: *" . $submittedData['fund'] . "*\n" .
@@ -972,7 +1009,7 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
         </a>
         <div class="portal-trust-badge">
             <span>🛡️</span>
-            <span>باقاعدہ تصدیق شدہ ٹرسٹ</span>
+            <span><?=e($trustBadgeText)?></span>
         </div>
     </div>
 </header>
@@ -983,7 +1020,7 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
     <!-- SUCCESS / CONFIRMATION VIEW -->
     <?php if (isset($_GET['slip_uploaded']) && $_GET['slip_uploaded'] === '1'): ?>
         <div style="background:#ecfdf5;border:1.5px solid #6ee7b7;color:#065f46;padding:14px 18px;border-radius:12px;margin-bottom:16px;font-weight:700;font-size:14px;text-align:center;">
-            ✓ ادائیگی کی رسید / اسکرین شاٹ کامیابی سے اپلوڈ ہو گیا ہے۔ ٹرسٹ انتظامیہ جلد تصدیق کر کے واٹس ایپ پر رسید جاری کر دے گی۔
+            ✓ ادائیگی کی رسید / اسکرین شاٹ کامیابی سے اپلوڈ ہو گیا ہے۔ <?= $isMadrasa ? 'ادارہ / مدرسہ انتظامیہ' : 'ٹرسٹ انتظامیہ' ?> جلد تصدیق کر کے واٹس ایپ پر رسید جاری کر دے گی۔
         </div>
     <?php endif; ?>
 
@@ -1226,10 +1263,9 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
             </div>
         <?php endif; ?>
         <div class="impact-tags">
-            <span class="impact-pill">🎓 یتامیٰ و طلباء کی مفت کفالت</span>
-            <span class="impact-pill">🍲 خوراک و راشن تقسیم</span>
-            <span class="impact-pill">🕌 تعمیری و عمومی فلاح</span>
-            <span class="impact-pill">📜 کمپیوٹرائزڈ شفاف رسید</span>
+            <?php foreach ($impactTagsList as $tag): ?>
+                <span class="impact-pill"><?=e($tag)?></span>
+            <?php endforeach; ?>
         </div>
     </div>
 
@@ -1406,7 +1442,7 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
                 <label>واٹس ایپ / موبائل نمبر (WhatsApp / Phone) *</label>
                 <input type="tel" name="phone" class="input-control" required placeholder="مثلاً: 03001234567" style="direction:ltr;text-align:left;">
                 <small style="color:#64748b;font-size:11.5px;margin-top:4px;display:block;">
-                    اسی واٹس ایپ نمبر پر آپ کو ٹرسٹ کی آفیشل رسیدیں اور کارکردگی رپورٹس موصول ہوں گی۔
+                    اسی واٹس ایپ نمبر پر آپ کو <?= $isMadrasa ? 'ادارہ / مدرسہ' : 'ٹرسٹ' ?> کی آفیشل رسیدیں اور کارکردگی رپورٹس موصول ہوں گی۔
                 </small>
             </div>
 

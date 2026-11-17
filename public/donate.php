@@ -29,6 +29,15 @@ $projectLocation = get_setting('donation_project_location', '');
 $projectImage = get_setting('donation_project_image', '');
 $hasProjectImage = !empty($projectImage) && file_exists(__DIR__ . '/' . $projectImage);
 
+$appealCauses = get_setting('donation_appeal_causes', '');
+if (empty($appealCauses)) {
+    if (stripos($appealTitle, 'تعمیر') !== false || stripos($appealTitle, 'مسجد') !== false || stripos($appealTitle, 'مدرسہ') !== false) {
+        $appealCauses = 'سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ';
+    } else {
+        $appealCauses = (function_exists('is_madrasa_mode') && is_madrasa_mode()) ? 'کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم' : 'کفالتِ یتیم، راشن، زکوٰۃ، تعلیم';
+    }
+}
+
 // Fallback to active bank account in accounts table if not set in settings
 if ($bankAccount === '01020304050607') {
     try {
@@ -1140,6 +1149,12 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
         <?php if ($hasProjectImage): ?>
             <div style="margin: 14px auto 10px; max-width: 520px; border-radius: 12px; overflow: hidden; border: 3px solid #ffffff; box-shadow: 0 8px 20px rgba(0,0,0,0.25);">
                 <img src="<?=e($projectImage)?>?v=<?=filemtime(__DIR__ . '/' . $projectImage)?>" alt="Project Site" style="width: 100%; height: auto; max-height: 250px; object-fit: cover; display: block;">
+            </div>
+        <?php endif; ?>
+        <?php if (!empty($appealCauses)): ?>
+            <div style="margin: 8px 0 0; display: inline-flex; align-items: center; gap: 6px; background: rgba(254,240,138,0.22); border: 1px solid rgba(254,240,138,0.45); padding: 5px 14px; border-radius: 8px; font-size: 13px; color: #fef08a; font-weight: 700;">
+                <span>🏗️ مطلوبہ اشیاء و مدات:</span>
+                <span><?=e($appealCauses)?></span>
             </div>
         <?php endif; ?>
         <div class="impact-tags">

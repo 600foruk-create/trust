@@ -518,6 +518,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute(['donation_easypaisa', trim($_POST['donation_easypaisa'] ?? '')]);
             $stmt->execute(['donation_appeal_title', trim($_POST['donation_appeal_title'] ?? '')]);
             $stmt->execute(['donation_appeal_text', trim($_POST['donation_appeal_text'] ?? '')]);
+            $stmt->execute(['donation_appeal_causes', trim($_POST['donation_appeal_causes'] ?? '')]);
             $stmt->execute(['donation_whatsapp', trim($_POST['donation_whatsapp'] ?? '')]);
             $stmt->execute(['donation_project_location', trim($_POST['donation_project_location'] ?? '')]);
 
@@ -934,6 +935,14 @@ $donationBankIban = $settingsRows['donation_bank_iban'] ?? '';
 $donationEasypaisa = $settingsRows['donation_easypaisa'] ?? $madrasaPhone;
 $donationAppealTitle = $settingsRows['donation_appeal_title'] ?? 'تعلیمی و فلاحی خدمات میں ہمارا ساتھ دیں';
 $donationAppealText = $settingsRows['donation_appeal_text'] ?? 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، تعلیم اور غریب گھرانوں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔';
+$donationAppealCauses = $settingsRows['donation_appeal_causes'] ?? '';
+if (empty($donationAppealCauses)) {
+    if (stripos($donationAppealTitle, 'تعمیر') !== false || stripos($donationAppealTitle, 'مسجد') !== false || stripos($donationAppealTitle, 'مدرسہ') !== false) {
+        $donationAppealCauses = 'سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ';
+    } else {
+        $donationAppealCauses = is_madrasa_mode() ? 'کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم' : 'کفالتِ یتیم، راشن، زکوٰۃ، تعلیم';
+    }
+}
 $donationWhatsapp = $settingsRows['donation_whatsapp'] ?? $madrasaPhone;
 $donationProjectLocation = $settingsRows['donation_project_location'] ?? '';
 $donationProjectImage = $settingsRows['donation_project_image'] ?? '';
@@ -1400,6 +1409,15 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                             <label>Appeal Description / Project Details <span class="ur">(تفصیلی پیغام یا پروجیکٹ تفصیلات)</span> *</label>
                             <textarea name="donation_appeal_text" id="donationAppealTextInput" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;line-height:1.6;" placeholder="تفصیلی پیغام یا پروجیکٹ کی تفصیلات تحریر فرمائیں..."><?=e($donationAppealText)?></textarea>
                             <small class="muted">Impact statement shown to donors before registration and in the QR poster header.</small>
+                        </div>
+
+                        <!-- QR Poster Cause Items (Instruction Point #3) -->
+                        <div class="form-group" style="margin-bottom:16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px 14px;">
+                            <label style="color:#166534;font-weight:700;">QR Poster Item Causes <span class="ur">(کیو آر پوسٹر پوائنٹ 3: ضروری اشیاء / مدات برائے عطیہ)</span> *</label>
+                            <input name="donation_appeal_causes" id="donationAppealCausesInput" value="<?=e($donationAppealCauses)?>" placeholder="مثلاً: سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ" style="font-size:14px;font-weight:700;color:#0f172a;background:#ffffff;border:1.5px solid #22c55e;">
+                            <small style="color:#15803d;display:block;margin-top:6px;line-height:1.5;font-size:12px;">
+                                💡 یہ الفاظ کیو آر پوسٹر کی ہدایت نمبر 3 پر بریکٹ میں ظاہر ہوتے ہیں: <b>"3. اپنی پسندیدہ مد (<span id="causesPreviewText"><?=e($donationAppealCauses)?></span>) منتخب کر کے باآسانی رجسٹریشن مکمل فرمائیں۔"</b>
+                            </small>
                         </div>
 
                         <!-- Project Location / Address -->
@@ -3146,31 +3164,38 @@ document.getElementById('projectImageFileInput')?.addEventListener('change', fun
 const appealTemplates = {
     default_madrasa: {
         title: "دینی و تعلیمی خدمات میں ہمارا ساتھ دیں",
-        text: "آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، کتب و تعلیم پر دیانت داری سے خرچ کیے جاتے ہیں۔"
+        text: "آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، کتب و تعلیم پر دیانت داری سے خرچ کیے جاتے ہیں۔",
+        causes: "کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم"
     },
     default_trust: {
         title: "فلاحی و انسانی خدمات میں ہمارا ساتھ دیں",
-        text: "آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات راشن تقسیم، مفت علاج، واٹر پروجیکٹس اور بیواؤں و یتیموں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔"
+        text: "آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات راشن تقسیم، مفت علاج، واٹر پروجیکٹس اور بیواؤں و یتیموں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔",
+        causes: "کفالتِ یتیم، راشن، زکوٰۃ، تعلیم"
     },
     masjid_construction: {
         title: "جامعہ مسجد و مدرسہ تعمیراتی مہم میں حصہ لیں",
-        text: "مسجد اور دینی درسگاہ کی تعمیر عظیم صدقہ جاریہ ہے۔ اپنے مرحومین کے ایصال ثواب اور دینی خدمت کے لیے کلاس رومز، چھت اور تعمیراتی مٹیریل میں اپنا حصہ شامل فرمائیں۔"
+        text: "مسجد اور دینی درسگاہ کی تعمیر عظیم صدقہ جاریہ ہے۔ اپنے مرحومین کے ایصال ثواب اور دینی خدمت کے لیے کلاس رومز، چھت اور تعمیراتی مٹیریل میں اپنا حصہ شامل فرمائیں۔",
+        causes: "سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ"
     },
     road_bridge: {
         title: "علاقائی راستہ، پل اور عوامی سہولت کے منصوبے میں تعاون فرمائیں",
-        text: "عوام الناس اور طلباء کی آسانی کے لیے راستے، پل اور رابطہ سڑک کی تعمیر میں صدقہ جاریہ کا حصہ ڈالیں۔ یہ دائمی اجر اور مخلوق خدا کی خدمت کا عظیم ذریعہ ہے۔"
+        text: "عوام الناس اور طلباء کی آسانی کے لیے راستے، پل اور رابطہ سڑک کی تعمیر میں صدقہ جاریہ کا حصہ ڈالیں۔ یہ دائمی اجر اور مخلوق خدا کی خدمت کا عظیم ذریعہ ہے۔",
+        causes: "پتھر، سیمنٹ، سریا، لیبر مزدوری، روڈ و پل فنڈ"
     },
     water_project: {
         title: "صاف پینے کے پانی اور ہینڈ پمپ / واٹر پروجیکٹ میں ساتھ دیں",
-        text: "پانی پلانا اور واٹر پروجیکٹ لگانا افضل ترین صدقات میں سے ہے۔ پسماندہ دیہات میں میٹھے پانی کے ہینڈ پمپ، کنویں اور واٹر فلٹریشن پلانٹ کی تنصیب میں اپنا تعاون فرمائیں۔"
+        text: "پانی پلانا اور واٹر پروجیکٹ لگانا افضل ترین صدقات میں سے ہے۔ پسماندہ دیہات میں میٹھے پانی کے ہینڈ پمپ، کنویں اور واٹر فلٹریشن پلانٹ کی تنصیب میں اپنا تعاون فرمائیں۔",
+        causes: "ہینڈ پمپ، موٹر، بورنگ، پائپ لائن، واٹر فلٹریشن فنڈ"
     },
     ramadan_ration: {
         title: "رمضان راشن پیکج اور غریب گھرانوں کی کفالت میں ہاتھ بٹائیں",
-        text: "مستحق، بیوہ، یتیم اور انتہائی غریب خاندانوں تک ماہانہ راشن اور راشن بکس پہنچانے کے لیے اپنے صدقات، عطیات اور زکوٰۃ پیش فرمائیں۔"
+        text: "مستحق، بیوہ، یتیم اور انتہائی غریب خاندانوں تک ماہانہ راشن اور راشن بکس پہنچانے کے لیے اپنے صدقات، عطیات اور زکوٰۃ پیش فرمائیں۔",
+        causes: "راشن بیگ، آٹا، گھی، چینی، دالیں، سحر و افطار فنڈ"
     },
     orphan_students: {
         title: "یتیم و مستحق طلباء کی مکمل تعلیمی و رہائشی کفالت فرمائیں",
-        text: "قرآن و سنت کی تعلیم حاصل کرنے والے نادار و یتیم طلباء کی خوراک، کتب، علاج اور ماہانہ وظائف کی کفالت کا بیڑا اٹھا کر نبی کریم ﷺ کی رفاقت کے حقدار بنیں۔"
+        text: "قرآن و سنت کی تعلیم حاصل کرنے والے نادار و یتیم طلباء کی خوراک، کتب، علاج اور ماہانہ وظائف کی کفالت کا بیڑا اٹھا کر نبی کریم ﷺ کی رفاقت کے حقدار بنیں۔",
+        causes: "مکمل ماہانہ کفالت، کتب، خوراک، رہائش، علاج فنڈ"
     }
 };
 
@@ -3185,8 +3210,15 @@ function applyAppealTemplate(key) {
 
     const titleInput = document.getElementById('donationAppealTitleInput');
     const descInput = document.getElementById('donationAppealTextInput');
+    const causesInput = document.getElementById('donationAppealCausesInput');
+    const previewSpan = document.getElementById('causesPreviewText');
+
     if (titleInput) titleInput.value = tpl.title;
     if (descInput) descInput.value = tpl.text;
+    if (causesInput && tpl.causes) {
+        causesInput.value = tpl.causes;
+        if (previewSpan) previewSpan.textContent = tpl.causes;
+    }
 }
 
 function copyPortalLink() {

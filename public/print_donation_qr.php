@@ -26,6 +26,15 @@ $projectLocation = get_setting('donation_project_location', '');
 $projectImage = get_setting('donation_project_image', '');
 $hasProjectImage = !empty($projectImage) && file_exists(__DIR__ . '/' . $projectImage);
 
+$appealCauses = get_setting('donation_appeal_causes', '');
+if (empty($appealCauses)) {
+    if (stripos($appealTitle, 'تعمیر') !== false || stripos($appealTitle, 'مسجد') !== false || stripos($appealTitle, 'مدرسہ') !== false) {
+        $appealCauses = 'سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ';
+    } else {
+        $appealCauses = (function_exists('is_madrasa_mode') && is_madrasa_mode()) ? 'کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم' : 'کفالتِ یتیم، راشن، زکوٰۃ، تعلیم';
+    }
+}
+
 // QR Code URL (High-res 400x400 API)
 $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=' . urlencode($portalUrl);
 ?>
@@ -529,7 +538,7 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
                 <ol>
                     <li>اپنے موبائل فون کا کیمرہ یا واٹس ایپ / گوگل لینس اوپن کریں۔</li>
                     <li>کیمرے کا رخ اس QR Code کے سامنے لائیں اور لنک پر کلک کریں۔</li>
-                    <li>اپنی پسندیدہ مہم (کفالتِ یتیم، راشن، زکوٰۃ، تعلیم) منتخب کر کے باآسانی رجسٹریشن مکمل فرمائیں۔</li>
+                    <li>اپنی پسندیدہ مد (<strong><?=e($appealCauses)?></strong>) منتخب کر کے باآسانی رجسٹریشن مکمل فرمائیں۔</li>
                 </ol>
                 <div>
                     <span class="qr-url-pill"><?=e($portalUrl)?></span>

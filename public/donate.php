@@ -1425,19 +1425,17 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
                 </select>
             </div>
 
-            <!-- Amount Preset Chips -->
-            <div class="amount-chips" id="chipsContainer">
-                <button type="button" class="amt-chip" onclick="setAmount(1000, this)">Rs. 1,000</button>
-                <button type="button" class="amt-chip" onclick="setAmount(2000, this)">Rs. 2,000</button>
-                <button type="button" class="amt-chip popular active" onclick="setAmount(5000, this)">Rs. 5,000</button>
-                <button type="button" class="amt-chip" onclick="setAmount(10000, this)">Rs. 10,000</button>
-                <button type="button" class="amt-chip" onclick="setAmount(25000, this)">Rs. 25,000</button>
-                <button type="button" class="amt-chip" onclick="setCustomAmount(this)">دیگر رقم (Custom)</button>
-            </div>
-
-            <div class="input-group">
-                <input type="number" name="amount" id="amountInput" class="input-control" value="5000" min="1" step="any" required placeholder="رقم درج کریں" oninput="updateConversionPreview()" style="font-size:18px;font-weight:800;color:#059669;letter-spacing:1px;">
-                <div id="conversionPreview" style="font-size:12.5px;color:#059669;font-weight:700;margin-top:6px;display:none;"></div>
+            <!-- Custom Amount Input Only (Chips removed for simplicity) -->
+            <div class="input-group" style="margin-top:14px;margin-bottom:18px;">
+                <label for="amountInput" style="font-size:14px;font-weight:800;color:#0f172a;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <span>💵 عطیہ / تعاون کی رقم درج فرمائیں (Enter Amount):</span>
+                    <span id="amountCurrencyBadge" style="font-size:12px;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;padding:2px 8px;border-radius:6px;font-weight:700;">PKR (Rs.)</span>
+                </label>
+                <input type="number" name="amount" id="amountInput" class="input-control" value="" min="1" step="any" required placeholder="رقم یہاں تحریر فرمائیں (مثلاً: 1000، 5000، 15000...)" oninput="updateConversionPreview()" style="font-size:19px;font-weight:800;color:#047857;letter-spacing:1px;padding:14px 16px;border:2px solid #86efac;border-radius:12px;width:100%;box-sizing:border-box;">
+                <div id="conversionPreview" style="font-size:13px;color:#059669;font-weight:700;margin-top:6px;display:none;background:#ecfdf5;padding:6px 12px;border-radius:8px;border:1px solid #a7f3d0;"></div>
+                <small style="color:#64748b;font-size:12px;display:block;margin-top:5px;">
+                    💡 اپنی مرضی اور وسعت کے مطابق کوئی بھی رقم درج فرما سکتے ہیں۔
+                </small>
             </div>
 
             <!-- Preferred Day of Month (for Monthly Pledge) -->
@@ -1543,58 +1541,50 @@ var currencyPresets = {
 
 function onCurrencyChange() {
     var sel = document.getElementById('currencySelect');
+    if (!sel) return;
     var curr = sel.value;
     var opt = sel.options[sel.selectedIndex];
-    var symbol = opt.getAttribute('data-symbol') || '';
-    var presets = currencyPresets[curr] || currencyPresets['PKR'];
-    var container = document.getElementById('chipsContainer');
-
-    var html = '';
-    presets.forEach(function(val, idx) {
-        var isPop = (idx === 2) ? ' popular active' : '';
-        html += '<button type="button" class="amt-chip' + isPop + '" onclick="setAmount(' + val + ', this)">' + symbol + ' ' + val.toLocaleString() + '</button> ';
-    });
-    html += '<button type="button" class="amt-chip" onclick="setCustomAmount(this)">دیگر رقم (Custom)</button>';
-    container.innerHTML = html;
-
-    // Default to the 3rd preset
-    setAmount(presets[2]);
+    var symbol = opt ? opt.getAttribute('data-symbol') : '';
+    var badge = document.getElementById('amountCurrencyBadge');
+    if (badge) {
+        badge.textContent = curr + (symbol ? ' (' + symbol + ')' : '');
+    }
     updateConversionPreview();
 }
 
 function updateConversionPreview() {
     var sel = document.getElementById('currencySelect');
+    if (!sel) return;
     var curr = sel.value;
-    var rate = parseFloat(sel.options[sel.selectedIndex].getAttribute('data-rate')) || 1.0;
-    var amt = parseFloat(document.getElementById('amountInput').value) || 0;
+    var opt = sel.options[sel.selectedIndex];
+    var rate = opt ? (parseFloat(opt.getAttribute('data-rate')) || 1.0) : 1.0;
+    var inp = document.getElementById('amountInput');
+    var amt = inp ? (parseFloat(inp.value) || 0) : 0;
     var preview = document.getElementById('conversionPreview');
 
-    if (curr !== 'PKR' && amt > 0) {
-        var pkr = Math.round(amt * rate);
-        preview.textContent = '≈ مساوی تقریباً: PKR ' + pkr.toLocaleString() + ' روپے';
-        preview.style.display = 'block';
-    } else {
-        preview.style.display = 'none';
+    if (preview) {
+        if (curr !== 'PKR' && amt > 0) {
+            var pkr = Math.round(amt * rate);
+            preview.textContent = '≈ مساوی تقریباً: PKR ' + pkr.toLocaleString() + ' روپے';
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
     }
 }
 
 function setAmount(amt, btn) {
-    document.getElementById('amountInput').value = amt;
-    document.querySelectorAll('.amt-chip').forEach(function(c) {
-        c.classList.remove('active');
-    });
-    if (btn) btn.classList.add('active');
+    var inp = document.getElementById('amountInput');
+    if (inp) inp.value = amt;
     updateConversionPreview();
 }
 
 function setCustomAmount(btn) {
     var inp = document.getElementById('amountInput');
-    inp.value = '';
-    inp.focus();
-    document.querySelectorAll('.amt-chip').forEach(function(c) {
-        c.classList.remove('active');
-    });
-    if (btn) btn.classList.add('active');
+    if (inp) {
+        inp.value = '';
+        inp.focus();
+    }
     updateConversionPreview();
 }
 

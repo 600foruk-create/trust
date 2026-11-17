@@ -1297,19 +1297,22 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                     <div style="padding: 22px 26px;">
                         <!-- Live Public Link Quick Banner -->
                         <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
-                            <div>
+                            <div style="flex:1;min-width:240px;max-width:100%;">
                                 <div style="font-weight:800;color:#065f46;font-size:14px;display:flex;align-items:center;gap:6px;">
                                     <span>🌐</span>
                                     <span>Public Donation &amp; Pledge Page URL:</span>
                                 </div>
                                 <div style="margin-top:4px;">
-                                    <code style="font-size:13.5px;color:#047857;background:#fff;padding:3px 8px;border-radius:6px;border:1px solid #6ee7b7;font-family:monospace;"><?=e(get_app_base_url())?>/donate.php</code>
+                                    <code style="font-size:13.5px;color:#047857;background:#fff;padding:4px 8px;border-radius:6px;border:1px solid #6ee7b7;font-family:monospace;word-break:break-all;max-width:100%;display:inline-block;"><?=e(get_app_base_url())?>/donate.php</code>
                                 </div>
                                 <div style="font-size:12px;color:#047857;margin-top:4px;">
                                     اس لنک کو فیس بک، واٹس ایپ اسٹیٹس یا اشتہارات پر شیئر کریں تاکہ ڈونرز باآسانی عطیات اور ماہانہ کفالت آن لائن درج کر سکیں۔
                                 </div>
                             </div>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <a href="print_donation_qr.php" target="_blank" class="btn sm" style="background:#0284c7;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:5px;">
+                                    🖼️ کیو آر پوسٹر (QR Poster)
+                                </a>
                                 <a href="<?=e(get_app_base_url())?>/donate.php" target="_blank" class="btn sm" style="background:#059669;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;">
                                     👁️ View Live Page
                                 </a>
@@ -1367,7 +1370,7 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                         <div class="setting-section-title" id="appealSection" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                             <span>3. Donation Appeal &amp; Poster Header <span class="ur">(عوامی اپیل و کیو آر پوسٹر ہیڈر)</span></span>
                             <div style="display:flex;gap:8px;">
-                                <a href="print_donation_qr.php" target="_blank" class="btn secondary sm" style="font-size:12px;padding:4px 12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                                <a href="print_donation_qr.php" target="_blank" class="btn secondary sm" style="font-size:12px;padding:5px 12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-weight:700;border:1.5px solid #0284c7;color:#0284c7;background:#f0f9ff;">
                                     🖼️ Preview QR Poster <span class="ur">(پوسٹر دیکھیں)</span>
                                 </a>
                             </div>
@@ -1414,7 +1417,7 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                         <!-- QR Poster Cause Items (Instruction Point #3) -->
                         <div class="form-group" style="margin-bottom:16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px 14px;">
                             <label style="color:#166534;font-weight:700;">QR Poster Item Causes <span class="ur">(کیو آر پوسٹر پوائنٹ 3: ضروری اشیاء / مدات برائے عطیہ)</span> *</label>
-                            <input name="donation_appeal_causes" id="donationAppealCausesInput" value="<?=e($donationAppealCauses)?>" placeholder="مثلاً: سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ" style="font-size:14px;font-weight:700;color:#0f172a;background:#ffffff;border:1.5px solid #22c55e;">
+                            <input name="donation_appeal_causes" id="donationAppealCausesInput" value="<?=e($donationAppealCauses)?>" placeholder="مثلاً: سیمنٹ، سریا، اینٹیں، ریت بجری، کلاس روم یا چھت فنڈ" style="font-size:14px;font-weight:700;color:#0f172a;background:#ffffff;border:1.5px solid #22c55e;width:100%;box-sizing:border-box;">
                             <small style="color:#15803d;display:block;margin-top:6px;line-height:1.5;font-size:12px;">
                                 💡 یہ الفاظ کیو آر پوسٹر کی ہدایت نمبر 3 پر بریکٹ میں ظاہر ہوتے ہیں: <b>"3. اپنی پسندیدہ مد (<span id="causesPreviewText"><?=e($donationAppealCauses)?></span>) منتخب کر کے باآسانی رجسٹریشن مکمل فرمائیں۔"</b>
                             </small>
@@ -1547,9 +1550,14 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
 
                         <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
                             <button class="btn blue" type="submit" style="padding:11px 24px;font-weight:700;">💾 Save Donation &amp; Bank Settings <span class="ur">(ترتیبات محفوظ کریں)</span></button>
-                            <a href="<?=e(get_app_base_url())?>/donate.php" target="_blank" style="color:#059669;font-weight:700;font-size:13.5px;text-decoration:none;">
-                                🌐 Open Public Page in New Tab &rarr;
-                            </a>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                <a href="print_donation_qr.php" target="_blank" class="btn secondary sm" style="font-weight:700;padding:8px 14px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;border-color:#0284c7;color:#0284c7;">
+                                    🖼️ کیو آر پوسٹر (QR Poster)
+                                </a>
+                                <a href="<?=e(get_app_base_url())?>/donate.php" target="_blank" style="color:#059669;font-weight:700;font-size:13.5px;text-decoration:none;">
+                                    🌐 Open Public Page &rarr;
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </article>

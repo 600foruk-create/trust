@@ -882,6 +882,74 @@ $viralShareUrl = 'https://api.whatsapp.com/send?text=' . urlencode($shareMsg);
             z-index: 1000;
             direction: rtl;
         }
+        @media (max-width: 640px) {
+            .portal-header-wrap {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .portal-brand-title {
+                font-size: 16px;
+            }
+            .portal-trust-badge {
+                font-size: 11px;
+                padding: 4px 10px;
+                align-self: flex-start;
+            }
+            .portal-container {
+                margin: 14px auto 40px;
+                padding: 0 10px;
+            }
+            .appeal-hero {
+                padding: 20px 14px;
+                border-radius: 16px;
+                margin-bottom: 18px;
+            }
+            .appeal-hero h1 {
+                font-size: 19px;
+                line-height: 1.35;
+            }
+            .appeal-hero p {
+                font-size: 13px;
+                line-height: 1.7;
+            }
+            .form-card {
+                padding: 18px 14px;
+                border-radius: 14px;
+                margin-bottom: 18px;
+            }
+            .fund-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            .contrib-toggle {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            .amount-chips {
+                gap: 6px;
+            }
+            .amt-chip {
+                padding: 7px 14px;
+                font-size: 12.5px;
+            }
+            .submit-btn {
+                padding: 14px 18px;
+                font-size: 15.5px;
+            }
+            .bank-card {
+                padding: 14px 12px;
+            }
+            .bank-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            .copy-pill {
+                align-self: flex-start;
+                margin-top: 4px;
+            }
+        }
     </style>
 </head>
 <body>

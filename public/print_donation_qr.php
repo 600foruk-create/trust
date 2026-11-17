@@ -428,6 +428,233 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
         .dl-btn:hover {
             background: #0369a1;
         }
+        .edit-btn {
+            background: #fef3c7;
+            border: 1.5px solid #fde68a;
+            color: #92400e;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            text-decoration: none;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .edit-btn:hover {
+            background: #fde68a;
+        }
+        .back-btn {
+            background: #e2e8f0;
+            color: #1e293b;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            text-decoration: none;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .back-btn:hover {
+            background: #cbd5e1;
+        }
+
+        /* Mobile Optimization (<= 768px) */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 10px 8px;
+            }
+            .no-print-bar {
+                padding: 12px;
+                margin-bottom: 12px;
+                border-radius: 12px;
+                gap: 10px;
+            }
+            .no-print-header {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 10px !important;
+            }
+            .no-print-actions {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px !important;
+                width: 100%;
+            }
+            .no-print-actions .wa-btn {
+                grid-column: 1 / -1;
+                justify-content: center;
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+            .no-print-actions .dl-btn,
+            .no-print-actions .print-btn,
+            .no-print-actions .edit-btn,
+            .no-print-actions .back-btn {
+                justify-content: center;
+                text-align: center;
+                padding: 10px 8px;
+                font-size: 12px;
+            }
+            .selectors-row {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 10px !important;
+            }
+            .pill-scroll-row {
+                display: flex !important;
+                align-items: center;
+                gap: 6px;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+                padding: 3px 2px 6px;
+                scrollbar-width: thin;
+            }
+            .pill-scroll-row::-webkit-scrollbar {
+                height: 4px;
+            }
+            .pill-scroll-row::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 4px;
+            }
+
+            /* Poster Canvas Mobile */
+            .poster-canvas {
+                border-width: 5px;
+                border-radius: 14px;
+                padding: 14px 10px;
+                max-width: 100% !important;
+                box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+            }
+            .inner-border {
+                border-width: 1.5px;
+                border-radius: 10px;
+                padding: 12px 8px;
+            }
+            .header-section {
+                padding-bottom: 12px;
+                margin-bottom: 14px;
+            }
+            .org-logo {
+                max-height: 55px;
+                max-width: 100px;
+            }
+            .org-title {
+                font-size: 20px;
+                line-height: 1.3;
+                margin-bottom: 4px;
+            }
+            .org-sub {
+                font-size: 12.5px;
+            }
+
+            /* Appeal section mobile */
+            .appeal-banner {
+                padding: 14px 12px;
+                border-radius: 12px;
+                margin-bottom: 16px;
+                text-align: center !important;
+            }
+            .appeal-flex {
+                flex-direction: column-reverse;
+                gap: 12px;
+            }
+            .appeal-banner h2 {
+                font-size: 17px;
+                line-height: 1.4;
+                margin-bottom: 6px;
+            }
+            .appeal-banner p {
+                font-size: 12.5px;
+                line-height: 1.6;
+            }
+            .appeal-photo-side {
+                width: 100%;
+                max-width: 280px;
+                margin: 0 auto;
+            }
+            .appeal-photo-img {
+                height: 140px;
+            }
+            .appeal-location-pill {
+                font-size: 11.5px;
+                padding: 4px 10px;
+                margin-top: 8px;
+                justify-content: center;
+                display: inline-flex;
+            }
+
+            /* QR Box Mobile */
+            .qr-center-box {
+                flex-direction: column;
+                gap: 14px;
+                padding: 14px 10px;
+                margin-bottom: 16px;
+                text-align: center;
+                border-radius: 14px;
+            }
+            .qr-img-wrap {
+                padding: 8px;
+                border-radius: 12px;
+                display: inline-block;
+            }
+            .qr-img {
+                width: 160px;
+                height: 160px;
+                max-width: 100%;
+            }
+            .qr-instructions h3 {
+                font-size: 16px;
+                margin-bottom: 6px;
+            }
+            .qr-instructions ol {
+                padding-right: 18px;
+                font-size: 12.5px;
+                line-height: 1.8;
+                text-align: right;
+            }
+            .qr-url-pill {
+                font-size: 11px;
+                padding: 4px 10px;
+                max-width: 100%;
+                word-break: break-all;
+                display: inline-block;
+                line-height: 1.4;
+            }
+
+            /* Accounts Grid Mobile */
+            .accounts-grid {
+                grid-template-columns: 1fr !important;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+            .account-card {
+                padding: 12px 14px;
+                border-radius: 10px;
+            }
+            .account-card h4 {
+                font-size: 14px;
+                padding-bottom: 5px;
+                margin-bottom: 7px;
+            }
+            .acc-row {
+                font-size: 12.5px;
+            }
+            .acc-num {
+                font-size: 13.5px;
+                word-break: break-all;
+            }
+
+            /* Footer Mobile */
+            .footer-banner {
+                padding-top: 10px;
+                font-size: 11.5px;
+                line-height: 1.5;
+            }
+        }
+
         @media print {
             body {
                 background: #ffffff;
@@ -437,12 +664,28 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
                 display: none !important;
             }
             .poster-canvas {
-                border-width: 6px;
-                box-shadow: none;
-                margin: 0;
-                padding: 20px 24px;
-                width: 100%;
-                max-width: 100%;
+                border-width: 6px !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 20px 24px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .accounts-grid {
+                grid-template-columns: 1fr 1fr !important;
+            }
+            .qr-center-box {
+                flex-direction: row !important;
+                text-align: right !important;
+            }
+            .appeal-flex {
+                flex-direction: row !important;
+            }
+            .appeal-photo-side {
+                width: 210px !important;
+            }
+            .appeal-banner {
+                text-align: right !important;
             }
         }
     </style>
@@ -450,12 +693,14 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
 <body>
 
 <div class="no-print-bar">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div class="no-print-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
-            <strong style="color:#0f172a;font-size:15px;">🖨️ پرنٹ ایبل ڈونیشن کیو آر پوسٹر (Donation QR Poster)</strong>
-            <div style="font-size:12px;color:#64748b;">رنگ و سائز منتخب کریں، واٹس ایپ پر شیئر کریں یا تصویر محفوظ کریں۔</div>
+            <strong style="color:#0f172a;font-size:15px;display:flex;align-items:center;gap:6px;">
+                <span>🖨️</span> <span>پرنٹ ایبل ڈونیشن کیو آر پوسٹر (Donation QR Poster)</span>
+            </strong>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">موبائل یا کمپیوٹر پر رنگ و فارمیٹ منتخب کریں، واٹس ایپ پر شیئر کریں یا پرنٹ کریں۔</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="no-print-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button type="button" class="wa-btn" id="btnShareWhatsApp" onclick="sharePosterWhatsApp()" title="پوسٹر کی تصویر اور ڈونیشن لنک واٹس ایپ پر شیئر کریں">
                 <span>💬 واٹس ایپ پر شیئر کریں (Share on WhatsApp)</span>
             </button>
@@ -465,25 +710,25 @@ $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&
             <button type="button" class="print-btn" onclick="window.print()">
                 <span>🖨️ پرنٹ / PDF</span>
             </button>
-            <a href="settings.php?tab=donations#appealSection" target="_blank" style="background:#fef3c7;border:1.5px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+            <a href="settings.php?tab=donations#appealSection" target="_blank" class="edit-btn">
                 <span>✏️ اپیل تبدیل کریں</span>
             </a>
-            <a href="donors.php" style="background:#e2e8f0;color:#1e293b;padding:8px 14px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:700;">
+            <a href="donors.php" class="back-btn">
                 ✕ واپس جائیں
             </a>
         </div>
     </div>
     <!-- Quick Theme & Format Selector -->
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid #f1f5f9;padding-top:10px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="font-size:12px;font-weight:700;color:#64748b;">🎨 رنگ / تھیم:</span>
+    <div class="selectors-row" style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid #f1f5f9;padding-top:10px;flex-wrap:wrap;">
+        <div class="pill-scroll-row">
+            <span style="font-size:12px;font-weight:700;color:#64748b;white-space:nowrap;">🎨 رنگ / تھیم:</span>
             <button type="button" class="theme-pill active" onclick="setPosterTheme('', this)">🟢 اسلامی سبز</button>
             <button type="button" class="theme-pill" onclick="setPosterTheme('blue', this)">🔵 رائل بلیو</button>
             <button type="button" class="theme-pill" onclick="setPosterTheme('maroon', this)">🔴 میرون</button>
             <button type="button" class="theme-pill" onclick="setPosterTheme('slate', this)">⚫ سلیٹ و گولڈ</button>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="font-size:12px;font-weight:700;color:#64748b;">📐 سائز / فارمیٹ:</span>
+        <div class="pill-scroll-row">
+            <span style="font-size:12px;font-weight:700;color:#64748b;white-space:nowrap;">📐 فارمیٹ:</span>
             <button type="button" class="format-pill active" onclick="setPosterFormat('a4', this)">📄 A4 فل پرنٹ</button>
             <button type="button" class="format-pill" onclick="setPosterFormat('status', this)">📱 واٹس ایپ اسٹیٹس (9:16)</button>
             <button type="button" class="format-pill" onclick="setPosterFormat('square', this)">🖼️ سوشل میڈیا (1:1)</button>

@@ -40,38 +40,69 @@ if (empty($appealCauses)) {
     }
 }
 
-// Organization Trust / Verification Badge
-$trustBadgeText = get_setting('donation_trust_badge', '');
-if (empty($trustBadgeText)) {
+// Organization Trust / Verification Badge (#1)
+$trustBadgeText = trim(get_setting('donation_trust_badge', ''));
+if (empty($trustBadgeText) || ($isMadrasa && stripos($trustBadgeText, 'ٹرسٹ') !== false) || (!$isMadrasa && (stripos($trustBadgeText, 'درسگاہ') !== false || stripos($trustBadgeText, 'مدرسہ') !== false))) {
     $trustBadgeText = $isMadrasa ? 'باقاعدہ رجسٹرڈ دینی درسگاہ' : 'باقاعدہ تصدیق شدہ فلاحی ٹرسٹ';
 }
 
-// Impact Tags List
-$customImpactTagsRaw = get_setting('donation_impact_tags', '');
-if (!empty($customImpactTagsRaw)) {
-    $impactTagsList = array_values(array_filter(array_map('trim', explode(',', $customImpactTagsRaw))));
+// Impact Tags List (#2)
+$customImpactTagsRaw = trim(get_setting('donation_impact_tags', ''));
+$isStaleConstructionInTrust = (!$isMadrasa && (stripos($customImpactTagsRaw, 'درسگاہ') !== false || stripos($customImpactTagsRaw, 'مدرسہ') !== false));
+$isStaleTrustInMadrasa = ($isMadrasa && (stripos($customImpactTagsRaw, 'میڈیکل') !== false || stripos($customImpactTagsRaw, 'ٹرسٹ') !== false));
+
+if (!empty($customImpactTagsRaw) && !$isStaleConstructionInTrust && !$isStaleTrustInMadrasa) {
+    // Supports both English comma ',' and Urdu comma '،'
+    $impactTagsList = array_values(array_filter(array_map('trim', preg_split('/[,،\n\r|]+/u', $customImpactTagsRaw))));
 } else {
-    if (stripos($appealTitle, 'تعمیر') !== false || stripos($appealTitle, 'مسجد') !== false || stripos($appealCauses, 'سیمنٹ') !== false || stripos($appealCauses, 'سریا') !== false) {
-        $impactTagsList = [
-            '🕌 مسجد و درسگاہ کی تعمیر',
-            '🧱 کلاس رومز و چھت فنڈ',
-            ' صدقہ جاریہ و دائمی ثواب',
-            '📜 کمپیوٹرائزڈ شفاف رسید'
-        ];
-    } elseif ($isMadrasa) {
-        $impactTagsList = [
-            '📖 حفظ القرآن و دینی علوم',
-            '🎓 نادار طلباء کی مفت کفالت',
-            '🍲 مطبخ و رہائش فنڈ',
-            '📜 کمپیوٹرائزڈ شفاف رسید'
-        ];
+    if ($isMadrasa) {
+        // MADRASA MODE
+        if (stripos($appealTitle, 'تعمیر') !== false || stripos($appealTitle, 'مسجد') !== false || stripos($appealCauses, 'سیمنٹ') !== false || stripos($appealCauses, 'سریا') !== false) {
+            $impactTagsList = [
+                '🕌 مسجد و درسگاہ کی تعمیر',
+                '🧱 کلاس رومز و چھت فنڈ',
+                ' صدقہ جاریہ و دائمی ثواب',
+                '📜 کمپیوٹرائزڈ شفاف رسید'
+            ];
+        } else {
+            $impactTagsList = [
+                '📖 حفظ القرآن و دینی علوم',
+                '🎓 نادار طلباء کی مفت کفالت',
+                '🍲 مطبخ و رہائش فنڈ',
+                '📜 کمپیوٹرائزڈ شفاف رسید'
+            ];
+        }
     } else {
-        $impactTagsList = [
-            '🎓 یتامیٰ و مستحقین کی کفالت',
-            '🍲 خوراک و راشن تقسیم',
-            '🏥 فلاحی و میڈیکل خدمات',
-            '📜 کمپیوٹرائزڈ شفاف رسید'
-        ];
+        // TRUST MODE
+        if (stripos($appealTitle, 'تعمیر') !== false && (stripos($appealTitle, 'پل') !== false || stripos($appealTitle, 'راستہ') !== false || stripos($appealTitle, 'روڈ') !== false)) {
+            $impactTagsList = [
+                '🌉 رابطہ پل و سڑک تعمیر',
+                '🚜 عوامی و طلباء آمدورفت',
+                ' صدقہ جاریہ و دائمی اجر',
+                '📜 کمپیوٹرائزڈ شفاف رسید'
+            ];
+        } elseif (stripos($appealTitle, 'پانی') !== false || stripos($appealTitle, 'water') !== false) {
+            $impactTagsList = [
+                '🚰 میٹھا پینے کا پانی',
+                '💧 ہینڈ پمپ و فلٹریشن',
+                '🤲 افضل ترین صدقہ جاریہ',
+                '📜 کمپیوٹرائزڈ شفاف رسید'
+            ];
+        } elseif (stripos($appealTitle, 'راشن') !== false || stripos($appealTitle, 'خوراک') !== false || stripos($appealTitle, 'ramadan') !== false) {
+            $impactTagsList = [
+                '🍲 راشن بیگ و خوراک',
+                '📦 مستحق گھرانوں کی کفالت',
+                '🤲 زکوٰۃ و صدقاتِ واجبہ',
+                '📜 کمپیوٹرائزڈ شفاف رسید'
+            ];
+        } else {
+            $impactTagsList = [
+                '🎓 یتامیٰ و مستحقین کی کفالت',
+                '🍲 خوراک و راشن تقسیم',
+                '🏥 فلاحی و میڈیکل خدمات',
+                '📜 کمپیوٹرائزڈ شفاف رسید'
+            ];
+        }
     }
 }
 

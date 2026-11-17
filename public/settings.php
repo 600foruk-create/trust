@@ -768,6 +768,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                     $stmtSet->execute(['org_type', $targetMode, $targetMode]);
                     $stmtSet->execute(['madrasa_name', $finalOrgName, $finalOrgName]);
                     $stmtSet->execute(['org_subtitle', $finalOrgSubtitle, $finalOrgSubtitle]);
+
+                    // Automatically sync badge and impact tags with target mode
+                    $defaultBadge = ($targetMode === 'madrasa') ? 'باقاعدہ رجسٹرڈ دینی درسگاہ' : 'باقاعدہ تصدیق شدہ فلاحی ٹرسٹ';
+                    $defaultTags = ($targetMode === 'madrasa') 
+                        ? '📖 حفظ القرآن و دینی علوم, 🎓 نادار طلباء کی مفت کفالت, 🍲 مطبخ و رہائش فنڈ, 📜 کمپیوٹرائزڈ شفاف رسید'
+                        : '🎓 یتامیٰ و مستحقین کی کفالت, 🍲 خوراک و راشن تقسیم, 🏥 فلاحی و میڈیکل خدمات, 📜 کمپیوٹرائزڈ شفاف رسید';
+                    $stmtSet->execute(['donation_trust_badge', $defaultBadge, $defaultBadge]);
+                    $stmtSet->execute(['donation_impact_tags', $defaultTags, $defaultTags]);
                     $appliedActions[] = 'identity_reset';
                 }
 
@@ -811,12 +819,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                     if ($targetMode === 'madrasa') {
                         $appTitle = 'دینی و تعلیمی خدمات میں ہمارا ساتھ دیں';
                         $appText = 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات یتامیٰ و مستحق طلباء کی مفت رہائش، خوراک، کتب و تعلیم پر دیانت داری سے خرچ کیے جاتے ہیں۔';
+                        $appCauses = 'کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم';
+                        $appBadge = 'باقاعدہ رجسٹرڈ دینی درسگاہ';
+                        $appTags = '📖 حفظ القرآن و دینی علوم, 🎓 نادار طلباء کی مفت کفالت, 🍲 مطبخ و رہائش فنڈ, 📜 کمپیوٹرائزڈ شفاف رسید';
                     } else {
                         $appTitle = 'فلاحی و انسانی خدمات میں ہمارا ساتھ دیں';
                         $appText = 'آپ کا دیا ہوا صدقہ، زکوٰۃ اور عطیات راشن تقسیم، مفت علاج، واٹر پروجیکٹس اور بیواؤں و یتیموں کی کفالت پر دیانت داری سے خرچ کیے جاتے ہیں۔';
+                        $appCauses = 'کفالتِ یتیم، راشن، زکوٰۃ، تعلیم';
+                        $appBadge = 'باقاعدہ تصدیق شدہ فلاحی ٹرسٹ';
+                        $appTags = '🎓 یتامیٰ و مستحقین کی کفالت, 🍲 خوراک و راشن تقسیم, 🏥 فلاحی و میڈیکل خدمات, 📜 کمپیوٹرائزڈ شفاف رسید';
                     }
                     $stmtSet->execute(['donation_appeal_title', $appTitle, $appTitle]);
                     $stmtSet->execute(['donation_appeal_text', $appText, $appText]);
+                    $stmtSet->execute(['donation_appeal_causes', $appCauses, $appCauses]);
+                    $stmtSet->execute(['donation_trust_badge', $appBadge, $appBadge]);
+                    $stmtSet->execute(['donation_impact_tags', $appTags, $appTags]);
                     $appliedActions[] = 'appeal_reset';
                 }
 
@@ -945,17 +962,23 @@ if (empty($donationAppealCauses)) {
         $donationAppealCauses = is_madrasa_mode() ? 'کفالتِ یتیم، زکوٰۃ، راشن، کتب و تعلیم' : 'کفالتِ یتیم، راشن، زکوٰۃ، تعلیم';
     }
 }
+$isMadrasaModeActive = is_madrasa_mode();
+
 $donationTrustBadge = $settingsRows['donation_trust_badge'] ?? '';
-if (empty($donationTrustBadge)) {
-    $donationTrustBadge = is_madrasa_mode() ? 'باقاعدہ رجسٹرڈ دینی درسگاہ' : 'باقاعدہ تصدیق شدہ فلاحی ٹرسٹ';
+if (empty($donationTrustBadge) || ($isMadrasaModeActive && stripos($donationTrustBadge, 'ٹرسٹ') !== false) || (!$isMadrasaModeActive && (stripos($donationTrustBadge, 'درسگاہ') !== false || stripos($donationTrustBadge, 'مدرسہ') !== false))) {
+    $donationTrustBadge = $isMadrasaModeActive ? 'باقاعدہ رجسٹرڈ دینی درسگاہ' : 'باقاعدہ تصدیق شدہ فلاحی ٹرسٹ';
 }
 
 $donationImpactTags = $settingsRows['donation_impact_tags'] ?? '';
-if (empty($donationImpactTags)) {
-    if (stripos($donationAppealTitle, 'تعمیر') !== false || stripos($donationAppealTitle, 'مسجد') !== false || stripos($donationAppealCauses, 'سیمنٹ') !== false || stripos($donationAppealCauses, 'سریا') !== false) {
-        $donationImpactTags = '🕌 مسجد و درسگاہ کی تعمیر, 🧱 کلاس رومز و چھت فنڈ,  صدقہ جاریہ و دائمی ثواب, 📜 کمپیوٹرائزڈ شفاف رسید';
-    } elseif (is_madrasa_mode()) {
-        $donationImpactTags = '📖 حفظ القرآن و دینی علوم, 🎓 نادار طلباء کی مفت کفالت, 🍲 مطبخ و رہائش فنڈ, 📜 کمپیوٹرائزڈ شفاف رسید';
+$isStaleInSettings = (empty($donationImpactTags) || (!$isMadrasaModeActive && (stripos($donationImpactTags, 'درسگاہ') !== false || stripos($donationImpactTags, 'مدرسہ') !== false)) || ($isMadrasaModeActive && (stripos($donationImpactTags, 'میڈیکل') !== false || stripos($donationImpactTags, 'ٹرسٹ') !== false)));
+
+if ($isStaleInSettings) {
+    if ($isMadrasaModeActive) {
+        if (stripos($donationAppealTitle, 'تعمیر') !== false || stripos($donationAppealTitle, 'مسجد') !== false || stripos($donationAppealCauses, 'سیمنٹ') !== false || stripos($donationAppealCauses, 'سریا') !== false) {
+            $donationImpactTags = '🕌 مسجد و درسگاہ کی تعمیر, 🧱 کلاس رومز و چھت فنڈ,  صدقہ جاریہ و دائمی ثواب, 📜 کمپیوٹرائزڈ شفاف رسید';
+        } else {
+            $donationImpactTags = '📖 حفظ القرآن و دینی علوم, 🎓 نادار طلباء کی مفت کفالت, 🍲 مطبخ و رہائش فنڈ, 📜 کمپیوٹرائزڈ شفاف رسید';
+        }
     } else {
         $donationImpactTags = '🎓 یتامیٰ و مستحقین کی کفالت, 🍲 خوراک و راشن تقسیم, 🏥 فلاحی و میڈیکل خدمات, 📜 کمپیوٹرائزڈ شفاف رسید';
     }

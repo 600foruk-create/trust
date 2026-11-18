@@ -332,6 +332,7 @@ try {
 
 <script>
 var zakatFundId = <?=(int)$zakatFundId?>;
+var currentCalculatedZakat = 0;
 
 function num(val) {
     var n = parseFloat(val);
@@ -415,13 +416,25 @@ function calculateZakat(isManualVal = false) {
         resultBox.style.borderColor = '#cbd5e1';
     }
 
+    currentCalculatedZakat = zakatDue;
     document.getElementById('resZakatAmount').textContent = formatMoney(zakatDue);
     document.getElementById('resZakatWords').textContent = zakatDue > 0 ? (Number(zakatDue.toFixed(2)).toLocaleString() + ' روپے') : 'صفر روپے';
 }
 
 function redirectToIncomeVoucher() {
-    var rawText = document.getElementById('resZakatAmount').textContent.replace(/[^0-9.]/g, '');
-    var amount = parseFloat(rawText) || 0;
+    var amount = (typeof currentCalculatedZakat === 'number' && currentCalculatedZakat > 0)
+        ? currentCalculatedZakat
+        : 0;
+
+    if (amount <= 0) {
+        var txt = (document.getElementById('resZakatAmount').textContent || '').trim();
+        txt = txt.replace(/^Rs\.?\s*/i, '').replace(/,/g, '').trim();
+        var parsed = parseFloat(txt);
+        if (!isNaN(parsed) && parsed > 0) {
+            amount = parsed;
+        }
+    }
+
     if (amount <= 0) {
         alert('براہ کرم پہلے اثاثہ جات درج کریں تاکہ زکوٰۃ کی رقم کا حساب ہو سکے۔');
         return;

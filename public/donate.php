@@ -9,9 +9,10 @@ require __DIR__ . '/../app/bootstrap.php';
 
 // Public page: NO require_login()
 
-$orgName = function_exists('get_setting') ? get_setting('madrasa_name', 'Mangalchai Welfare Organization') : 'Mangalchai Welfare Organization';
 $isMadrasa = function_exists('is_madrasa_mode') && is_madrasa_mode();
-$defaultSubtitle = $isMadrasa ? 'دینی درسگاہ و تعلیمی ادارہ' : 'Financial Accounting & Welfare Trust';
+$defaultOrgName = $isMadrasa ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الوحید ویلفیئر ٹرسٹ';
+$orgName = function_exists('get_setting') ? get_setting('madrasa_name', $defaultOrgName) : $defaultOrgName;
+$defaultSubtitle = $isMadrasa ? 'دینی درسگاہ و تعلیمی ادارہ' : 'فلاح و بہبود اور انسانی خدمت';
 $orgSubtitle = function_exists('get_setting') ? get_setting('org_subtitle', $defaultSubtitle) : $defaultSubtitle;
 $orgPhone = function_exists('get_setting') ? get_setting('madrasa_phone', '+92 331 7240256') : '+92 331 7240256';
 $orgAddress = function_exists('get_setting') ? get_setting('madrasa_address', '') : '';

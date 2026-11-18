@@ -760,7 +760,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
                 // 2. Reset Organization Name & Subtitle to Target Mode
                 if ($doResetIdentity) {
                     $stmtSet = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
-                    $defaultName = ($targetMode === 'madrasa') ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الحبیب ویلفیئر ٹرسٹ';
+                    $defaultName = ($targetMode === 'madrasa') ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الوحید ویلفیئر ٹرسٹ';
                     $customName = trim($_POST['custom_org_name'] ?? '');
                     $finalOrgName = $customName !== '' ? $customName : $defaultName;
                     $finalOrgSubtitle = ($targetMode === 'madrasa') ? 'تعلیم، تربیت اور دینی خدمات' : 'فلاح و بہبود اور انسانی خدمت';
@@ -1227,7 +1227,7 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
 
                         <div class="form-group" style="margin-bottom:18px;">
                             <label><?=is_madrasa_mode() ? 'Madrasa / Jamia Name <span class="ur">(مدرسہ / دار العلوم کا نام)</span>' : 'Organization / Trust Name <span class="ur">(ادارے / ٹرسٹ کا نام)</span>'?> *</label>
-                            <input name="madrasa_name" value="<?=e($madrasaName)?>" required placeholder="<?=is_madrasa_mode() ? 'e.g. Jamia Dar-ul-Uloom' : 'e.g. Mangalchai Welfare Organization'?>">
+                            <input name="madrasa_name" value="<?=e($madrasaName)?>" required placeholder="<?=is_madrasa_mode() ? 'e.g. Jamia Dar-ul-Uloom' : 'e.g. الوحید ویلفیئر ٹرسٹ'?>">
                             <small class="muted">This name appears on the dashboard header, vouchers, and reports.</small>
                         </div>
 
@@ -1370,7 +1370,7 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                         <div class="form-grid-2">
                             <div class="form-group" style="margin-bottom:16px;">
                                 <label>Account Title <span class="ur">(اکاؤنٹ ٹائٹل)</span> *</label>
-                                <input name="donation_bank_title" value="<?=e($donationBankTitle)?>" placeholder="e.g. Mangalchai Welfare Organization" required>
+                                <input name="donation_bank_title" value="<?=e($donationBankTitle)?>" placeholder="e.g. الوحید ویلفیئر ٹرسٹ" required>
                                 <small class="muted">Name of trust / entity on bank record</small>
                             </div>
 
@@ -1402,7 +1402,7 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
 
                         <div class="form-group" style="margin-bottom:18px;">
                             <label>EasyPaisa / JazzCash Details <span class="ur">(ایزی پیسہ و جاز کیش نمبر و ٹائٹل)</span></label>
-                            <input name="donation_easypaisa" value="<?=e($donationEasypaisa)?>" placeholder="e.g. 0331-7240256 (Title: Admin / Welfare Trust)">
+                            <input name="donation_easypaisa" value="<?=e($donationEasypaisa)?>" placeholder="e.g. 0331-7240256 (Title: Admin / الوحید ویلفیئر ٹرسٹ)">
                             <small class="muted">Displayed on the public portal for quick mobile transfers.</small>
                         </div>
 
@@ -2757,7 +2757,7 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;font-size:13px;line-height:1.6;">
                                 <div style="background:#f8fafc;padding:10px 14px;border-radius:7px;border:1px solid #e2e8f0;">
                                     <span style="color:#64748b;display:block;font-size:11.5px;">🏛️ ڈیفالٹ ادارے کا نام (Organization Name):</span>
-                                    <b id="previewOrgName" style="color:#0f172a;font-size:13.5px;"><?=is_madrasa_mode() ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الحبیب ویلفیئر ٹرسٹ'?></b>
+                                    <b id="previewOrgName" style="color:#0f172a;font-size:13.5px;"><?=is_madrasa_mode() ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الوحید ویلفیئر ٹرسٹ'?></b>
                                 </div>
                                 <div style="background:#f8fafc;padding:10px 14px;border-radius:7px;border:1px solid #e2e8f0;">
                                     <span style="color:#64748b;display:block;font-size:11.5px;">🏷️ ذیلی تعارف (Org Subtitle):</span>
@@ -2782,7 +2782,7 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
                                 <label style="display:block;font-size:12.5px;font-weight:600;color:#475569;margin-bottom:4px;">
                                     اختیاری: اگر آپ ڈیفالٹ نام کے بجائے ادارے کا کوئی مخصوص نام رکھنا چاہتے ہیں تو یہاں درج کریں (Optional Custom Name):
                                 </label>
-                                <input type="text" name="custom_org_name" id="customOrgNameInput" placeholder="<?=is_madrasa_mode() ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الحبیب ویلفیئر ٹرسٹ'?>" style="width:100%;font-size:13px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;">
+                                <input type="text" name="custom_org_name" id="customOrgNameInput" placeholder="<?=is_madrasa_mode() ? 'جامعہ دارالعلوم / مدرسہ اسلامیہ' : 'الوحید ویلفیئر ٹرسٹ'?>" style="width:100%;font-size:13px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;">
                             </div>
                         </div>
 
@@ -2953,7 +2953,7 @@ $allPermissionsDef = function_exists('get_all_permissions_definition') ? get_all
             trust: {
                 badgeClass: "badge badge-blue",
                 badgeText: "🏢 فلاحی ٹرسٹ موڈ",
-                orgName: "الحبیب ویلفیئر ٹرسٹ",
+                orgName: "الوحید ویلفیئر ٹرسٹ",
                 subtitle: "فلاح و بہبود اور انسانی خدمت",
                 fund: "Trust General Fund (ٹرسٹ جنرل فنڈ - TGF)",
                 signatures: "Prepared By (تیار کنندہ) | Accountant / Cashier (اکاؤنٹنٹ) | Director / Chairman (دستخط مجاز اتھارٹی)",
